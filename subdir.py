@@ -17,7 +17,9 @@ class Subdir():
         elif(not _os.path.exists(self.dirname)):
             _os.mkdir(self.dirname)
         _os.chdir(self.dirname)
+        self.path = "%s/%s" % (self.workdirname, self.dirname)
+        return self
     def __exit__(self, exc_type, exc_value, traceback):
         _os.chdir(self.workdirname)
         if(self.temp):
-            _shutil.rmtree("%s/%s" % (self.workdirname, self.dirname))
+            _shutil.rmtree(self.path)

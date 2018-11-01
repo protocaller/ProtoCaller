@@ -18,6 +18,6 @@ def runExternal(*commands, procname=None, output_filebase=None):
         print("OK")
     except _subprocess.CalledProcessError:
         print("FAILED")
-        raise OSError("Error while calling command %s" % procname)
+        raise OSError("Error while calling command '%s'" % procname)
     stdout.close()
     stderr.close()

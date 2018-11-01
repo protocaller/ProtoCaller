@@ -1,11 +1,15 @@
 import const as _const
 
+import os as _os
 import re as _re
+import subprocess as _subprocess
+import tempfile as _tempfile
 import warnings as _warnings
 
 import BioSimSpace as _BSS
 from rdkit import Chem as _Chem
 from rdkit.Chem import AllChem as _rdkitAllChem
+import parmed as _pmd
 
 import IO as _IO
 import pdbconnect as _pdbconnect
@@ -15,14 +19,18 @@ from Wrappers import babelwrapper as _babel
 from Wrappers import modellerwrapper as _modeller
 from Wrappers import PDB2PQRwrapper as _PDB2PQR
 from Wrappers import protosswrapper as _protoss
+from Wrappers import runexternal as _runexternal
 
 class Ensemble:
-    def __init__(self, engine, box_length=12, ion_conc=0.154, protein_ff=_const.AMBERDEFAULTPROTEINFF,
-                 ligand_ff=_const.AMBERDEFAULTLIGANDFF, water_ff=_const.AMBERDEFAULTWATERFF, protein=None,
-                 ligand_id=None, morphs=None):
+    def __init__(self, engine, box_length=12, ion_conc=0.154, shell=0, neutralise=True, center=True,
+                 protein_ff=_const.AMBERDEFAULTPROTEINFF, ligand_ff=_const.AMBERDEFAULTLIGANDFF,
+                 water_ff=_const.AMBERDEFAULTWATERFF, protein=None, ligand_id=None, morphs=None):
         self.engine = engine
         self.box_length = box_length
         self.ion_conc = ion_conc
+        self.shell = shell
+        self.neutralise = neutralise
+        self.center = center
         self.params = _parametrise.Params(protein_ff=protein_ff, ligand_ff=ligand_ff, water_ff=water_ff)
         self.protein = protein
         self.ligand_id = ligand_id
@@ -256,6 +264,7 @@ class Ensemble:
 
     def parametrisePDB(self):
         with self._subdir:
+            print("Parametrising original crystal without any ligands...")
             #extract non-protein residues from pdb file and save them as separate pdb files
             hetatm_files, hetatm_types = self._protein_obj.writeHetatms()
             non_protein_residues = self._protein_obj.filterResidues(excludedict={"_type": ["water", "cation", "anion"]})
@@ -290,7 +299,6 @@ class Ensemble:
                                                                          molecule_type="ligand").getMolecules()[0]]
 
     def prepareComplexes(self):
-        box = 3 * [self.box_length * _BSS.Units.Length.nanometer]
         print("Parametrising all ligands. This will take a while...")
         self._parametriseLigands()
 
@@ -300,36 +308,130 @@ class Ensemble:
             ligand_ref = _BSS.IO.readMolecules(ligand_ref).getMolecules()[0]
 
             for i, (ligand1, ligand2) in enumerate(self.morphs):
-                with _subdir.Subdir("Pair %d" % (i + 1)):
+                with _subdir.Subdir("Pair %d" % (i + 1)) as curdir:
                     print("Creating morph %d..." % (i + 1))
                     ligand1_prep = self._ligand_prep[self._ligands.index(ligand1)]
                     ligand2_prep = self._ligand_prep[self._ligands.index(ligand2)]
 
                     ligand1_prep = _BSS.Align.rmsdAlign(ligand1_prep, ligand_ref)
+                    ligand2_prep = _BSS.Align.rmsdAlign(ligand2_prep, ligand1_prep)
                     morph = _BSS.Align.merge(ligand1_prep, ligand2_prep)
 
                     complex = self._complex_template + morph
 
                     print("Solvating...")
-                    while True:
-                        try:
-                            complex = _BSS.Solvent.solvate(self.params.water_ff, molecule=complex, box=box,
-                                                           ion_conc=self.ion_conc)
-                            break
-                        except ValueError:
-                            print("Box size of %d nm is too small, attempting box size of %d nm" %
-                                  (self.box_length, self.box_length + 1))
-                            self.box_length += 1
-                            box = 3 * [self.box_length * _BSS.Units.Length.nanometer]
-                            continue
-
+                    complex = self._solvate(complex, work_dir=curdir.path)
                     self.complexes += [complex]
 
                     print("Saving as GROMACS...")
-                    _BSS.IO.saveMolecules("complex", complex, "Gro87")
-                    _BSS.IO.saveMolecules("complex", complex, "GroTop")
-                    print("Saving as AMBER...")
-                    _BSS.IO.saveMolecules("complex", complex, "PRM7,RST7")
+                    _BSS.IO.saveMolecules("complex_final", complex, "Gro87")
+                    _BSS.IO.saveMolecules("complex_final", complex, "GroTop")
+                    _pmd.load_file("complex_final.gro87").save("complex_final.gro")
+                    _os.rename("complex_final.grotop", "complex_final.top")
+
+    def _solvate(self, complex, work_dir=None):
+        if work_dir is None:
+            tmp_dir = _tempfile.TemporaryDirectory()
+            work_dir = tmp_dir.name
+        with _subdir.Subdir(dirname=work_dir):
+            _BSS.IO.saveMolecules("complex", complex, "gro87")
+            _BSS.IO.saveMolecules("complex", complex, "grotop")
+            files = ["complex.gro", "complex.top"]
+            _os.rename("complex.gro87", files[0])
+            _os.rename("complex.grotop", files[1])
+
+            """CENTERING"""
+
+            if self.center:
+                new_gro = "complex_centered.gro"
+                command = "{0} editconf -box {1} {1} {1} -f {2} -o {3}".format(_const.GROMACSEXE, self.box_length,
+                                                                               files[0], new_gro)
+                try:
+                    _runexternal.runExternal(command, procname="gmx editconf")
+                    files[0] = new_gro
+                    complex = _BSS.IO.readMolecules(files)
+                except:
+                    print("Continuing solvation with uncentered system...")
+
+            """SOLVATING"""
+
+            new_gro = "complex_solvated.gro"
+            command = "{0} solvate -shell {1} -box {2} {2} {2} -cp {3} -o {4}".format(_const.GROMACSEXE, self.shell,
+                                                                                      self.box_length, files[0], new_gro)
+
+            try:
+                """CREATE UNPARAMETRISED WATERS AND LOAD THEM INTO MEMORY"""
+
+                _runexternal.runExternal(command, procname="gmx solvate")
+                complex_solvated = _pmd.load_file(new_gro)
+                waters = complex_solvated[":SOL"]
+
+                """PREPARE WATERS FOR TLEAP AND PARAMETRISE"""
+
+                for residue in waters.residues:
+                    residue.name = "WAT"
+                for i, atom in enumerate(waters.atoms):
+                    if "H" in atom.name:
+                        atom.name = atom.name[0] + atom.name[2]
+                    elif "O" in atom.name:
+                        atom.name = "O"
+
+                waters.save("waters.pdb")
+                waters_prep = _parametrise.parametriseAndLoadPmd(self.params, "waters.pdb", "water")
+                waters_prep.box = _pmd.load_file(files[1], xyz=files[0], skip_bonds=True).box
+                for residue in waters_prep.residues:
+                    residue.name = "SOL"
+                waters_prep_filenames = ["waters.gro", "waters.top"]
+                for filename in waters_prep_filenames:
+                    waters_prep.save(filename)
+
+            except:
+                print("Solvation failed. Returning original system...")
+                return complex
+
+            """ADD IONS"""
+
+            if any([self.neutralise, self.ion_conc, self.shell]):
+                """WRITE MDP FILE"""
+
+                with open("ions.mdp", "w") as file:
+                    file.write("; Neighbour searching\n")
+                    file.write("cutoff-scheme           = Verlet\n")
+                    file.write("rlist                   = 1.1\n")
+                    file.write("pbc                     = xyz\n")
+                    file.write("verlet-buffer-tolerance = -1\n")
+                    file.write("\n; Electrostatics\n")
+                    file.write("coulombtype             = cut-off\n")
+                    file.write("\n; VdW\n")
+                    file.write("rvdw                    = 1.0\n")
+
+                n_Na, n_Cl = [int((self.box_length * 10**-8)** 3 * 6.022 * 10**23 * self.ion_conc)] * 2
+                if self.neutralise:
+                    charge = round(complex.charge().magnitude())
+                    if charge > 0:
+                        n_Na += charge
+                    else:
+                        n_Cl += charge
+
+                try:
+                    ions_prep_filenames = ["ions.gro", "ions.top"]
+                    command = "{0} grompp -f ions.mdp -c {1} -p {2} -o complex_solvated.tpr".format(
+                        _const.GROMACSEXE, *waters_prep_filenames)
+                    _runexternal.runExternal(command, procname="gmx grompp")
+
+                    command = "{{ echo 2; }} | {0} genion -s complex_solvated.tpr -o {1} -nn {2} -np {3}".format(
+                        _const.GROMACSEXE, ions_prep_filenames[0], n_Cl, n_Na)
+                    _runexternal.runExternal(command, procname="gmx genion")
+
+                    _pmd.load_file(ions_prep_filenames[0])[":CL,NA"].save("ions.pdb")
+                    _os.remove(ions_prep_filenames[0])
+                    ions_prep = _parametrise.parametriseAndLoadPmd(self.params, "ions.pdb", "water")
+                    for filename in ions_prep_filenames:
+                        (ions_prep + waters_prep).save(filename)
+                except:
+                    print("Ion addition failed. Returning solvated system...")
+                    return complex + _BSS.IO.readMolecules(waters_prep_filenames)
+            return complex + _BSS.IO.readMolecules(ions_prep_filenames)
 
     @staticmethod
     def _checkProtein(val):

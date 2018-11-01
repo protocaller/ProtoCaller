@@ -45,11 +45,15 @@ class Params:
             raise ValueError("Value %s not supported. Supported values: " % val, _const.WATERFFS)
         self._water_ff = val
 
-def parametriseAndLoadPmd(params, **kwargs):
-    return _pmd.load_file(*parametriseFile(params, **kwargs))
+def parametriseAndLoadPmd(params, *args, **kwargs):
+    files = parametriseFile(params, *args, **kwargs)
+    if len(files) == 2:
+        return _pmd.load_file(files[0], xyz=files[1])
+    else:
+        return _pmd.load_file(files[0])
 
-def parametriseAndLoadBSS(params, **kwargs):
-    return _BSS.IO.readMolecules(parametriseFile(params, **kwargs))
+def parametriseAndLoadBSS(params, *args, **kwargs):
+    return _BSS.IO.readMolecules(parametriseFile(params, *args, **kwargs))
 
 def parametriseFile(params, input_filename, molecule_type, id=None):
     input_filebase, input_extension = input_filename.split(".")
