@@ -3,105 +3,113 @@ from collections.abc import Iterable as _Iterable
 import BioSimSpace as _BSS
 
 class Protocol:
-    def __init__(self, **kwargs):
-        self.__params = {
-            #integrators
-            "integrator": _BSS.Gateway.String(help="Which integrator to use",
-                                              allowed=["leapfrog", "velocity_verlet", "steep", "l-bfgs", "stochastic"]),
-            "timestep": _BSS.Gateway.Float(help="What timestep to use in ps"),
-            "n_steps": _BSS.Gateway.Integer(help="How many timesteps to run the simulation for", minimum=0),
+    def __init__(self, use_preset=None, **kwargs):
+        #integrators
+        self.integrator = _BSS.Gateway.String(help="Which integrator to use",
+                                              allowed=["leapfrog", "velocity_verlet", "steep", "l-bfgs", "stochastic"])
+        self.timestep = _BSS.Gateway.Float(help="What timestep to use in ps")
+        self.n_steps = _BSS.Gateway.Integer(help="How many timesteps to run the simulation for", minimum=0)
 
-            #output options
-            "skip_positions": _BSS.Gateway.Integer(help="How many timesteps to skip when writing the positions",
-                                                   minimum=0),
-            "skip_velocities": _BSS.Gateway.Integer(help="How many timesteps to skip when writing the velocities",
-                                                    minimum=0),
-            "skip_forces": _BSS.Gateway.Integer(help="How many timesteps to skip when writing the forces",
-                                                minimum=0),
-            "skip_energies": _BSS.Gateway.Integer(help="How many timesteps to skip when writing the energies",
-                                                  minimum=0),
+        #output options
+        self.skip_positions = _BSS.Gateway.Integer(help="How many timesteps to skip when writing the positions",
+                                                   minimum=0)
+        self.skip_velocities = _BSS.Gateway.Integer(help="How many timesteps to skip when writing the velocities",
+                                                    minimum=0)
+        self.skip_forces = _BSS.Gateway.Integer(help="How many timesteps to skip when writing the forces",
+                                                minimum=0)
+        self.skip_energies = _BSS.Gateway.Integer(help="How many timesteps to skip when writing the energies",
+                                                  minimum=0)
 
-            #neigbours
-            "neighbour_search": _BSS.Gateway.String(help="How to perform neighbour searching",
-                                                    allowed=["grid", "simple"]),
-            "periodic_boundary_conditions": _BSS.Gateway.String(
-                help="Whether and how to implement periodic boundary conditions",
-                allowed=["3d", "2d", "no"]),
-            "neighbour_cutoff": _BSS.Gateway.Integer(help="Cutoff in nm for neighbour list",
-                                                     minimum=-1),
-            "neighbour_frequency": _BSS.Gateway.Integer(help="How often to update the neighbour list in timesteps",
-                                                        minimum=-1),
+        #neigbours
+        self.periodic_boundary_conditions = _BSS.Gateway.String(
+            help="Whether and how to implement periodic boundary conditions",
+            allowed=["3d", "2d", "no"])
+        self.neighbour_cutoff = _BSS.Gateway.Float(help="Cutoff in nm for neighbour list",
+                                                   minimum=-1)
+        self.neighbour_frequency = _BSS.Gateway.Integer(help="How often to update the neighbour list in timesteps",
+                                                        minimum=-1)
 
-            #electrostatics options
-            "coulomb_type": _BSS.Gateway.String(help="What type of Coulomb interactions to use",
-                                                allowed=["cutoff", "ewald", "pme"]),
-            "pme_order": _BSS.Gateway.Integer(help="What order of PME to use. Ignored if coulomb_type is not PME.",
-                                              allowed=[4, 6, 8, 10]),
-            "coulomb_cutoff": _BSS.Gateway.Integer(help="Cutoff in nm for electrostatics",
-                                                   minimum=0),
+        #electrostatics options
+        self.coulomb_type = _BSS.Gateway.String(help="What type of Coulomb interactions to use",
+                                                allowed=["cutoff", "ewald", "pme"])
+        self.pme_order = _BSS.Gateway.Integer(help="What order of PME to use. Ignored if coulomb_type is not PME.",
+                                              allowed=[4, 6, 8, 10])
+        self.coulomb_cutoff = _BSS.Gateway.Float(help="Cutoff in nm for electrostatics",
+                                                 minimum=0)
 
-            #van der Waals options
-            "vdw_type": _BSS.Gateway.String(help="What type of van der Waals interactions to use",
-                                            allowed=["cutoff", "pme"]),
-            "vdw_corr": _BSS.Gateway.String(help="What type of long-distance correction to apply",
-                                            allowed=["no", "energy", "energy_pressure"]),
-            "vdw_cutoff": _BSS.Gateway.Integer(help="Cutoff in nm for van der Waals interactions",
-                                               minimum=0),
+        #van der Waals options
+        self.vdw_type = _BSS.Gateway.String(help="What type of van der Waals interactions to use",
+                                            allowed=["cutoff", "pme"])
+        self.vdw_corr = _BSS.Gateway.String(help="What type of long-distance correction to apply",
+                                            allowed=["no", "energy", "energy_pressure"])
+        self.vdw_cutoff = _BSS.Gateway.Float(help="Cutoff in nm for van der Waals interactions",
+                                             minimum=0)
 
-            #temperature options
-            "thermostat": _BSS.Gateway.String(help="What thermostat to use",
-                                              allowed=["no", "berendsen", "nose-hoover", "andersen"]),
-            "temp_frequency": _BSS.Gateway.Integer(help="Thermostat friction coefficient / collision frequency in THz.",
-                                                    minimum=-1),
-            "temp_time_const": _BSS.Gateway.Integer(
-                help="Time constant for thermostat coupling in ps. -1 means no coupling",
-                minimum=-1),
-            "temperature": _BSS.Gateway.Integer(help="Simulation temperature",
-                                                minimum=0),
+        #temperature options
+        self.thermostat = _BSS.Gateway.String(help="What thermostat to use",
+                                              allowed=["no", "berendsen", "nose-hoover", "andersen"])
+        self.temp_frequency = _BSS.Gateway.Integer(help="Thermostat friction coefficient / collision frequency in THz.",
+                                                   minimum=-1)
+        self.temp_time_const = _BSS.Gateway.Float(
+            help="Time constant for thermostat coupling in ps. -1 means no coupling",
+            minimum=-1)
+        self.temperature = _BSS.Gateway.Integer(help="Simulation temperature",
+                                                minimum=0)
 
-            #pressure options
-            "barostat": _BSS.Gateway.String(help="What barostat to use",
-                                            allowed=["no", "berendsen", "parrinello-rahman"]),
-            "pres_frequency": _BSS.Gateway.Integer(help="Barostat friction coefficient / collision frequency in THz.",
-                                                   minimum=-1),
-            "pres_time_const": _BSS.Gateway.Integer(
-                help="Time constant for barostat coupling in ps. -1 means no coupling",
-                minimum=-1),
-            "pressure": _BSS.Gateway.Float(help="Simulation pressure",
-                                           minimum=0.0),
+        #pressure options
+        self.barostat = _BSS.Gateway.String(help="What barostat to use",
+                                            allowed=["no", "berendsen", "parrinello-rahman"])
+        self.pres_frequency = _BSS.Gateway.Integer(help="Barostat friction coefficient / collision frequency in THz.",
+                                                   minimum=-1)
+        self.pres_time_const = _BSS.Gateway.Float(
+            help="Time constant for barostat coupling in ps. -1 means no coupling",
+            minimum=-1)
+        self.pressure = _BSS.Gateway.Float(help="Simulation pressure",
+                                           minimum=0.0)
 
-            #initial velocity options
-            "random_velocities": _BSS.Gateway.Boolean(help="Whether to generate random velocities"),
-            "random_velocities_temperature": _BSS.Gateway.Integer(help="Temperature to sample velocities from",
-                                                                  minimum=0),
-            "random_velocities_seed": _BSS.Gateway.Integer(help="Seed for random velocity sampling. -1 is random seed",
-                                                           minimum=-1),
+        #initial velocity options
+        self.random_velocities = _BSS.Gateway.Boolean(help="Whether to generate random velocities")
+        self.random_velocities_temperature = _BSS.Gateway.Integer(help="Temperature to sample velocities from",
+                                                                  minimum=0)
+        self.random_velocities_seed = _BSS.Gateway.Integer(help="Seed for random velocity sampling. -1 is random seed",
+                                                           minimum=-1)
 
-            #constraint options
-            "constraint": _BSS.Gateway.String(help="Which constraints to apply",
-                                              allowed=["no", "h_bonds", "h_angles", "all_bonds", "all_angles"]),
-            "constraint_type": _BSS.Gateway.String(help="Which constraint algorithm to use",
-                                                   allowed=["lincs", "shake"]),
+        #constraint options
+        self.constraint = _BSS.Gateway.String(help="Which constraints to apply",
+                                              allowed=["no", "h_bonds", "h_angles", "all_bonds", "all_angles"])
+        self.constraint_type = _BSS.Gateway.String(help="Which constraint algorithm to use",
+                                                   allowed=["lincs", "shake"])
 
-            #free energy options
-            "free_energy": _BSS.Gateway.Boolean(help="Whether this is a free energy calculation"),
-            "current_lambda": _BSS.Gateway.Integer(help="The current lambda. Indices start from 0",
-                                                   minimum=0),
-            "coulomb_lambdas": [],
-            "vdw_lambdas": [],
-            "bonded_lambdas": [],
-            "restraint_lambdas": [],
-            "mass_lambdas": [],
-            "temperature_lambdas": [],
-            "write_derivatives": _BSS.Gateway.Boolean(help="Whether to write dH/dλ"),
-        }
+        #free energy options
+        self.free_energy = _BSS.Gateway.Boolean(help="Whether this is a free energy calculation")
+        self.current_lambda = _BSS.Gateway.Integer(help="The current lambda. Indices start from 0",
+                                                   minimum=0)
+        self.coulomb_lambdas = []
+        self.vdw_lambdas = []
+        self.bonded_lambdas = []
+        self.restraint_lambdas = []
+        self.mass_lambdas = []
+        self.temperature_lambdas = []
+        self.write_derivatives = _BSS.Gateway.Boolean(help="Whether to write dH/dλ")
+
+        use_preset = use_preset.strip().lower() if use_preset is not None else ""
+        if use_preset == "default":
+            self._generateGenericParams()
+        elif use_preset == "minimisation":
+            self._generateMinimisationParams()
+        elif use_preset == "equilibration_nvt":
+            self._generateNVTEquilibrationParams()
+        elif use_preset == "equilibration_npt":
+            self._generateNPTEquilibrationParams()
+        elif use_preset == "production":
+            self._generateProductionParams()
 
         for name, value in kwargs.items():
             self.__setattr__(name, value)
 
     def __getattr__(self, name):
         try:
-            val = self.__params["" + name]
+            val = self.__dict__[name]
             if "Gateway" in str(type(val)):
                 return val.getValue()
             else:
@@ -112,35 +120,78 @@ class Protocol:
     def __setattr__(self, name, value):
         if isinstance(value, str):
             value = value.strip().lower()
-        if name not in self.__params:
-            self.__params[name] = value
+        if name not in self.__dict__.keys():
+            self.__dict__[name] = value
         else:
-            val_old = self.__params[name]
+            val_old = self.__dict__[name]
             if "Gateway" not in str(type(val_old)):
                 if not isinstance(value, type(val_old)):
                     raise TypeError("Type of argument ({}) does not agree with requested type ({}).".format(
                         str(type(value), str(type(val_old)))))
                 else:
-                    self.__params[name] = value
+                    self.__dict__[name] = value
             else:
-                val_old.setValue(value)
+                self.__dict__[name].setValue(value)
+        pass
 
     def write(self, engine, filebase="protocol"):
         engine = engine.strip().upper()
         if engine == "GROMACS":
             return self._writeToGROMACS(filebase)
 
-    def _generateMinimisation(self):
-        pass
+    def _generateGenericParams(self):
+        self.timestep = 0.002
+        self.skip_positions = 500
+        self.skip_velocities = 500
+        self.skip_forces = 0
+        self.skip_energies = 500
+        self.periodic_boundary_conditions = "3d"
+        self.neighbour_cutoff = 1.2
+        self.neighbour_frequency = 20
+        self.coulomb_type = "pme"
+        self.coulomb_cutoff = 1.2
+        self.vdw_type = "cutoff"
+        self.vdw_cutoff = 1.2
+        self.vdw_corr = "energy_pressure"
+        self.constraint = "h_bonds"
+        self.constraint_type = "lincs"
 
-    def _generateNVTEquilibration(self):
-        pass
+    def _generateMinimisationParams(self):
+        self._generateGenericParams()
+        self.integrator = "steep"
+        self.n_steps = 5000
+        self.thermostat = "no"
+        self.barostat = "no"
+        self.random_velocities = False
 
-    def generateNPTEquilibration(self):
-        pass
+    def _generateNVTEquilibrationParams(self):
+        self._generateGenericParams()
+        self.integrator = "stochastic"
+        self.n_steps = 25000
+        self.thermostat = "berendsen"
+        self.temp_time_const = 1
+        self.temperature = 298
+        self.barostat = "no"
+        self.random_velocities = True
+        self.random_velocities_temperature = 298
 
-    def generateProduction(self):
-        pass
+    def _generateNPTEquilibrationParams(self):
+        self._generateGenericParams()
+        self.integrator = "stochastic"
+        self.n_steps = 25000
+        self.thermostat = "berendsen"
+        self.temp_time_const = 1
+        self.temperature = 298
+        self.barostat = "berendsen"
+        self.pres_time_const = 1
+        self.random_velocities = False
+
+    def _generateProductionParams(self):
+        self._generateNPTEquilibrationParams()
+        self.integrator = "velocity_verlet"
+        self.n_steps = 2500000
+        self.thermostat = "nose-hoover"
+        self.barostat = "parrinello-rahman"
 
     def _writeToGROMACS(self, filebase):
         name_dict = {
@@ -151,9 +202,8 @@ class Protocol:
             "skip_positions": "nstxout",
             "skip_velocities": "nstvout",
             "skip_forces": "nstfout",
-            "skip_forces": "nstenergy",
+            "skip_energies": "nstenergy",
 
-            "neighbour_search": "ns-type",
             "periodic_boundary_conditions": "pbc",
             "neighbour_cutoff": "rlist",
             "neighbour_frequency": "nstlist",
@@ -202,11 +252,6 @@ class Protocol:
             "steep": "steep",
             "l-bfgs": "l-bfgs",
             "stochastic": "sd",
-        }
-
-        value_dict["neighbour_search"] = {
-            "grid": "grid",
-            "simple": "simple",
         }
 
         value_dict["periodic_boundary_conditions"] = {
@@ -260,9 +305,9 @@ class Protocol:
 
         filename = filebase + ".mdp"
         with open(filename, "w") as file:
-            for name, value in self.__params.items():
+            for name, value in sorted(self.__dict__.items()):
                 if name in name_dict.keys():
-                    name_str = name
+                    name_str = name_dict[name]
                 elif name[0] == "_":
                     name_str = name[1:]
                 else:
@@ -288,6 +333,7 @@ class Protocol:
                     value_str = str(value)
 
                 if name_str and value_str and not value_str == "None":
+                    print(value_str)
                     file.write("{:<30} = {}\n".format(name_str, value_str))
         return filename
 
