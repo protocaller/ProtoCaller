@@ -132,7 +132,6 @@ class Protocol:
                     self.__dict__[name] = value
             else:
                 self.__dict__[name].setValue(value)
-        pass
 
     def write(self, engine, filebase="protocol"):
         engine = engine.strip().upper()
@@ -329,11 +328,12 @@ class Protocol:
                         value_str = value.getValue()
                 elif "Gateway" in str(type(value)):
                     value_str = str(value.getValue())
-                else:
+                elif value not in [[], None, ""]:
                     value_str = str(value)
+                else:
+                    continue
 
-                if name_str and value_str and not value_str == "None":
-                    print(value_str)
+                if name_str and value_str:
                     file.write("{:<30} = {}\n".format(name_str, value_str))
         return filename
 
