@@ -36,12 +36,22 @@ class Protocol:
             #temperature options
             "thermostat": _BSS.Gateway.String(help="What thermostat to use",
                                               allowed=["no", "berendsen", "nose-hoover", "andersen"]),
+            "temp_frequency": _BSS.Gateway.Integer(help="Thermostat friction coefficient / collision frequency in THz.",
+                                                    minimum=-1),
+            "temp_time_const": _BSS.Gateway.Integer(
+                help="Time constant for thermostat coupling in ps. -1 means no coupling",
+                minimum=-1),
             "temperature": _BSS.Gateway.Integer(help="Simulation temperature",
                                                 minimum=0),
 
             #pressure options
             "barostat": _BSS.Gateway.String(help="What barostat to use",
                                             allowed=["no", "berendsen", "parrinello-rahman"]),
+            "pres_frequency": _BSS.Gateway.Integer(help="Barostat friction coefficient / collision frequency in THz.",
+                                                   minimum=-1),
+            "pres_time_const": _BSS.Gateway.Integer(
+                help="Time constant for barostat coupling in ps. -1 means no coupling",
+                minimum=-1),
             "pressure": _BSS.Gateway.Float(help="Simulation pressure",
                                            minimum=0.0),
 
@@ -135,9 +145,13 @@ class Protocol:
             "vdw_corr": "DispCorr",
 
             "thermostat": "tcoupl",
+            "temp_frequency": "nsttcouple",
+            "temp_time_const": "tau-t",
             "temperature": "ref-t",
 
             "barostat": "pcoupl",
+            "pres_frequency": "nstpcouple",
+            "pres_time_const": "tau-p",
             "pressure": "ref-p",
 
             "random_velocities": "gen-vel",
