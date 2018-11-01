@@ -21,6 +21,17 @@ class Protocol:
             "skip_energies": _BSS.Gateway.Integer(help="How many timesteps to skip when writing the energies",
                                                   minimum=0),
 
+            #neigbours
+            "neighbour_search": _BSS.Gateway.String(help="How to perform neighbour searching",
+                                                    allowed=["grid", "simple"]),
+            "periodic_boundary_conditions": _BSS.Gateway.String(
+                help="Whether and how to implement periodic boundary conditions",
+                allowed=["3d", "2d", "no"]),
+            "neighbour_cutoff": _BSS.Gateway.Integer(help="Cutoff in nm for neighbour list",
+                                                     minimum=-1),
+            "neighbour_frequency": _BSS.Gateway.Integer(help="How often to update the neighbour list in timesteps",
+                                                        minimum=-1),
+
             #electrostatics options
             "coulomb_type": _BSS.Gateway.String(help="What type of Coulomb interactions to use",
                                                 allowed=["cutoff", "ewald", "pme"]),
@@ -138,6 +149,11 @@ class Protocol:
             "skip_forces": "nstfout",
             "skip_forces": "nstenergy",
 
+            "neighbour_search": "ns-type",
+            "periodic_boundary_conditions": "pbc",
+            "neighbour_cutoff": "rlist",
+            "neighbour_frequency": "nstlist",
+
             "coulomb_type": "coulombtype",
             "pme_order": "pme-order",
 
@@ -180,6 +196,17 @@ class Protocol:
             "steep": "steep",
             "l-bfgs": "l-bfgs",
             "stochastic": "sd",
+        }
+
+        value_dict["neighbour_search"] = {
+            "grid": "grid",
+            "simple": "simple",
+        }
+
+        value_dict["periodic_boundary_conditions"] = {
+            "3d": "xyz",
+            "2d": "xy",
+            "no": "no"
         }
 
         value_dict["coulomb_type"] = {
