@@ -37,12 +37,16 @@ class Protocol:
                                                 allowed=["cutoff", "ewald", "pme"]),
             "pme_order": _BSS.Gateway.Integer(help="What order of PME to use. Ignored if coulomb_type is not PME.",
                                               allowed=[4, 6, 8, 10]),
+            "coulomb_cutoff": _BSS.Gateway.Integer(help="Cutoff in nm for electrostatics",
+                                                   minimum=0),
 
             #van der Waals options
             "vdw_type": _BSS.Gateway.String(help="What type of van der Waals interactions to use",
                                             allowed=["cutoff", "pme"]),
             "vdw_corr": _BSS.Gateway.String(help="What type of long-distance correction to apply",
                                             allowed=["no", "energy", "energy_pressure"]),
+            "vdw_cutoff": _BSS.Gateway.Integer(help="Cutoff in nm for van der Waals interactions",
+                                               minimum=0),
 
             #temperature options
             "thermostat": _BSS.Gateway.String(help="What thermostat to use",
@@ -122,9 +126,9 @@ class Protocol:
                 val_old.setValue(value)
 
     def write(self, engine, filebase="protocol"):
-        engine = engine.strip().lower()
-        if engine == "gromacs":
-            self._writeToGROMACS(filebase)
+        engine = engine.strip().upper()
+        if engine == "GROMACS":
+            return self._writeToGROMACS(filebase)
 
     def _generateMinimisation(self):
         pass
@@ -156,9 +160,11 @@ class Protocol:
 
             "coulomb_type": "coulombtype",
             "pme_order": "pme-order",
+            "coulomb_cutoff": "rcoulomb",
 
             "vdw_type": "vdwtype",
             "vdw_corr": "DispCorr",
+            "vdw_cutoff": "rvdw",
 
             "thermostat": "tcoupl",
             "temp_frequency": "nsttcouple",
@@ -252,7 +258,8 @@ class Protocol:
             "shake": "SHAKE",
         }
 
-        with open(filebase + ".mdp", "w") as file:
+        filename = filebase + ".mdp"
+        with open(filename, "w") as file:
             for name, value in self.__params.items():
                 if name in name_dict.keys():
                     name_str = name
@@ -282,6 +289,7 @@ class Protocol:
 
                 if name_str and value_str and not value_str == "None":
                     file.write("{:<30} = {}\n".format(name_str, value_str))
+        return filename
 
 
 
