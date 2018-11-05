@@ -1,9 +1,11 @@
+import os as _os
 import tempfile as _tempfile
 
 from rdkit import Chem as _Chem
 from rdkit.Chem import AllChem as _AllChem
 from rdkit.Chem import rdForceFieldHelpers as _FF
 from rdkit.Chem import rdFMCS as _FMCS
+from rdkit.Geometry import rdGeometry as _Geom
 import parmed as _pmd
 
 def openFileAsRdkit(filename, **kwargs):
@@ -50,10 +52,12 @@ def openAsRdkit(val, **kwargs):
     return mol
 
 def saveFromRdkit(mol, filename):
+    if _os.path.exists(filename):
+        _os.remove(filename)
     extension = filename.split(".")[-1]
     if extension.lower() == "sdf":
         writer = _Chem.SDWriter(filename)
-        writer.save(mol)
+        writer.write(mol)
         writer.close()
     elif extension.lower() == "mol":
         _Chem.MolToMolFile(mol, filename=filename)
@@ -63,6 +67,13 @@ def saveFromRdkit(mol, filename):
         _pmd.load_file(tempfilename)[0].save(filename)
 
     return filename
+
+def translateMolecule(mol, vector):
+    mol_conf = mol.GetConformer(-1)
+    for i in range(mol.GetNumAtoms()):
+        new_atom_position = mol_conf.GetAtomPosition(i) + _Geom.Point3D(*vector)
+        mol_conf.SetAtomPosition(i, new_atom_position)
+    return mol
 
 def alignTwoMolecules(mol, ref, n_min=-1, match="any"):
     """

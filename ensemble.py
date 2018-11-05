@@ -6,8 +6,11 @@ import tempfile as _tempfile
 import warnings as _warnings
 
 import BioSimSpace as _BSS
+import numpy as _np
 from rdkit import Chem as _Chem
 import parmed as _pmd
+import Sire.Maths as _SireMaths
+import Sire.Vol as _SireVol
 
 import IO as _IO
 import pdbconnect as _pdbconnect
@@ -21,7 +24,7 @@ from Wrappers import rdkitwrapper as _rdkit
 from Wrappers import runexternal as _runexternal
 
 class Ensemble:
-    def __init__(self, engine, box_length=12, ion_conc=0.154, shell=0, neutralise=True, center=True,
+    def __init__(self, engine, box_length=12, ion_conc=0.154, shell=0, neutralise=True, centre=True,
                  protein_ff=_const.AMBERDEFAULTPROTEINFF, ligand_ff=_const.AMBERDEFAULTLIGANDFF,
                  water_ff=_const.AMBERDEFAULTWATERFF, protein=None, ligand_id=None, morphs=None):
         self.engine = engine
@@ -29,7 +32,7 @@ class Ensemble:
         self.ion_conc = ion_conc
         self.shell = shell
         self.neutralise = neutralise
-        self.center = center
+        self.centre = centre
         self.params = _parametrise.Params(protein_ff=protein_ff, ligand_ff=ligand_ff, water_ff=water_ff)
         self.protein = protein
         self.ligand_id = ligand_id
@@ -262,7 +265,7 @@ class Ensemble:
 
     def parametrisePDB(self):
         with self._subdir:
-            print("Parametrising original crystal without any ligands...")
+            print("Parametrising original crystal system...")
             #extract non-protein residues from pdb file and save them as separate pdb files
             hetatm_files, hetatm_types = self._protein_obj.writeHetatms()
             non_protein_residues = self._protein_obj.filterResidues(excludedict={"_type": ["water", "cation", "anion"]})
@@ -275,11 +278,32 @@ class Ensemble:
             system = _parametrise.parametriseAndLoadPmd(params=self.params, input_filename=self._protein_file,
                                                         molecule_type="protein")
 
+            self._ligand_id = _babel.babelTransform(self._ligand_id, "mol2")
+            self._ligand_ref = _rdkit.openAsRdkit(self._ligand_id, removeHs=False)
+
             for filename, type in zip(self._ligand_files_pdb + hetatm_files,
                                       ["ligand"] * len(self._ligand_files_pdb) + hetatm_types):
                 system += _parametrise.parametriseAndLoadPmd(params=self.params, input_filename=filename,
                                                              molecule_type=type)
 
+            if self.centre:
+                coords = system.coordinates
+                c_min, c_max = _np.amin(coords, axis=0), _np.amax(coords, axis=0)
+                centre = (c_min + c_max) / 2
+                box_length = max(c_max - c_min) / 10
+                if box_length > self.box_length:
+                    self.box_length = int(box_length) + 1
+                    print("Insufficient input box size. Changing to a box length of %d nm..." % self.box_length)
+                    centre -= _np.asarray(3 * [5 * box_length])
+                for atom in system.atoms:
+                    atom.xx -= centre[0]
+                    atom.xy -= centre[1]
+                    atom.xz -= centre[2]
+
+                _rdkit.translateMolecule(self._ligand_ref, -centre)
+                _rdkit.saveFromRdkit(self._ligand_ref, self._ligand_id)
+
+            system.box = [10 * self.box_length, 10 * self.box_length, 10 * self.box_length, 90, 90, 90]
             system.save("complex_template.top")
             system.save("complex_template.gro")
             self._complex_template = _BSS.IO.readMolecules(["complex_template.top", "complex_template.gro"])
@@ -296,10 +320,6 @@ class Ensemble:
 
     def prepareComplexes(self):
         with self._subdir:
-            print("Parametrising original crystal ligand...")
-            ligand_ref = _babel.babelTransform(self.ligand_id, "mol2")
-            ligand_ref = _rdkit.openAsRdkit(ligand_ref, removeHs=False)
-
             for i, (ligand1, ligand2) in enumerate(self.morphs):
                 with _subdir.Subdir("Pair %d" % (i + 1)) as curdir:
                     print("Creating morph %d..." % (i + 1))
@@ -312,7 +332,7 @@ class Ensemble:
                     ligand2_H = _rdkit.openAsRdkit("../" + self._ligands[ligand2][0], removeHs=False)
 
                     #aligning protonated ligands
-                    ligand1_H = _rdkit.alignTwoMolecules(ligand1_H, ligand_ref)
+                    ligand1_H = _rdkit.alignTwoMolecules(ligand1_H, self._ligand_ref)
                     ligand2_H = _rdkit.alignTwoMolecules(ligand2_H, ligand1_H)
 
                     #replacing coordinates of parametrised ligands with new coordinates while keeping the topology
@@ -344,29 +364,31 @@ class Ensemble:
             tmp_dir = _tempfile.TemporaryDirectory()
             work_dir = tmp_dir.name
         with _subdir.Subdir(dirname=work_dir):
+            """CENTERING"""
+
+            box_length = self.box_length
+            if self.centre:
+                box = complex._getAABox()
+                min_coords, max_coords = box.minCoords(), box.maxCoords()
+                centre = (min_coords + max_coords) / 2
+                difference = max_coords - min_coords
+                if any([x / 10 > self.box_length for x in difference]):
+                    box_length = int(max(difference / 10)) + 1
+                    print("Insufficient input box size. Changing to a box length of %d nm..." % box_length)
+                    complex.translate(tuple(-centre + _SireMaths.Vector(3 * (box_length * 5, ))))
+                    complex._sire_system.setProperty("space",
+                                                     _SireVol.PeriodicBox(_SireMaths.Vector(3 * (box_length * 10,))))
+
+            """SOLVATING"""
+
             _BSS.IO.saveMolecules("complex", complex, "Gro87,GroTop")
             files = ["complex.gro", "complex.top"]
             _os.rename("complex.gro87", files[0])
             _os.rename("complex.grotop", files[1])
 
-            """CENTERING"""
-
-            if self.center:
-                new_gro = "complex_centered.gro"
-                command = "{0} editconf -box {1} {1} {1} -f {2} -o {3}".format(_const.GROMACSEXE, self.box_length,
-                                                                               files[0], new_gro)
-                try:
-                    _runexternal.runExternal(command, procname="gmx editconf")
-                    files[0] = new_gro
-                    complex = _BSS.IO.readMolecules(files)
-                except:
-                    print("Continuing solvation with uncentered system...")
-
-            """SOLVATING"""
-
             new_gro = "complex_solvated.gro"
             command = "{0} solvate -shell {1} -box {2} {2} {2} -cp {3} -o {4}".format(_const.GROMACSEXE, self.shell,
-                                                                                      self.box_length, files[0], new_gro)
+                                                                                      box_length, files[0], new_gro)
 
             try:
                 """CREATE UNPARAMETRISED WATERS AND LOAD THEM INTO MEMORY"""
@@ -414,7 +436,7 @@ class Ensemble:
                     file.write("\n; VdW\n")
                     file.write("rvdw                    = 1.0\n")
 
-                n_Na, n_Cl = [int((self.box_length * 10**-8)** 3 * 6.022 * 10**23 * self.ion_conc)] * 2
+                n_Na, n_Cl = [int((box_length * 10**-8)** 3 * 6.022 * 10**23 * self.ion_conc)] * 2
                 if self.neutralise:
                     charge = round(complex.charge().magnitude())
                     if charge > 0:
