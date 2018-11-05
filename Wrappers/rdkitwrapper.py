@@ -1,8 +1,10 @@
+import tempfile as _tempfile
+
 from rdkit import Chem as _Chem
 from rdkit.Chem import AllChem as _AllChem
-from rdkit.Chem import rdMolAlign as _MolAlign
 from rdkit.Chem import rdForceFieldHelpers as _FF
 from rdkit.Chem import rdFMCS as _FMCS
+import parmed as _pmd
 
 def openFileAsRdkit(filename, **kwargs):
     extension = filename.split(".")[-1]
@@ -29,7 +31,7 @@ def openSmilesAsRdkit(smiles_str, **kwargs):
     return mol
 
 def openAsRdkit(val, **kwargs):
-    if len(val.split(".")) == 1:
+    if isinstance(val, str) and len(val.split(".")) == 1:
         try:
             mol = openSmilesAsRdkit(val, **kwargs)
             _AllChem.EmbedMolecule(mol, _AllChem.ETKDG())
@@ -40,11 +42,45 @@ def openAsRdkit(val, **kwargs):
             except:
                 raise ValueError("String not recognised as a valid SMILES or InChI input")
     else:
-        mol = openFileAsRdkit(val, **kwargs)
+        try:
+            mol = openFileAsRdkit(val, **kwargs)
+        except:
+            raise ValueError("File is not in a valid format")
+
     return mol
 
-def matchTwoMolecules(mol, ref, n_min=-1):
-    mcs = _Chem.MolFromSmarts(_FMCS.FindMCS([ref, mol], atomCompare=_FMCS.AtomCompare.CompareAny,
+def saveFromRdkit(mol, filename):
+    extension = filename.split(".")[-1]
+    if extension.lower() == "sdf":
+        writer = _Chem.SDWriter(filename)
+        writer.save(mol)
+        writer.close()
+    elif extension.lower() == "mol":
+        _Chem.MolToMolFile(mol, filename=filename)
+    else:
+        tempfilename = _tempfile.NamedTemporaryFile(suffix=".mol").name
+        _Chem.MolToMolFile(mol, filename=tempfilename)
+        _pmd.load_file(tempfilename)[0].save(filename)
+
+    return filename
+
+def alignTwoMolecules(mol, ref, n_min=-1, match="any"):
+    """
+    :param mol: molecule to be aligned
+    :param ref: reference molecule
+    :param n_min: number of minimisation iterations before minimisation stops. Default is -1 (infinite)
+    :param match: "any" matches any pairs of atoms - useful for single-topology;
+                  "elements" matches only the same atoms - useful for dual-topology
+    :return: the aligned molecule
+    """
+    if match == "any":
+        comp_method = _FMCS.AtomCompare.CompareAny
+    elif match == "elements":
+        comp_method = _FMCS.AtomCompare.CompareElements
+    else:
+        raise ValueError("'match' arguments needs to be either 'any' or 'elements'")
+
+    mcs = _Chem.MolFromSmarts(_FMCS.FindMCS([ref, mol], atomCompare=comp_method,
                                             ringMatchesRingOnly=True, completeRingsOnly=True).smartsString)
     match1 = ref.GetSubstructMatch(mcs)
     match2 = mol.GetSubstructMatch(mcs)
@@ -57,11 +93,12 @@ def matchTwoMolecules(mol, ref, n_min=-1):
         mol_conf.SetAtomPosition(i_mol, ref_conf.GetAtomPosition(i_ref))
         ff.AddFixedPoint(i_mol)
 
-    ff.Initialize()
-    more = ff.Minimize()
-    while more and n_min:
+    if mol_conf.GetNumAtoms() != len(match1):
+        ff.Initialize()
         more = ff.Minimize()
-        #n_min = -1 means infinite minimisation
-        if n_min != -1:
-            n_min -= 1
+        while more and n_min:
+            more = ff.Minimize()
+            #n_min = -1 means infinite minimisation
+            if n_min != -1:
+                n_min -= 1
     return mol

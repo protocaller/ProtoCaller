@@ -19,4 +19,5 @@ with _subdir.Subdir("Temp", overwrite=True):
     ensemble.filterPDB(ligands=None, waters="site")
     ensemble.preparePDB(add_missing_residues="")
     ensemble.parametrisePDB()
+    ensemble.parametriseLigands()
     ensemble.prepareComplexes()

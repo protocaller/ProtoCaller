@@ -2,13 +2,11 @@ import const as _const
 
 import os as _os
 import re as _re
-import subprocess as _subprocess
 import tempfile as _tempfile
 import warnings as _warnings
 
 import BioSimSpace as _BSS
 from rdkit import Chem as _Chem
-from rdkit.Chem import AllChem as _rdkitAllChem
 import parmed as _pmd
 
 import IO as _IO
@@ -19,6 +17,7 @@ from Wrappers import babelwrapper as _babel
 from Wrappers import modellerwrapper as _modeller
 from Wrappers import PDB2PQRwrapper as _PDB2PQR
 from Wrappers import protosswrapper as _protoss
+from Wrappers import rdkitwrapper as _rdkit
 from Wrappers import runexternal as _runexternal
 
 class Ensemble:
@@ -34,8 +33,7 @@ class Ensemble:
         self.params = _parametrise.Params(protein_ff=protein_ff, ligand_ff=ligand_ff, water_ff=water_ff)
         self.protein = protein
         self.ligand_id = ligand_id
-        self._ligands = []
-        self._ligand_prep = []
+        self._ligands = {}
         self.morphs = morphs
         self._complex_template = None
         self.complexes = []
@@ -122,16 +120,16 @@ class Ensemble:
             ligand1, ligand2 = val
 
             try:
-                ligand1 = Ensemble._checkLigand(ligand1)
-                ligand2 = Ensemble._checkLigand(ligand2)
+                ligand1 = _rdkit.openAsRdkit(ligand1)
+                ligand2 = _rdkit.openAsRdkit(ligand2)
             except:
                 _warnings.warn("One or more of these values is not valid: %s. Skipping values..." % val)
                 continue
 
-            if ligand1 not in self._ligands:
-                self._ligands += [ligand1]
-            if ligand2 not in self._ligands:
-                self._ligands += [ligand2]
+            if ligand1 not in self._ligands.keys():
+                self._ligands[ligand1] = []
+            if ligand2 not in self._ligands.keys():
+                self._ligands[ligand2] = []
 
             self._morphs += [[ligand1, ligand2]]
 
@@ -286,46 +284,58 @@ class Ensemble:
             system.save("complex_template.gro")
             self._complex_template = _BSS.IO.readMolecules(["complex_template.top", "complex_template.gro"])
 
-    def _parametriseLigands(self):
+    def parametriseLigands(self):
+        print("Parametrising all ligands. This will take a while...")
         with self._subdir:
-            self._ligand_prep = []
-            for i, ligand in enumerate(self._ligands):
-                filename = "ligand_%d.sdf" % (i + 1)
-                writer = _Chem.SDWriter(filename)
-                writer.write(ligand)
-                writer.close()
-                filename = _babel.babelTransform(filename, "mol2")
-                self._ligand_prep += [_parametrise.parametriseAndLoadBSS(params=self.params, input_filename=filename,
-                                                                         molecule_type="ligand").getMolecules()[0]]
+            for i, ligand in enumerate(self._ligands.keys()):
+                filename_temp = _rdkit.saveFromRdkit(ligand, filename="ligand_%d.mol" % (i + 1))
+                filename_babel = _babel.babelTransform(filename_temp, "mol2")
+                self._ligands[ligand] += [filename_babel]
+                self._ligands[ligand] += [_parametrise.parametriseFile(params=self.params, input_filename=filename_babel,
+                                                                       molecule_type="ligand")]
 
     def prepareComplexes(self):
-        print("Parametrising all ligands. This will take a while...")
-        self._parametriseLigands()
-
         with self._subdir:
             print("Parametrising original crystal ligand...")
             ligand_ref = _babel.babelTransform(self.ligand_id, "mol2")
-            ligand_ref = _BSS.IO.readMolecules(ligand_ref).getMolecules()[0]
+            ligand_ref = _rdkit.openAsRdkit(ligand_ref, removeHs=False)
 
             for i, (ligand1, ligand2) in enumerate(self.morphs):
                 with _subdir.Subdir("Pair %d" % (i + 1)) as curdir:
                     print("Creating morph %d..." % (i + 1))
-                    ligand1_prep = self._ligand_prep[self._ligands.index(ligand1)]
-                    ligand2_prep = self._ligand_prep[self._ligands.index(ligand2)]
+                    #getting parametrised ligand filenames
+                    ligand1_prep = ["../" + i for i in self._ligands[ligand1][1]]
+                    ligand2_prep = ["../" + i for i in self._ligands[ligand2][1]]
 
-                    ligand1_prep = _BSS.Align.rmsdAlign(ligand1_prep, ligand_ref)
-                    ligand2_prep = _BSS.Align.rmsdAlign(ligand2_prep, ligand1_prep)
-                    morph = _BSS.Align.merge(ligand1_prep, ligand2_prep)
+                    #loading protonated ligands into rdkit
+                    ligand1_H = _rdkit.openAsRdkit("../" + self._ligands[ligand1][0], removeHs=False)
+                    ligand2_H = _rdkit.openAsRdkit("../" + self._ligands[ligand2][0], removeHs=False)
 
+                    #aligning protonated ligands
+                    ligand1_H = _rdkit.alignTwoMolecules(ligand1_H, ligand_ref)
+                    ligand2_H = _rdkit.alignTwoMolecules(ligand2_H, ligand1_H)
+
+                    #replacing coordinates of parametrised ligands with new coordinates while keeping the topology
+                    filenames = ["morph%d_1.inpcrd" % (i + 1), "morph%d_2.inpcrd" % (i + 1)]
+                    ligand1_prep[1] = _rdkit.saveFromRdkit(ligand1_H, filenames[0])
+                    ligand2_prep[1] = _rdkit.saveFromRdkit(ligand2_H, filenames[1])
+
+                    #loading the shifted ligands into BioSimSpace
+                    ligand1_BSS = _BSS.IO.readMolecules(ligand1_prep).getMolecules()[0]
+                    ligand2_BSS = _BSS.IO.readMolecules(ligand2_prep).getMolecules()[0]
+                    mapping = _BSS.Align.matchAtoms(ligand1_BSS, ligand2_BSS)
+
+                    #merging the two ligands into a morph and adding it to the protein template
+                    morph = _BSS.Align.merge(ligand1_BSS, ligand2_BSS, mapping=mapping)
+                    _BSS.IO.saveMolecules("morph", morph, "Gro87,GroTop")
                     complex = self._complex_template + morph
 
                     print("Solvating...")
                     complex = self._solvate(complex, work_dir=curdir.path)
                     self.complexes += [complex]
 
-                    print("Saving as GROMACS...")
-                    _BSS.IO.saveMolecules("complex_final", complex, "Gro87")
-                    _BSS.IO.saveMolecules("complex_final", complex, "GroTop")
+                    print("Saving solvated complex as GROMACS...")
+                    _BSS.IO.saveMolecules("complex_final", complex, "Gro87,GroTop")
                     _pmd.load_file("complex_final.gro87").save("complex_final.gro")
                     _os.rename("complex_final.grotop", "complex_final.top")
 
@@ -334,8 +344,7 @@ class Ensemble:
             tmp_dir = _tempfile.TemporaryDirectory()
             work_dir = tmp_dir.name
         with _subdir.Subdir(dirname=work_dir):
-            _BSS.IO.saveMolecules("complex", complex, "gro87")
-            _BSS.IO.saveMolecules("complex", complex, "grotop")
+            _BSS.IO.saveMolecules("complex", complex, "Gro87,GroTop")
             files = ["complex.gro", "complex.top"]
             _os.rename("complex.gro87", files[0])
             _os.rename("complex.grotop", files[1])
@@ -439,21 +448,6 @@ class Ensemble:
         if not val.isalnum():
             raise ValueError("Value %s not a valid PDB code. Skipping value..." % val)
         return val
-
-    @staticmethod
-    def _checkLigand(val):
-        if len(val.split(".")) > 1:
-            mol = _Chem.MolFromMolFile(val)
-        else:
-            try:
-                mol = _Chem.MolFromSmiles(val)
-            except:
-                try:
-                    mol = _Chem.MolFromInchi(val)
-                except:
-                    raise ValueError("Value %s not a valid file, SMILES string, or InChI identifier.")
-            _rdkitAllChem.EmbedMolecule(mol, _rdkitAllChem.ETKDG())
-        return mol
 
     @staticmethod
     def _residTransform(id):
