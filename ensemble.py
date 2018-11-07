@@ -34,7 +34,7 @@ class Ensemble:
         self.centre = centre
         self.params = _parametrise.Params(protein_ff=protein_ff, ligand_ff=ligand_ff, water_ff=water_ff)
         self.protein = protein
-        #self.ligand_id = ligand_id
+        self.ligand_id = ligand_id
         self._ligands = {}
         self.morphs = morphs
         self._complex_template = None
@@ -189,12 +189,10 @@ class Ensemble:
 
             # filter by chain
             filter = []
-            if chains == "all":
-                filter += self._protein_obj.filterResidues(includedict={"_type": ["amino acid"]})
-            else:
-                filter += self._protein_obj.filterResidues(includedict={"_type": ["amino acid"], "_chainID": chains})
-                self._protein_obj._missing_residues = [x for x in self._protein_obj._missing_residues
-                                                       if x._chainID in chains]
+            mask = "_type=='amino acid'"
+            if chains != "all":
+                mask += "&_chainID in %s" % str(chains)
+            filter += self._protein_obj.filter(mask)
 
             # filter missing residues
             if missing_residues == "middle":
@@ -214,33 +212,26 @@ class Ensemble:
             # filter by waters / anions / cations
             for parameter, name in zip([waters, anions, cations], ["water", "anion", "cation"]):
                 if parameter == "all" or (parameter == "chain" and chains == "all"):
-                    filter += self._protein_obj.filterResidues(includedict={"_type": [name]})
+                    filter += self._protein_obj.filter("_type=='%s'" % name)
                 elif parameter == "chain":
-                    filter += self._protein_obj.filterResidues(includedict={"_type": [name], "_chainID": chains},
-                                                      includejoint=False)
+                    filter += self._protein_obj.filter("_type=='%s'|_chainID in %s" % (name, str(chains)))
                 elif parameter == "site":
                     if chains == "all":
-                        filter_temp = self._protein_obj.filterResidues(includedict={"_type": [name]})
+                        filter_temp = self._protein_obj.filter("_type=='%s'" % name)
                     else:
-                        filter_temp = self._protein_obj.filterResidues(includedict={"_type": [name], "_chainID": chains},
-                                                              includejoint=False)
+                        filter_temp = self._protein_obj.filter("_type=='%s'|_chainID in %s" % (name, str(chains)))
                     filter += [res for res in filter_temp if res in self._protein_obj._site_residues]
 
             # include extra molecules / residues
             for include_mol in include_mols:
-                resSeq, iCode = Ensemble._residTransform(include_mol)
-                residue = self._protein_obj.filterResidues(includedict={"_resSeq": [resSeq], "_iCode": iCode})[0]
-                if residue._type != "ligand":
-                    filter += [residue]
+                residue = self._protein_obj.filter(include_mol + "&_type!='ligand'")
+                filter += [residue]
 
             # exclude extra molecules / residues
             excl_filter = []
-
             for exclude_mol in exclude_mols:
-                resSeq, iCode = Ensemble._residTransform(exclude_mol)
-                residue = self._protein_obj.filterResidues(includedict={"_resSeq": [resSeq], "_iCode": iCode})[0]
-                if residue._type != "ligand":
-                    excl_filter += [residue]
+                residue = self._protein_obj.filter(exclude_mol + "&_type!='ligand'")
+                excl_filter += [residue]
 
             filter = list(set(filter) - set(excl_filter))
             self._protein_obj.purgeResidues(filter)
@@ -249,10 +240,10 @@ class Ensemble:
     def preparePDB(self, add_missing_residues="modeller", add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
                    protonate_ligands="babel"):
         with self._subdir:
-            add_missing_residues = add_missing_residues.strip().lower()
-            add_missing_atoms = add_missing_atoms.strip().lower()
-            protonate_proteins = protonate_proteins.strip().lower()
-            protonate_ligands = protonate_ligands.strip().lower()
+            add_missing_residues = add_missing_residues.strip().lower() if add_missing_residues is not None else ""
+            add_missing_atoms = add_missing_atoms.strip().lower() if add_missing_atoms is not None else ""
+            protonate_proteins = protonate_proteins.strip().lower() if protonate_proteins is not None else ""
+            protonate_ligands = protonate_ligands.strip().lower() if protonate_ligands is not None else ""
 
             if protonate_proteins != "protoss" and protonate_ligands == "protoss":
                 _warnings.warn("Warning: Protoss cannot be individually called on a ligand. Changing protein protonation "
@@ -289,7 +280,7 @@ class Ensemble:
             print("Parametrising original crystal system...")
             #extract non-protein residues from pdb file and save them as separate pdb files
             hetatm_files, hetatm_types = self._protein_obj.writeHetatms()
-            non_protein_residues = self._protein_obj.filterResidues(excludedict={"_type": ["water", "cation", "anion"]})
+            non_protein_residues = self._protein_obj.filter("_type not in ['water', 'cation', 'anion']")
             self._protein_obj.purgeResidues(non_protein_residues)
             self._protein_obj.writePDB()
 

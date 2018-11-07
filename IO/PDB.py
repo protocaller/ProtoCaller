@@ -1,14 +1,7 @@
 import const as _const
 
-import copy as _copy
-import os as _os
 import re as _re
-import subprocess as _subprocess
-import sys as _sys
-import tempfile as _tempfile
 
-import BioSimSpace as _BSS
-import parmed as _pmd
 import pypdb as _pypdb
 
 class Atom:
@@ -127,6 +120,9 @@ class MissingResidue:
         else:
             return False
 
+    def __hash__(self):
+        return id(self)
+
     def __str__(self):
         string = "REMARK 465     {:3.3} {:1.1} {:5d}{:1.1}\n".format(self._resName, self._chainID, self._resSeq, self._iCode)
         return string
@@ -233,6 +229,12 @@ class Residue(MissingResidue):
 
             else:
                 raise ValueError("The following atom did not have the same residue number as the rest of the atoms: %s", atom)
+
+    def copyFrom(self, other):
+        self.__atomList = other.__atomList
+        self._chainID = other._chainID
+        self._resSeq = other._resSeq
+        self._iCode = other._iCode
 
     def numberOfAtoms(self):
         return len(self.__atomList)
@@ -422,20 +424,20 @@ class PDB:
                 chainIDs = [line[15], line[29]]
                 resSeqs = [int(float(line[17:21])), int(float(line[31:35]))]
                 iCodes = [line[21], line[35]]
-                self._disulfide_bonds += [self.filterResidues(includedict={"_chainID" : chainIDs, "_resSeq" : resSeqs,
-                                                                           "_iCode" : iCodes})]
+                masks = []
+                for chainID, resSeq, iCode in zip(chainIDs, resSeqs, iCodes):
+                    masks += ["(_chainID=='{}'&_resSeq=={}&_iCode=='{}')".format(chainID, resSeq, iCode)]
+                mask = "|".join(masks)
+                self._disulfide_bonds += [self.filter(mask)]
             elif line[:4] == "SITE":
-                chainIDs, resSeqs, iCodes = [], [], []
                 for i in range(22, len(line.strip()), 11):
-                    chainIDs += [line[i]]
-                    resSeqs += [int(float(line[i+1:i+5]))]
-                    iCodes += [line[i+5]]
-                self._site_residues += self.filterResidues(includedict={"_chainID" : chainIDs, "_resSeq" : resSeqs,
-                                                                        "_iCode": iCodes})
+                    chainID, resSeq, iCode = line[i], int(float(line[i+1:i+5])), line[i+5]
+                    mask = "_chainID=='{}'&_resSeq=={}&_iCode=='{}'".format(chainID, resSeq, iCode)
+                    self._site_residues += self.filter(mask)
             elif line[:6] == "MODRES":
-                self._modified_residues += self.filterResidues(includedict={"_chainID" : [line[16]],
-                                                                            "_resSeq" : [int(float(line[18:22]))],
-                                                                            "_iCode" : [line[22]]})
+                chainID, resSeq, iCode = line[16], int(float(line[18:22])), line[22]
+                mask = "_chainID=='{}'&_resSeq=={}&_iCode=='{}'".format(chainID, resSeq, iCode)
+                self._modified_residues += self.filter(mask)
             else:
                 match = _re.findall(r"^REMARK 465\s*([\w]{3})\s*([\w])\s*([\d]+)([\D|\S]?)\s*$", line)
                 if len(match) != 0:
@@ -487,78 +489,36 @@ class PDB:
                     moltypes += [residue._type]
         return filenames, moltypes
 
-    #dictionaries whose keys are Residue variables and whose values are lists of permitted values
-    def filterResidues(self, includedict=None, excludedict=None, includejoint=True, excludejoint=False,
-                       includepolicy="AND", excludepolicy="OR"):
-        if includedict == None: includedict = {}
-        if excludedict == None: excludedict = {}
-        if not isinstance(includedict, dict) or not isinstance(excludedict, dict):
-            raise TypeError("Inputs must be dictionaries")
-        for key1, values1 in includedict.items():
-            for key2, values2 in excludedict.items():
-                if not isinstance(values1, list) or not isinstance(values2, list):
-                    raise TypeError("Both dictionaries should have lists as values")
-                if key1 == key2:
-                    raise ValueError("Cannot have the same keys in both dictionaries")
-        if includejoint == True:
-            length = None
-            for key, values in includedict.items():
-                if length == None:
-                    length = len(values)
-                elif len(values) != length:
-                    raise ValueError("Cannot have joint criteria with different sizes")
-        if excludejoint == True:
-            length = None
-            for key, values in excludedict.items():
-                if length == None:
-                    length = len(values)
-                elif len(values) != length:
-                    raise ValueError("Cannot have joint criteria with different sizes")
+    def filter(self, mask, filter="residues"):
+        def add(elem):
+            nonlocal i, condition, all_elems, curr_list
+            if i == 0:
+                all_elems += [elem]
+            if eval("elem" + "." + condition, globals(), vars()):
+                curr_list += [elem]
+        all_elems = []
+        all_sets = []
+        expr = r"([\w_]+\s*[=<>!]+\s*[^&|]+)"
+        conditions = _re.findall(expr, mask)
 
-        reslist = []
-        for i, chain in enumerate(self.__chainList):
-            for j, residue in enumerate(self.__chainList[i]):
-                include = True
-                if not includejoint:
-                    for key, values in includedict.items():
-                        if getattr(residue, key) in values and includepolicy == "OR":
-                            include = True
-                            break
-                        elif getattr(residue, key) not in values and includepolicy == "AND":
-                            include = False
-                            break
+        for i, condition in enumerate(conditions):
+            curr_list = []
+            for chain in self.__chainList:
+                if filter != "chains":
+                    for residue in chain:
+                        if filter != "residues":
+                            for atom in residue:
+                                add(atom)
+                        else:
+                            add(residue)
                 else:
-                    keys = list(includedict.keys())
-                    for argset in zip(*includedict.values()):
-                        include = True
-                        for key, arg in zip(keys, argset):
-                            if getattr(residue, key) != arg:
-                                include = False
-                                break
-                        if include:
-                            break
-                if not excludejoint:
-                    for key, values in excludedict.items():
-                        if getattr(residue, key) in values and excludepolicy == "OR":
-                            include = False
-                            break
-                        elif getattr(residue, key) not in values and excludepolicy == "AND":
-                            include = True
-                            break
-                else:
-                    keys = list(excludedict.keys())
-                    for argset in zip(*excludedict.values()):
-                        include = True
-                        for key, arg in zip(keys, argset):
-                            if getattr(residue, key) != arg:
-                                include = False
-                                break
-                        if not include:
-                            break
-                if include:
-                    reslist += [self.__chainList[i][j]]
+                    add(chain)
+                    
+            all_sets += [frozenset(curr_list)]
+            mask = mask.replace(condition, "all_sets[%d]" % i)
 
-        return reslist
+        total_set = eval(mask, globals(), locals())
+        return [x for x in all_elems if x in total_set]
 
     def purgeResidues(self, residues):
         for i, reslist in enumerate([self._missing_residues, self._modified_residues, self._site_residues]):
@@ -627,7 +587,7 @@ class PDB:
 
 
     def totalResidueList(self, sorted=True):
-        total_res = self._missing_residues + self.filterResidues(includedict={"_type" : ["amino acid"]})
+        total_res = self._missing_residues + self.filter("_type=='amino acid'")
         if(sorted):
             PDB.sortResidueList(total_res)
         return total_res

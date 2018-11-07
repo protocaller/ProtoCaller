@@ -95,14 +95,14 @@ def FASTA2PIR(filename_input):
 def fixModellerPDB(model, add_missing_atoms, filename_output=None):
     def getAndFixResidue(index, missing_residue):
         nonlocal pdb_modified
-        modified_residue = _copy.deepcopy(pdb_modified.filterResidues(includedict={"_resSeq": [index]})[0])
+        modified_residue = _copy.deepcopy(pdb_modified.filter("_resSeq==%d" % index)[0])
         modified_residue._chainID = missing_residue._chainID
         modified_residue._resSeq = missing_residue._resSeq
         modified_residue._iCode = missing_residue._iCode
         return modified_residue
 
     def equalChainIDs(res_orig, res_mod):
-        if (res_orig == "A" and res_mod == " ") or res_orig == res_mod:
+        if (res_orig._chainID == "A" and res_mod._chainID == " ") or res_orig._chainID == res_mod._chainID:
             return True
         else:
             return False
@@ -110,7 +110,7 @@ def fixModellerPDB(model, add_missing_atoms, filename_output=None):
     try:
         filename_modified = model.loop.outputs[0]['name']
     except:
-        print("Modeller failed to create file. Please see log.")
+        print("Modeller failed to create file. Please see the log.")
         return -1
 
     pdb_modified = _IO.PDB.PDB(filename_modified)
@@ -138,7 +138,20 @@ def fixModellerPDB(model, add_missing_atoms, filename_output=None):
 
     if add_missing_atoms:
         for missing_atom in model.pdb._missing_atoms:
-
+            index = 1
+            breakloops = False
+            for i, chain in enumerate(model.pdb):
+                if chain._type == "chain":
+                    for j, residue in enumerate(chain):
+                        if residue == missing_atom:
+                            residue_new = getAndFixResidue(index, missing_atom)
+                            residue.copyFrom(residue_new)
+                        if residue._type == "amino acid":
+                            index += 1
+                        if breakloops:
+                            break
+                if breakloops:
+                    break
 
 
     model.pdb._missing_residues = []
