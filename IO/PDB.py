@@ -101,6 +101,7 @@ class Atom:
 
 class MissingResidue:
     def __init__(self, resName, chainID, resSeq, iCode=" "):
+        if iCode == "": iCode = " "
         self._resName = resName
         self._chainID = chainID
         self._resSeq = Atom._convert_to_int(resSeq)
@@ -119,6 +120,16 @@ class MissingResidue:
 
     def __gt__(self, other):
         return not self.__lt__(other)
+
+    def __eq__(self, other):
+        if self._chainID == other._chainID and self._resSeq == other._resSeq and self._iCode == other._iCode:
+            return True
+        else:
+            return False
+
+    def __str__(self):
+        string = "REMARK 465     {:3.3} {:1.1} {:5d}{:1.1}\n".format(self._resName, self._chainID, self._resSeq, self._iCode)
+        return string
 
     @property
     def _type(self):
@@ -139,6 +150,18 @@ class MissingResidue:
             return "misc"
         else:
             return "ligand"
+
+class MissingAtoms(MissingResidue):
+    def __init__(self, resName, chainID, resSeq, iCode=" ", atoms=None):
+        super().__init__(resName=resName, chainID=chainID, resSeq=resSeq, iCode=iCode)
+        self._atomlist = atoms
+
+    def __str__(self):
+        string = "REMARK 470     {:3.3} {:1.1}{:4d}{:1.1}    ".format(self._resName, self._chainID, self._resSeq,
+                                                                      self._iCode)
+        for atom in self._atomlist:
+            string = string + "{:<5.5}".format(atom)
+        return string + "\n"
 
 class Residue(MissingResidue):
     def __init__(self):
@@ -391,6 +414,7 @@ class PDB:
         self._site_residues = []
         self._modified_residues = []
         self._missing_residues = []
+        self._missing_atoms = []
 
         #then re-read and create links to other parts of the PDB
         for line in pdb_string:
@@ -413,13 +437,22 @@ class PDB:
                                                                             "_resSeq" : [int(float(line[18:22]))],
                                                                             "_iCode" : [line[22]]})
             else:
-                match = _re.findall(r"^REMARK 465\s*([\w]{3})\s*([\w])\s*([\d]*)\s*$", line)
+                match = _re.findall(r"^REMARK 465\s*([\w]{3})\s*([\w])\s*([\d]+)([\D|\S]?)\s*$", line)
                 if len(match) != 0:
                     self._missing_residues += [MissingResidue(*match[0])]
+                    continue
+
+                match = _re.findall(r"^REMARK 470\s*([\w]{3})\s*([\w])\s*([\d]+)([\D|\S]?)\s*", line)
+                if len(match) != 0:
+                    args = match[0]
+                    arr = line[21:].split()
+                    self._missing_atoms += [MissingAtoms(*args, atoms=arr)]
 
     def writePDB(self, filename=None):
         if filename is None: filename = self.filename
         with open(filename, "w") as file:
+            for residue in self._missing_residues + self._missing_atoms:
+                file.write(residue.__str__())
             for i, residue in enumerate(self._modified_residues):
                 file.write("MODRES {:>4d} {:>3.3} {:1.1} {:>4d}{:1.1}\n".format(i + 1, residue._resName, residue._chainID,
                                                                                 residue._resSeq, residue._iCode))

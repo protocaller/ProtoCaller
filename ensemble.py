@@ -7,7 +7,6 @@ import warnings as _warnings
 
 import BioSimSpace as _BSS
 import numpy as _np
-from rdkit import Chem as _Chem
 import parmed as _pmd
 import Sire.Maths as _SireMaths
 import Sire.Vol as _SireVol
@@ -35,7 +34,7 @@ class Ensemble:
         self.centre = centre
         self.params = _parametrise.Params(protein_ff=protein_ff, ligand_ff=ligand_ff, water_ff=water_ff)
         self.protein = protein
-        self.ligand_id = ligand_id
+        #self.ligand_id = ligand_id
         self._ligands = {}
         self.morphs = morphs
         self._complex_template = None
@@ -136,9 +135,11 @@ class Ensemble:
 
             self._morphs += [[ligand1, ligand2]]
 
-    def filterPDB(self, chains="all", waters="site", ligands="chain", anions="chain", cations="chain",
-                  include_mols=None, exclude_mols=None):
+    def filterPDB(self, missing_residues="middle", chains="all", waters="site", ligands="chain", anions="chain",
+                  cations="chain", include_mols=None, exclude_mols=None):
         """
+        :type missing_residues: "all" or "middle"
+        :param missing_residues: which missing residues to keep
         :type chains: "all" OR a list of characters for chains to keep
         :param waters: which waters to keep
         :type waters: "all" OR "chain" (only waters belonging to a chain) OR "site" OR None;
@@ -192,6 +193,23 @@ class Ensemble:
                 filter += self._protein_obj.filterResidues(includedict={"_type": ["amino acid"]})
             else:
                 filter += self._protein_obj.filterResidues(includedict={"_type": ["amino acid"], "_chainID": chains})
+                self._protein_obj._missing_residues = [x for x in self._protein_obj._missing_residues
+                                                       if x._chainID in chains]
+
+            # filter missing residues
+            if missing_residues == "middle":
+                missing_residue_list = self._protein_obj.totalResidueList()
+                for i in range(2):
+                    missing_residue_list.reverse()
+                    current_chain = None
+                    for j in reversed(range(0, len(missing_residue_list))):
+                        res = missing_residue_list[j]
+                        if type(res) == _IO.PDB.MissingResidue and current_chain != res._chainID:
+                            del missing_residue_list[j]
+                        else:
+                            current_chain = res._chainID
+                missing_residue_list = [x for x in missing_residue_list if type(x) == _IO.PDB.MissingResidue]
+            filter += missing_residue_list
 
             # filter by waters / anions / cations
             for parameter, name in zip([waters, anions, cations], ["water", "anion", "cation"]):
@@ -244,23 +262,26 @@ class Ensemble:
                 print("Warning: Cannot run PDB2PQR without protonation. This will be fixed in a later version. "
                       "Changing protein protonation method to PDB2PQR...")
 
-            if add_missing_residues.lower() == "modeller":
+            if add_missing_residues == "modeller":
+                atoms = True if add_missing_atoms == "modeller" else False
                 filename_fasta = self._downloader.downloadFASTA()
-                self._protein_file = _modeller.modellerTransform(self._protein_file, filename_fasta)
+                self._protein_file = _modeller.modellerTransform(self._protein_file, filename_fasta, atoms)
+                self._protein_obj = _IO.PDB.PDB(self._protein_file)
 
-            if add_missing_atoms.lower() == "pdb2pqr":
+            if add_missing_atoms == "pdb2pqr":
                 self._protein_file = _PDB2PQR.PDB2PQRtransform(self._protein_file)
+                self._protein_obj = _IO.PDB.PDB(self._protein_file)
 
-            if protonate_proteins.lower() == "protoss":
-                if protonate_ligands.lower() != "protoss":
+            if protonate_proteins == "protoss":
+                if protonate_ligands != "protoss":
                     ligand_file = None
                 else:
                     ligand_file = _IO.SDF.mergeSDFs(self._ligand_files_pdb)
                 self._protein_file, ligand_file, _ = _protoss.protossTransform(self._protein_file, ligand_file)
-                if protonate_ligands.lower() == "protoss":
+                if protonate_ligands == "protoss":
                     self._ligand_files_pdb = _IO.SDF.splitSDFs([ligand_file])
 
-            if protonate_ligands.lower() == "babel":
+            if protonate_ligands == "babel":
                 self._ligand_files_pdb = [_babel.babelTransform(f) for f in self._ligand_files_pdb if f is not None]
 
     def parametrisePDB(self):

@@ -20,7 +20,6 @@ class MyLoop(_modellerautomodel.loopmodel):
             self.pdb = _IO.PDB.PDB(filename)
             self.total_residue_list = self.pdb.totalResidueList()
             self.transformed_total_residue_list = self._transform_id(self.total_residue_list)
-            self.missing_residue_list = [res for res in self.total_residue_list if type(res) == _IO.MissingResidue]
             self.transformed_missing_residue_list = [self.transformed_total_residue_list[i]
                                                      for i, res in enumerate(self.total_residue_list)
                                                      if type(res) == _IO.PDB.MissingResidue]
@@ -47,7 +46,7 @@ class MyLoop(_modellerautomodel.loopmodel):
             modified_id_list += ["{}:{}".format(i + 1, res._chainID)]
         return modified_id_list
 
-def modellerTransform(filename_pdb, filename_fasta):
+def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms):
     env = _modeller.environ()
     pdb_code = filename_pdb[:4]
 
@@ -58,14 +57,13 @@ def modellerTransform(filename_pdb, filename_fasta):
                alnfile=filename_pir,
                knowns=("PROT"),
                filename=filename_pdb,
-               #inimodel=filename_pdb,  # initial model of the target
                sequence=pdb_code.upper(),  # code of the target
                loop_assess_methods=_modeller.automodel.assess.DOPE)
 
     m.auto_align()  # get an automatic alignment
     m.make()
 
-    return fixModellerPDB(m, filename_output=pdb_code + "_modeller.pdb")
+    return fixModellerPDB(m, add_missing_atoms=add_missing_atoms, filename_output=pdb_code + "_modeller.pdb")
 
 def FASTA2PIR(filename_input):
     file = open(filename_input).readlines()
@@ -94,7 +92,7 @@ def FASTA2PIR(filename_input):
 
     return filename_output
 
-def fixModellerPDB(model, filename_output=None):
+def fixModellerPDB(model, add_missing_atoms, filename_output=None):
     def getAndFixResidue(index, missing_residue):
         nonlocal pdb_modified
         modified_residue = _copy.deepcopy(pdb_modified.filterResidues(includedict={"_resSeq": [index]})[0])
@@ -116,7 +114,7 @@ def fixModellerPDB(model, filename_output=None):
         return -1
 
     pdb_modified = _IO.PDB.PDB(filename_modified)
-    for missing_residue in model.missing_residue_list:
+    for missing_residue in model.pdb._missing_residues:
         index = 1
         breakloops = False
         for i, chain in enumerate(model.pdb):
@@ -138,6 +136,14 @@ def fixModellerPDB(model, filename_output=None):
             if breakloops:
                 break
 
+    if add_missing_atoms:
+        for missing_atom in model.pdb._missing_atoms:
+
+
+
+    model.pdb._missing_residues = []
+    if add_missing_atoms:
+        model.pdb._missing_atoms = []
     model.pdb.reNumberAtoms()
     if (filename_output == None):
         filename_output = model.pdb.filename[:-4] + "_modified.pdb"

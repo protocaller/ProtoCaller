@@ -13,11 +13,14 @@ proteins = ["1BJI"]
 complexes = [[*proteins, *ligands]]
 
 with _subdir.Subdir("Temp", overwrite=True):
-    protein = "1BJI"
-    morphs = [["C1(=CC=CC=C1)CN(CC)CC", "C1(=CC=CC=C1)CN(CC)C"]]
-    ensemble = _ensemble.Ensemble("GROMACS", protein=protein, morphs=morphs, ligand_id="479G", box_length=6)
-    ensemble.filterPDB(ligands=None, waters="site")
-    ensemble.preparePDB(add_missing_residues="")
+    #protein = "1BJI"
+    #morphs = [["C1(=CC=CC=C1)CN(CC)CC", "C1(=CC=CC=C1)CN(CC)C"]]
+    protein = "1AZ5"
+    morphs = [[]]
+    ensemble = _ensemble.Ensemble("GROMACS", protein=protein, morphs=morphs, box_length=6)
+    #ensemble.filterPDB(ligands=None, waters="site")
+    ensemble.preparePDB(add_missing_atoms="", protonate_proteins="", protonate_ligands="")
+    exit()
     ensemble.parametrisePDB()
     ensemble.parametriseLigands()
     ensemble.prepareComplexes()
