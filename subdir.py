@@ -15,7 +15,7 @@ class Subdir():
         if(self.overwrite and self.copydirname and _os.path.exists(self.copydirname)):
             _shutil.copytree("%s/%s" % (self.workdirname, self.copydirname), "%s/%s" % (self.workdirname, self.dirname))
         elif(not _os.path.exists(self.dirname)):
-            _os.mkdir(self.dirname)
+            _os.makedirs(self.dirname)
         _os.chdir(self.dirname)
         self.path = "%s/%s" % (self.workdirname, self.dirname)
         return self
