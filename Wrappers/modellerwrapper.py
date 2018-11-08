@@ -1,8 +1,6 @@
 '''TO DO:
-1. Deal with ending loop residues - e.g. add option to ignore them
-2. See how modified protein residues are affected
-3. Renumber residues - sometimes PDB files provide negative numbers - might crash other pieces of software
-4. Still haven't implemented addition of missing atoms'''
+1. See how modified protein residues are affected
+2. Renumber residues - sometimes PDB files provide negative numbers - might crash other pieces of software'''
 
 import copy as _copy
 import re as _re

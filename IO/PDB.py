@@ -426,7 +426,7 @@ class PDB:
                 iCodes = [line[21], line[35]]
                 masks = []
                 for chainID, resSeq, iCode in zip(chainIDs, resSeqs, iCodes):
-                    masks += ["(_chainID=='{}'&_resSeq=={}&_iCode=='{}')".format(chainID, resSeq, iCode)]
+                    masks += ["_chainID=='{}'&_resSeq=={}&_iCode=='{}'".format(chainID, resSeq, iCode)]
                 mask = "|".join(masks)
                 self._disulfide_bonds += [self.filter(mask)]
             elif line[:4] == "SITE":
@@ -498,8 +498,8 @@ class PDB:
                 curr_list += [elem]
         all_elems = []
         all_sets = []
-        expr = r"([\w_]+\s*[=<>!]+\s*[^&|]+)"
-        conditions = _re.findall(expr, mask)
+        expr = r"[^\(\)&|]+"
+        conditions = [x for x in _re.findall(expr, mask) if x not in [None, ""]]
 
         for i, condition in enumerate(conditions):
             curr_list = []

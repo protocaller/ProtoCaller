@@ -19,8 +19,8 @@ def RunAntechamber(params, input_filebase, input_extension, output_filebase=None
     _runexternal.runExternal(commandstr, procname="antechamber")
 
 def RunParmchk(input_filebase, input_extension):
-    commandstr = "parmchk -i {0}.{1} -f {1} -o {0}.frcmod".format(input_filebase, input_extension)
-    _runexternal.runExternal(commandstr, procname="parmchk")
+    commandstr = "parmchk2 -i {0}.{1} -f {1} -o {0}.frcmod".format(input_filebase, input_extension)
+    _runexternal.runExternal(commandstr, procname="parmchk2")
 
 #generates tleap input for amber protein parametrisation
 def WriteProteinIN(params, input_filebase="protein", input_extension="pdb", output_filename="tleap_protein.in"):

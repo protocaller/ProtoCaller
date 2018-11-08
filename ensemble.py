@@ -253,11 +253,12 @@ class Ensemble:
                 print("Warning: Cannot run PDB2PQR without protonation. This will be fixed in a later version. "
                       "Changing protein protonation method to PDB2PQR...")
 
-            if add_missing_residues == "modeller":
-                atoms = True if add_missing_atoms == "modeller" else False
-                filename_fasta = self._downloader.downloadFASTA()
-                self._protein_file = _modeller.modellerTransform(self._protein_file, filename_fasta, atoms)
-                self._protein_obj = _IO.PDB.PDB(self._protein_file)
+            if len(self._protein_obj._missing_residues) and not add_missing_atoms == "modeller":
+                if add_missing_residues == "modeller":
+                    atoms = True if add_missing_atoms == "modeller" else False
+                    filename_fasta = self._downloader.downloadFASTA()
+                    self._protein_file = _modeller.modellerTransform(self._protein_file, filename_fasta, atoms)
+                    self._protein_obj = _IO.PDB.PDB(self._protein_file)
 
             if add_missing_atoms == "pdb2pqr":
                 self._protein_file = _PDB2PQR.PDB2PQRtransform(self._protein_file)
