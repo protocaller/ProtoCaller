@@ -54,11 +54,12 @@ class GMXSerialRuns:
             elif len(arr) != self.lambda_size:
                 raise ValueError("Need lists of the same size")
 
+        self.lambda_dict = lambda_dict
         self.gmx_run_list = [GMXSingleRun(gro_file, top_file, name, i, work_dir) for i in range(self.lambda_size)]
         self.protocols = []
 
     def addProtocol(self, name, use_preset=None, **kwargs):
-        self.protocols += [(name, _Protocol.Protocol(use_preset=use_preset, **kwargs))]
+        self.protocols += [(name, _Protocol.Protocol(use_preset=use_preset, **kwargs, **self.lambda_dict))]
 
     def runSimulations(self):
         for gmx_run in self.gmx_run_list:

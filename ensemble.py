@@ -467,11 +467,18 @@ class Ensemble:
                         _const.GROMACSEXE, ions_prep_filenames[0], n_Cl, n_Na)
                     _runexternal.runExternal(command, procname="gmx genion")
 
-                    _pmd.load_file(ions_prep_filenames[0])[":CL,NA"].save("ions.pdb")
+                    """PREPARE WATERS FOR TLEAP AND PARAMETRISE"""
+                    ions = _pmd.load_file(ions_prep_filenames[0])
+                    for residue in ions.residues:
+                        if residue.name == "SOL":
+                            residue.name = "WAT"
+
+                    ions.save("ions.pdb")
                     _os.remove(ions_prep_filenames[0])
                     ions_prep = _parametrise.parametriseAndLoadPmd(self.params, "ions.pdb", "water")
+
                     for filename in ions_prep_filenames:
-                        (ions_prep + waters_prep).save(filename)
+                        ions_prep.save(filename)
                 except:
                     print("Ion addition failed. Returning solvated system...")
                     return complex + _BSS.IO.readMolecules(waters_prep_filenames)

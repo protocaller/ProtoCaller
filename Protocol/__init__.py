@@ -1,9 +1,11 @@
 from collections.abc import Iterable as _Iterable
+from collections import OrderedDict
 
 import BioSimSpace as _BSS
 
 class Protocol:
     def __init__(self, use_preset=None, **kwargs):
+        self._attrs = OrderedDict()
         #integrators
         self.integrator = _BSS.Gateway.String(help="Which integrator to use",
                                               allowed=["leapfrog", "velocity_verlet", "steep", "l-bfgs", "stochastic"])
@@ -108,8 +110,10 @@ class Protocol:
             self.__setattr__(name, value)
 
     def __getattr__(self, name):
+        if name == "_Protocol__attrs":
+            return self._attrs
         try:
-            val = self.__dict__[name]
+            val = self.__attrs[name]
             if "Gateway" in str(type(val)):
                 return val.getValue()
             else:
@@ -124,18 +128,22 @@ class Protocol:
         if "lambda" in name:
             self.free_energy = True
 
-        if name not in self.__dict__.keys():
-            self.__dict__[name] = value
+        if name == "_attrs":
+            super(Protocol, self).__setattr__(name, value)
+            return
+
+        if name not in self.__attrs.keys():
+            self.__attrs[name] = value
         else:
-            val_old = self.__dict__[name]
+            val_old = self.__attrs[name]
             if "Gateway" not in str(type(val_old)):
                 if not isinstance(value, type(val_old)):
                     raise TypeError("Type of argument ({}) does not agree with requested type ({}).".format(
                         str(type(value), str(type(val_old)))))
                 else:
-                    self.__dict__[name] = value
+                    self.__attrs[name] = value
             else:
-                self.__dict__[name].setValue(value)
+                self.__attrs[name].setValue(value)
 
     def write(self, engine, filebase="protocol"):
         engine = engine.strip().upper()
@@ -237,7 +245,7 @@ class Protocol:
             "constraint_type": "constraint-algorithm",
 
             "free_energy": "free-energy",
-            "current_lambda": "init-lambda",
+            "current_lambda": "init-lambda-state",
             "coulomb_lambdas": "coul-lambdas",
             "vdw_lambdas": "vdw-lambdas",
             "bonded_lambdas": "bonded-lambdas",
@@ -308,7 +316,7 @@ class Protocol:
 
         filename = filebase + ".mdp"
         with open(filename, "w") as file:
-            for name, value in sorted(self.__dict__.items()):
+            for name, value in self.__attrs.items():
                 if name in name_dict.keys():
                     name_str = name_dict[name]
                 elif name[0] == "_":
