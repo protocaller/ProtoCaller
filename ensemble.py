@@ -90,7 +90,8 @@ class Ensemble:
         self._subdir.overwrite = False
 
         # remove ligands from PDB file and non-ligands from SDF files
-        self.filterPDB(chains="all", waters="all", anions="all", cations="all", ligands="all")
+        self.filterPDB(chains="all", waters="all", simple_anions="all", complex_anions="all", simple_cations="all",
+                       complex_cations="all", ligands="all", cofactors="all")
 
     @property
     def ligand_id(self):
@@ -135,21 +136,15 @@ class Ensemble:
 
             self._morphs += [[ligand1, ligand2]]
 
-    def filterPDB(self, missing_residues="middle", chains="all", waters="site", ligands="chain", anions="chain",
-                  cations="chain", include_mols=None, exclude_mols=None):
+    def filterPDB(self, missing_residues="middle", chains="all", waters="site", ligands="chain", cofactors="chain",
+                  simple_anions="chain", complex_anions="chain", simple_cations="chain", complex_cations="chain",
+                  include_mols=None, exclude_mols=None):
         """
         :type missing_residues: "all" or "middle"
         :param missing_residues: which missing residues to keep
         :type chains: "all" OR a list of characters for chains to keep
-        :param waters: which waters to keep
-        :type waters: "all" OR "chain" (only waters belonging to a chain) OR "site" OR None;
-                      other molecules can be added via include_mols
-        :param ligands: which ligands / cofactors to keep
-        :type ligands: "all" OR "chain" OR "site" OR None
-        :param anions: which anions to keep
-        :type anions: "all" OR "chain" OR "site" OR None
-        :param cations: which cations to keep
-        :type cations: "all" OR "chain" OR "site" OR None
+        :type everything inbetween: "all" OR "chain" (only molecules belonging to a chain) OR "site" OR None;
+                                    other molecules can be added via include_mols
         :param include_mols: include residue name; overrides previous filters
         :type include_mols: list of strings
         :param exclude_mols: exclude residue name; overrides previous filters
@@ -165,7 +160,7 @@ class Ensemble:
             ligand_files = []
             for filename in self._ligand_files_pdb:
                 _, resname, chainID, resSeq = _re.search(r"^([\w]*)_([\w]*)_([\w])_([A-Z0-9]*)", filename).groups()
-                if _IO.PDB.Residue.classify(resname) != "ligand":
+                if _const.RESIDUETYPE(resname) != "ligand":
                     continue
                 if ligands == "all" or (ligands == "chain" and chains == "all"):
                     ligand_files += [filename]
@@ -210,12 +205,13 @@ class Ensemble:
             filter += missing_residue_list
 
             # filter by waters / anions / cations
-            for parameter, name in zip([waters, anions, cations], ["water", "anion", "cation"]):
-                if parameter == "all" or (parameter == "chain" and chains == "all"):
+            for param, name in zip([waters, simple_anions, complex_anions, simple_cations, complex_cations, cofactors],
+                ["water", "simple_anion", "complex_anion", "simple_cation", "complex_cation", "cofactor"]):
+                if param == "all" or (param == "chain" and chains == "all"):
                     filter += self._protein_obj.filter("_type=='%s'" % name)
-                elif parameter == "chain":
+                elif param == "chain":
                     filter += self._protein_obj.filter("_type=='%s'|_chainID in %s" % (name, str(chains)))
-                elif parameter == "site":
+                elif param == "site":
                     if chains == "all":
                         filter_temp = self._protein_obj.filter("_type=='%s'" % name)
                     else:
@@ -288,7 +284,7 @@ class Ensemble:
             # create a merged parmed object with all parametrised molecules and save to top/gro which is then read by
             # BioSimSpace
             # we can't use a direct BioSimSpace object because it throws an error if the file contains single ions
-            system = _parametrise.parametriseAndLoadPmd(params=self.params, input_filename=self._protein_file,
+            system = _parametrise.parametriseAndLoadPmd(params=self.params, filename=self._protein_file,
                                                         molecule_type="protein")
 
             self._ligand_id = _babel.babelTransform(self._ligand_id, "mol2")
@@ -296,7 +292,7 @@ class Ensemble:
 
             for filename, type in zip(self._ligand_files_pdb + hetatm_files,
                                       ["ligand"] * len(self._ligand_files_pdb) + hetatm_types):
-                system += _parametrise.parametriseAndLoadPmd(params=self.params, input_filename=filename,
+                system += _parametrise.parametriseAndLoadPmd(params=self.params, filename=filename,
                                                              molecule_type=type)
 
             if self.centre:
@@ -328,7 +324,7 @@ class Ensemble:
                 filename_temp = _rdkit.saveFromRdkit(ligand, filename="ligand_%d.mol" % (i + 1))
                 filename_babel = _babel.babelTransform(filename_temp, "mol2")
                 self._ligands[ligand] += [filename_babel]
-                self._ligands[ligand] += [_parametrise.parametriseFile(params=self.params, input_filename=filename_babel,
+                self._ligands[ligand] += [_parametrise.parametriseFile(params=self.params, filename=filename_babel,
                                                                        molecule_type="ligand")]
 
     def prepareComplexes(self):

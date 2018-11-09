@@ -158,7 +158,7 @@ class Protocol:
         self.timestep = 0.002
         self.skip_positions = 500
         self.skip_velocities = 500
-        self.skip_forces = 0
+        self.skip_forces = 500
         self.skip_energies = 500
         self.periodic_boundary_conditions = "3d"
         self.neighbour_cutoff = 1.2

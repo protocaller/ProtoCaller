@@ -129,23 +129,7 @@ class MissingResidue:
 
     @property
     def _type(self):
-        return MissingResidue.classify(self._resName)
-
-    @staticmethod
-    def classify(resName):
-        resName = resName.strip().upper()
-        if resName in _const.WATERALIAS:
-            return "water"
-        elif resName in _const.CATIONLIST:
-            return "cation"
-        elif resName in _const.ANIONLIST:
-            return "anion"
-        elif resName in _const.AMINOACIDLIST:
-            return "amino acid"
-        elif resName in _const.MISCLIST:
-            return "misc"
-        else:
-            return "ligand"
+        return _const.RESIDUETYPE(self._resName)
 
 class MissingAtoms(MissingResidue):
     def __init__(self, resName, chainID, resSeq, iCode=" ", atoms=None):

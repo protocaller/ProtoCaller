@@ -3,7 +3,7 @@ import const as _const
 import BioSimSpace as _BSS
 import parmed as _pmd
 
-from Parametrise import tleapin as tleapin
+from Parametrise import amber as _amber
 
 class Params:
     def __init__(self, protein_ff=_const.AMBERDEFAULTPROTEINFF, ligand_ff=_const.AMBERDEFAULTLIGANDFF,
@@ -55,43 +55,21 @@ def parametriseAndLoadPmd(params, *args, **kwargs):
 def parametriseAndLoadBSS(params, *args, **kwargs):
     return _BSS.IO.readMolecules(parametriseFile(params, *args, **kwargs))
 
-def parametriseFile(params, input_filename, molecule_type, id=None):
-    input_filebase, input_extension = input_filename.split(".")
-    def amberWrapper(amberfunc):
-        nonlocal params, input_filebase, input_extension, molecule_type, molecule_type, id
-        if molecule_type == "ligand":
-            output_filebase = input_filebase + "_antechamber"
-            tleapin.RunAntechamber(params=params, input_filebase=input_filebase, input_extension=input_extension,
-                                    output_filebase=output_filebase, output_extension="mol2")
-            input_filebase, input_extension = output_filebase, "mol2"
-            tleapin.RunParmchk(params=params, input_filebase=input_filebase, input_extension="mol2")
-        filenames = amberfunc(params=params, input_filebase=input_filebase, input_extension=input_extension,
-                              output_filename="%s.in" % id)
-        tleapin.RunTleapScript("%s.in" % id)
-        return filenames
-
+def parametriseFile(params, filename, molecule_type, id=None):
     if id is None: id = molecule_type
 
     if molecule_type == "protein":
         if params.protein_ff in _const.AMBERPROTEINFFS:
-            return amberWrapper(tleapin.WriteProteinIN)
-    elif molecule_type == "ligand":
+            return _amber.amberWrapper(params, filename, molecule_type, id)
+    elif molecule_type in ["ligand", "cofactor"]:
         if params.ligand_ff in _const.AMBERLIGANDFFS:
-            return amberWrapper(tleapin.WriteLigandIN)
-    elif molecule_type == "anion":
+            return _amber.amberWrapper(params, filename, molecule_type, id)
+    elif molecule_type in ["water", "simple_anion", "complex_anion", "simple_cation", "complex_cation"]:
         if params.water_ff in _const.AMBERWATERFFS:
-            return amberWrapper(tleapin.WriteAnionIN)
-    elif molecule_type == "cation":
-        if params.water_ff in _const.AMBERWATERFFS:
-            return amberWrapper(tleapin.WriteCationIN)
-    elif molecule_type == "water":
-        if params.water_ff in _const.AMBERWATERFFS:
-            return amberWrapper(tleapin.WriteSolventIN)
-    elif molecule_type == "misc":
-        pass
+            return _amber.amberWrapper(params, filename, molecule_type, id)
     else:
-        raise ValueError("Invalid argument: %s. Argument must be one of: protein, ligand, anion, cation, water or misc."
-                         % molecule_type)
+        raise ValueError("Invalid argument: %s. Argument must be one of: protein, ligand, cofactor, simple anion, "
+                         "complex anion, simple cation, complex or water." % molecule_type)
 
     raise ValueError("No force fields available for the input system")
 
