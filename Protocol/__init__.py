@@ -57,10 +57,12 @@ class Protocol:
             minimum=-1)
         self.temperature = _BSS.Gateway.Integer(help="Simulation temperature",
                                                 minimum=0)
+        self.temp_groups = _BSS.Gateway.String(help="Which parts of the system to heat up",
+                                               allowed=["all"])
 
         #pressure options
         self.barostat = _BSS.Gateway.String(help="What barostat to use",
-                                            allowed=["no", "berendsen", "parrinello-rahman"])
+                                            allowed=["no", "berendsen", "parrinello-rahman", "mttk"])
         self.pres_frequency = _BSS.Gateway.Integer(help="Barostat friction coefficient / collision frequency in THz.",
                                                    minimum=-1)
         self.pres_time_const = _BSS.Gateway.Float(
@@ -68,6 +70,8 @@ class Protocol:
             minimum=-1)
         self.pressure = _BSS.Gateway.Float(help="Simulation pressure",
                                            minimum=0)
+        self.compressibility = _BSS.Gateway.Float(help="System compressibility",
+                                                  minimum=0)
 
         #initial velocity options
         self.random_velocities = _BSS.Gateway.Boolean(help="Whether to generate random velocities")
@@ -182,6 +186,7 @@ class Protocol:
         self.thermostat = "berendsen"
         self.temp_time_const = 1
         self.temperature = 298
+        self.temp_groups = "all"
         self.barostat = "no"
         self.random_velocities = True
         self.random_velocities_temperature = 298
@@ -193,16 +198,17 @@ class Protocol:
         self.thermostat = "berendsen"
         self.temp_time_const = 1
         self.temperature = 298
+        self.temp_groups = "all"
         self.barostat = "berendsen"
         self.pres_time_const = 1
+        self.pressure = 1
+        self.compressibility = 4.5 * 10**-5
         self.random_velocities = False
 
     def _generateProductionParams(self):
         self._generateNPTEquilibrationParams()
         self.integrator = "velocity_verlet"
         self.n_steps = 2500000
-        self.thermostat = "nose-hoover"
-        self.barostat = "parrinello-rahman"
 
     def _writeToGROMACS(self, filebase):
         name_dict = {
@@ -236,6 +242,8 @@ class Protocol:
             "pres_frequency": "nstpcouple",
             "pres_time_const": "tau-p",
             "pressure": "ref-p",
+            "compressibility": "compressibility",
+            "temp_groups" : "tc-grps",
 
             "random_velocities": "gen-vel",
             "random_velocities_temperature": "gen-temp",
@@ -295,10 +303,15 @@ class Protocol:
             "andersen": "andersen",
         }
 
+        value_dict["temp_groups"] = {
+            "all" : "system",
+        }
+
         value_dict["barostat"] = {
             "no": "no",
             "berendsen": "berendsen",
             "parrinello-rahman": "Parrinello-Rahman",
+            "mttk" : "MTTK"
         }
 
         value_dict["constraint"] = {

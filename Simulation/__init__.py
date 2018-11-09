@@ -40,7 +40,7 @@ class GMXSingleRun:
                 _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
                 output_files = _glob.glob("%s/%s.*" % (_os.getcwd(), filebase))
-                self.files = {}
+                self.files = {"top" : self.files["top"],}
                 for output_file in output_files:
                     ext = output_file.split(".")[-1].lower()
                     if ext == "tpr": ext = "gro"

@@ -61,10 +61,10 @@ def parametriseFile(params, input_filename, molecule_type, id=None):
         nonlocal params, input_filebase, input_extension, molecule_type, molecule_type, id
         if molecule_type == "ligand":
             output_filebase = input_filebase + "_antechamber"
-            tleapin.RunAntechamber(params, input_filebase=input_filebase, input_extension=input_extension,
+            tleapin.RunAntechamber(params=params, input_filebase=input_filebase, input_extension=input_extension,
                                     output_filebase=output_filebase, output_extension="mol2")
             input_filebase, input_extension = output_filebase, "mol2"
-            tleapin.RunParmchk(input_filebase=input_filebase, input_extension="mol2")
+            tleapin.RunParmchk(params=params, input_filebase=input_filebase, input_extension="mol2")
         filenames = amberfunc(params=params, input_filebase=input_filebase, input_extension=input_extension,
                               output_filename="%s.in" % id)
         tleapin.RunTleapScript("%s.in" % id)

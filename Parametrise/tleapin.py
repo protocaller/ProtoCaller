@@ -14,12 +14,13 @@ def RunAntechamber(params, input_filebase, input_extension, output_filebase=None
         output_filebase = input_filebase + "_antechamber"
     input_filename = input_filebase + "." + input_extension
     output_filename = output_filebase + "." + output_extension
-    commandstr = "antechamber -i %s -fi %s -o %s -fo %s -c bcc -s 2" % (input_filename, input_extension, output_filename,
-                                                                        output_extension)
+    commandstr = "antechamber -i %s -fi %s -o %s -fo %s -c -at %s bcc -s 2" % (
+        input_filename, input_extension, output_filename, output_extension, params.ligand_ff)
+
     _runexternal.runExternal(commandstr, procname="antechamber")
 
-def RunParmchk(input_filebase, input_extension):
-    commandstr = "parmchk2 -i {0}.{1} -f {1} -o {0}.frcmod".format(input_filebase, input_extension)
+def RunParmchk(params, input_filebase, input_extension):
+    commandstr = "parmchk2 -i {0}.{1} -f {1} -o {0}.frcmod -s %s".format(input_filebase, input_extension, params.ligand_ff)
     _runexternal.runExternal(commandstr, procname="parmchk2")
 
 #generates tleap input for amber protein parametrisation
