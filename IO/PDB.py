@@ -23,7 +23,7 @@ class Atom:
         self._charge = pdb_line[78:80]
 
     def __str__(self):
-        string = "{:<6.6}{:5d}  {:<3.3}{:>1.1}{:>3.3} {:>1.1}{:4d}{:>1.1}" \
+        string = "{:<6.6}{:5d} {:<4.4}{:>1.1}{:>3.3} {:>1.1}{:4d}{:>1.1}" \
                  "   {:>8.8}{:>8.8}{:>8.8}{:>6.6}{:>6.6}          {:>2.2}{:>2.2}".format(self._type,
                  self._serial, self._name, self._altLoc, self._resName, self._chainID, self._resSeq, self._iCode,
                  self._x, self._y, self._z, self._occupancy, self._tempFactor, self._element, self._charge)

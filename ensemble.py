@@ -99,8 +99,13 @@ class Ensemble:
 
     @ligand_id.setter
     def ligand_id(self, id):
+        if id is None and len(self._ligand_files_pdb) == 1:
+            self._ligand_id = self._ligand_files_pdb[0]
+            self._ligand_files_pdb = []
+            return
+
         for i, filename in enumerate(self._ligand_files_pdb):
-            _, _, _, resSeq = _re.search(r"^([\w]*)_([\w]*)_([\w])_([A-Z0-9]*)", filename).groups()
+            _, _, _, resSeq = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", filename).groups()
             if resSeq == id:
                 self._ligand_id = filename
                 del self._ligand_files_pdb[i]
@@ -159,7 +164,7 @@ class Ensemble:
             # filter ligands
             ligand_files = []
             for filename in self._ligand_files_pdb:
-                _, resname, chainID, resSeq = _re.search(r"^([\w]*)_([\w]*)_([\w])_([A-Z0-9]*)", filename).groups()
+                _, resname, chainID, resSeq = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", filename).groups()
                 if _const.RESIDUETYPE(resname) != "ligand":
                     continue
                 if ligands == "all" or (ligands == "chain" and chains == "all"):
@@ -258,7 +263,6 @@ class Ensemble:
 
             if add_missing_atoms == "pdb2pqr":
                 self._protein_file = _PDB2PQR.PDB2PQRtransform(self._protein_file)
-                self._protein_obj = _IO.PDB.PDB(self._protein_file)
 
             if protonate_proteins == "protoss":
                 if protonate_ligands != "protoss":
@@ -277,7 +281,7 @@ class Ensemble:
             print("Parametrising original crystal system...")
             #extract non-protein residues from pdb file and save them as separate pdb files
             hetatm_files, hetatm_types = self._protein_obj.writeHetatms()
-            non_protein_residues = self._protein_obj.filter("_type not in ['water', 'cation', 'anion']")
+            non_protein_residues = self._protein_obj.filter("_type not in ['water', 'simple cation', 'simple anion']")
             self._protein_obj.purgeResidues(non_protein_residues)
             self._protein_obj.writePDB()
 
@@ -325,7 +329,7 @@ class Ensemble:
                 filename_babel = _babel.babelTransform(filename_temp, "mol2")
                 self._ligands[ligand] += [filename_babel]
                 self._ligands[ligand] += [_parametrise.parametriseFile(params=self.params, filename=filename_babel,
-                                                                       molecule_type="ligand")]
+                                                                       molecule_type="ligand", id="ligand_%d" % (i + 1))]
 
     def prepareComplexes(self):
         with self._subdir:

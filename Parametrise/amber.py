@@ -7,7 +7,7 @@ from Wrappers import runexternal as _runexternal
 
 def amberWrapper(params, filename, molecule_type, id=None):
     if id is None: id = molecule_type
-    force_fields, files, param_files, id = [], [filename], [], molecule_type
+    force_fields, files, param_files = [], [filename], []
 
     if molecule_type == "protein":
         force_fields = [params.protein_ff]
@@ -31,17 +31,17 @@ def amberWrapper(params, filename, molecule_type, id=None):
     return runTleap(force_fields=force_fields, files=files, param_files=param_files, id=id)
 
 def runAntechamber(force_field, file, output_ext="mol2"):
-    input_base, input_ext = _os.path.splitext(file)
+    input_base, input_ext = _os.path.splitext(file)[0], file.split(".")[-1]
     output_name = "%s_antechamber.%s" % (input_base, output_ext)
 
-    commandstr = "antechamber -i '%s' -fi %s -o '%s' -fo %s -c -at %s bcc -s 2" % (
+    commandstr = "antechamber -i '%s' -fi %s -o '%s' -fo %s -c bcc -at %s -s 2" % (
         file, input_ext, output_name, output_ext, force_field)
     _runexternal.runExternal(commandstr, procname="antechamber")
 
     return output_name
 
 def runParmchk(force_field, file):
-    input_base, input_ext = _os.path.splitext(file)
+    input_base, input_ext = _os.path.splitext(file)[0], file.split(".")[-1]
     commandstr = "parmchk2 -i '{0}.{1}' -f {1} -o '{0}.frcmod' -s %s".format(input_base, input_ext, force_field)
     _runexternal.runExternal(commandstr, procname="parmchk2")
 
