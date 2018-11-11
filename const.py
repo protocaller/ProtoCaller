@@ -24,7 +24,7 @@ if OS == "Linux":
             if err:
                 print("GROMACS cannot be found on this system. This will affect some functionality.")
             else:
-                GROMACSHOME = _re.match(r"([\S]*)/bin/gmx", out.decode()).group(1)
+                _os.environ['GROMACSHOME'] = _re.match(r"([\S]*)/bin/gmx", out.decode()).group(1)
 if "GROMACSHOME" in _os.environ:
     GROMACSEXE = _os.environ["GROMACSHOME"] + "/bin/gmx"
 else:

@@ -207,8 +207,10 @@ class Protocol:
 
     def _generateProductionParams(self):
         self._generateNPTEquilibrationParams()
-        self.integrator = "velocity_verlet"
+        self.integrator = "leapfrog"
         self.n_steps = 2500000
+        self.thermostat = "nose-hoover"
+        self.barostat = "parrinello-rahman"
 
     def _writeToGROMACS(self, filebase):
         name_dict = {
