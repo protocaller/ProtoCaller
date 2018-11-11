@@ -20,7 +20,8 @@ def amberWrapper(params, filename, molecule_type, id=None):
         print("AMBER parametrisation failed: transition metals not supported")
         return
     elif molecule_type == "cofactor":
-        force_fields = _glob.glob("%s/shared/amber-parameters/cofactors" % _const.HOMEDIR)
+        force_fields = [params.ligand_ff]
+        param_files = _glob.glob("%s/shared/amber-parameters/cofactors/GDP.*" % _const.HOMEDIR)
     elif molecule_type == "ligand":
         force_fields = [params.ligand_ff]
         files = [runAntechamber(params.ligand_ff, filename)]
@@ -55,10 +56,6 @@ def runTleap(force_fields=None, files=None, param_files=None, id=None):
     with open(filename_tleap, "w+") as out:
         for force_field in force_fields:
             out.write("source \"%s\"\n" % returnFFPath(force_field))
-        for file in files:
-            ext = file.split(".")[-1]
-            if ext == "pqr": ext = "pdb"
-            out.write("MOL = load%s \"%s\"\n" % (ext, file))
         if param_files is not None:
             out.write("check MOL\n")
             for param_file in param_files:
@@ -73,6 +70,11 @@ def runTleap(force_fields=None, files=None, param_files=None, id=None):
                     print("%s if not a valid parameter file. Skipping value..." % param_file)
                     continue
                 out.write("%s \"%s\"\n" % (command, param_file))
+        for file in files:
+            ext = file.split(".")[-1]
+            if ext == "pqr": ext = "pdb"
+            out.write("MOL = load%s \"%s\"\n" % (ext, file))
+        out.write("check MOL\n")
         out.write("saveAmberParm MOL {0} {1}\n".format(*filenames))
         out.write("quit\n")
 
