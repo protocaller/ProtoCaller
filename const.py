@@ -22,7 +22,12 @@ if OS == "Linux":
             p = _subprocess.Popen(["which gmx"], stdout=_subprocess.PIPE, stderr=_subprocess.PIPE, shell=True)
             out, err = p.communicate()
             if err:
-                print("GROMACS cannot be found on this system. This will affect some functionality.")
+                p = _subprocess.Popen(["which gmx_mpi"], stdout=_subprocess.PIPE, stderr=_subprocess.PIPE, shell=True)
+                out, err = p.communicate()
+                if err:
+                    print("GROMACS cannot be found on this system. This will affect some functionality.")
+                else:
+                    _os.environ['GROMACSHOME'] = _re.match(r"([\S]*)/bin/gmx", out.decode()).group(1)
             else:
                 _os.environ['GROMACSHOME'] = _re.match(r"([\S]*)/bin/gmx", out.decode()).group(1)
 if "GROMACSHOME" in _os.environ:
