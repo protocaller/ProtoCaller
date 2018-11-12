@@ -8,6 +8,8 @@ from rdkit.Chem import rdFMCS as _FMCS
 from rdkit.Geometry import rdGeometry as _Geom
 import parmed as _pmd
 
+import ProtoCaller.Utils.stdio as _stdio
+
 def openFileAsRdkit(filename, **kwargs):
     extension = filename.split(".")[-1]
 
@@ -16,33 +18,35 @@ def openFileAsRdkit(filename, **kwargs):
     else:
         exec("mol = _Chem.MolFrom%sFile(filename, **kwargs)" % extension.upper(), locals(), globals())
 
-    if (mol is None):
+    if mol is None:
         raise ValueError("File format not recognised: %s" % filename)
     return mol
 
+@_stdio.stdout_stderr()
 def openInChIAsRdkit(inchi_str, removeHs=True, **kwargs):
     mol = _Chem.MolFromInchi(inchi_str, removeHs=removeHs, **kwargs)
-    if(mol is None):
+    if mol is None:
         raise ValueError("InChI string not recognised: %s" % inchi_str)
     return mol
 
+@_stdio.stdout_stderr()
 def openSmilesAsRdkit(smiles_str, **kwargs):
     mol = _Chem.MolFromSmiles(smiles_str, **kwargs)
-    if (mol is None):
+    if mol is None:
         raise ValueError("SMILES string not recognised: %s" % smiles_str)
     return mol
 
 def openAsRdkit(val, **kwargs):
     if isinstance(val, str) and len(val.split(".")) == 1:
-        try:
-            mol = openSmilesAsRdkit(val, **kwargs)
-            _AllChem.EmbedMolecule(mol, _AllChem.ETKDG())
-        except:
+        flist = [openSmilesAsRdkit, openInChIAsRdkit]
+        for i, f in enumerate(flist):
             try:
-                mol = openInChIAsRdkit(val, **kwargs)
+                mol = f(val, **kwargs)
                 _AllChem.EmbedMolecule(mol, _AllChem.ETKDG())
+                break
             except:
-                raise ValueError("String not recognised as a valid SMILES or InChI input")
+                if i == len(flist) - 1:
+                    raise ValueError("String not recognised as a valid SMILES or InChI input")
     else:
         try:
             mol = openFileAsRdkit(val, **kwargs)

@@ -1,4 +1,4 @@
-from Wrappers import runexternal as _runexternal
+from ProtoCaller.Utils import runexternal as _runexternal
 
 def babelTransform(input_filename, output_extension="mol2", pH=7.0):
     if input_filename is None:

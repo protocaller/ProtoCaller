@@ -1,5 +1,3 @@
-import const as _const
-
 import ensemble as _ensemble
 import subdir as _subdir
 

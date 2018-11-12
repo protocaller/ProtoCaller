@@ -1,8 +1,8 @@
-import const as _const
-
 import re as _re
 
 import pypdb as _pypdb
+
+import ProtoCaller as _PC
 
 class Atom:
     def __init__(self, pdb_line):
@@ -129,7 +129,7 @@ class MissingResidue:
 
     @property
     def _type(self):
-        return _const.RESIDUETYPE(self._resName)
+        return _PC.RESIDUETYPE(self._resName)
 
 class MissingAtoms(MissingResidue):
     def __init__(self, resName, chainID, resSeq, iCode=" ", atoms=None):
@@ -497,7 +497,7 @@ class PDB:
                             add(residue)
                 else:
                     add(chain)
-                    
+
             all_sets += [frozenset(curr_list)]
             mask = mask.replace(condition, "all_sets[%d]" % i)
 

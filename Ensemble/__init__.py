@@ -1,5 +1,3 @@
-import const as _const
-
 import os as _os
 import re as _re
 import tempfile as _tempfile
@@ -11,21 +9,22 @@ import parmed as _pmd
 import Sire.Maths as _SireMaths
 import Sire.Vol as _SireVol
 
-import IO as _IO
-import pdbconnect as _pdbconnect
-import Parametrise as _parametrise
-import subdir as _subdir
-from Wrappers import babelwrapper as _babel
-from Wrappers import modellerwrapper as _modeller
-from Wrappers import PDB2PQRwrapper as _PDB2PQR
-from Wrappers import protosswrapper as _protoss
-from Wrappers import rdkitwrapper as _rdkit
-from Wrappers import runexternal as _runexternal
+import ProtoCaller as _PC
+import ProtoCaller.IO as _IO
+import ProtoCaller.Parametrise as _parametrise
+import ProtoCaller.Utils.pdbconnect as _pdbconnect
+import ProtoCaller.Utils.runexternal as _runexternal
+import ProtoCaller.Utils.subdir as _subdir
+import ProtoCaller.Wrappers.babelwrapper as _babel
+import ProtoCaller.Wrappers.modellerwrapper as _modeller
+import ProtoCaller.Wrappers.PDB2PQRwrapper as _PDB2PQR
+import ProtoCaller.Wrappers.protosswrapper as _protoss
+import ProtoCaller.Wrappers.rdkitwrapper as _rdkit
 
 class Ensemble:
     def __init__(self, engine, box_length=12, ion_conc=0.154, shell=0, neutralise=True, centre=True,
-                 protein_ff=_const.AMBERDEFAULTPROTEINFF, ligand_ff=_const.AMBERDEFAULTLIGANDFF,
-                 water_ff=_const.AMBERDEFAULTWATERFF, protein=None, ligand_id=None, morphs=None):
+                 protein_ff=_PC.AMBERDEFAULTPROTEINFF, ligand_ff=_PC.AMBERDEFAULTLIGANDFF,
+                 water_ff=_PC.AMBERDEFAULTWATERFF, protein=None, ligand_id=None, morphs=None):
         self.engine = engine
         self.box_length = box_length
         self.ion_conc = ion_conc
@@ -47,8 +46,8 @@ class Ensemble:
     @engine.setter
     def engine(self, val):
         val = val.strip().upper()
-        if val not in _const.ENGINES:
-            raise ValueError("Value %s not supported. Supported values: " % val, _const.ENGINES)
+        if val not in _PC.ENGINES:
+            raise ValueError("Value %s not supported. Supported values: " % val, _PC.ENGINES)
         self._engine = val
 
     @property
@@ -165,7 +164,7 @@ class Ensemble:
             ligand_files = []
             for filename in self._ligand_files_pdb:
                 _, resname, chainID, resSeq = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", filename).groups()
-                if _const.RESIDUETYPE(resname) != "ligand":
+                if _PC.RESIDUETYPE(resname) != "ligand":
                     continue
                 if ligands == "all" or (ligands == "chain" and chains == "all"):
                     ligand_files += [filename]
@@ -400,7 +399,7 @@ class Ensemble:
             _os.rename("complex.grotop", files[1])
 
             new_gro = "complex_solvated.gro"
-            command = "{0} solvate -shell {1} -box {2} {2} {2} -cp {3} -o {4}".format(_const.GROMACSEXE, self.shell,
+            command = "{0} solvate -shell {1} -box {2} {2} {2} -cp {3} -o {4}".format(_PC.GROMACSEXE, self.shell,
                                                                                       box_length, files[0], new_gro)
 
             try:
@@ -460,11 +459,11 @@ class Ensemble:
                 try:
                     ions_prep_filenames = ["ions.gro", "ions.top"]
                     command = "{0} grompp -f ions.mdp -c {1} -p {2} -o complex_solvated.tpr".format(
-                        _const.GROMACSEXE, *waters_prep_filenames)
+                        _PC.GROMACSEXE, *waters_prep_filenames)
                     _runexternal.runExternal(command, procname="gmx grompp")
 
                     command = "{{ echo 2; }} | {0} genion -s complex_solvated.tpr -o {1} -nn {2} -np {3}".format(
-                        _const.GROMACSEXE, ions_prep_filenames[0], n_Cl, n_Na)
+                        _PC.GROMACSEXE, ions_prep_filenames[0], n_Cl, n_Na)
                     _runexternal.runExternal(command, procname="gmx genion")
 
                     """PREPARE WATERS FOR TLEAP AND PARAMETRISE"""

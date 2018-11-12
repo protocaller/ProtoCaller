@@ -8,7 +8,7 @@ import re as _re
 import modeller as _modeller
 import modeller.automodel as _modellerautomodel
 
-import IO as _IO
+import ProtoCaller.IO as _IO
 
 #taken from https://salilab.org/modeller/manual/node36.html
 class MyLoop(_modellerautomodel.loopmodel):

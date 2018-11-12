@@ -1,5 +1,3 @@
-import const as _const
-
 import re as _re
 import urllib as _urllib
 

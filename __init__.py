@@ -24,7 +24,7 @@ if OS == "Linux":
                         print("GROMACS cannot be found on this system. This will affect some functionality.")
                     else:
                         _os.environ['GROMACSHOME'] = _re.match(r"([\S]*)/bin/gmx", out.decode()).group(1)
-                        GROMACSEXE = _os.environ['GROMACSHOME'] + "bin/gmx_mpi"
+                        GROMACSEXE = _os.environ['GROMACSHOME'] + "/bin/gmx_mpi"
                 else:
                     _os.environ['GROMACSHOME'] = _re.match(r"([\S]*)/bin/gmx", out.decode()).group(1)
             if out:
@@ -73,3 +73,10 @@ AMBERDEFAULTWATERFF = "tip3p"
 PROTEINFFS = AMBERPROTEINFFS
 LIGANDFFS = AMBERLIGANDFFS
 WATERFFS = AMBERWATERFFS
+
+from . import Ensemble
+from . import IO
+from . import Parametrise
+from . import Protocol
+from . import Simulation
+from . import Utils

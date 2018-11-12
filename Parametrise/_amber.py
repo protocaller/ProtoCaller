@@ -1,9 +1,8 @@
-import const as _const
-
 import glob as _glob
 import os as _os
 
-from Wrappers import runexternal as _runexternal
+import ProtoCaller as _PC
+import ProtoCaller.Utils.runexternal as _runexternal
 
 def amberWrapper(params, filename, molecule_type, id=None):
     if id is None: id = molecule_type
@@ -21,7 +20,7 @@ def amberWrapper(params, filename, molecule_type, id=None):
         return
     elif molecule_type == "cofactor":
         force_fields = [params.ligand_ff]
-        param_files = _glob.glob("%s/shared/amber-parameters/cofactors/GDP.*" % _const.HOMEDIR)
+        param_files = _glob.glob("%s/shared/amber-parameters/cofactors/GDP.*" % _PC.HOMEDIR)
     elif molecule_type == "ligand":
         force_fields = [params.ligand_ff]
         files = [runAntechamber(params.ligand_ff, filename)]
@@ -82,11 +81,11 @@ def runTleap(force_fields=None, files=None, param_files=None, id=None):
     return filenames
 
 def returnFFPath(name):
-    if(name in _const.AMBEROLDFFS):
+    if(name in _PC.AMBEROLDFFS):
         return "oldff/leaprc." + name
-    elif name in _const.AMBERPROTEINFFS:
+    elif name in _PC.AMBERPROTEINFFS:
         return "leaprc.protein.%s" % name
-    elif name in _const.AMBERWATERFFS:
+    elif name in _PC.AMBERWATERFFS:
         return "leaprc.water.%s" % name
     else:
         return "leaprc." + name

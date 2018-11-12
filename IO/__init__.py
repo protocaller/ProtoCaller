@@ -1,2 +1,2 @@
-import IO.PDB as PDB
-import IO.SDF as SDF
+from . import PDB
+from . import SDF

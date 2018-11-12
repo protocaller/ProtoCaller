@@ -1,11 +1,10 @@
-import const as _const
-
 import glob as _glob
 import os as _os
 
-import Protocol as _Protocol
-import subdir as _subdir
-import Wrappers.runexternal as _runexternal
+import ProtoCaller as _PC
+import ProtoCaller.Protocol as _Protocol
+import ProtoCaller.Utils.runexternal as _runexternal
+import ProtoCaller.Utils.subdir as _subdir
 
 class GMXSingleRun:
     def __init__(self, name, gro_file, top_file, lambda_index, work_dir=None):
@@ -30,13 +29,13 @@ class GMXSingleRun:
                     "-p" : "top",
                     "-t" : "cpt",
                 }
-                grompp_command = "%s grompp -maxwarn 10 -o input.tpr" % _const.GROMACSEXE
+                grompp_command = "%s grompp -maxwarn 10 -o input.tpr" % _PC.GROMACSEXE
                 for grompp_arg, filetype in grompp_args.items():
                     if filetype in self.files.keys():
                         grompp_command += " %s '%s'" % (grompp_arg, self.files[filetype])
                 _runexternal.runExternal(grompp_command, procname="gmx grompp")
 
-                mdrun_command = "%s mdrun -s input.tpr -deffnm %s" % (_const.GROMACSEXE, filebase)
+                mdrun_command = "%s mdrun -s input.tpr -deffnm %s" % (_PC.GROMACSEXE, filebase)
                 _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
                 output_files = _glob.glob("%s/%s.*" % (_os.getcwd(), filebase))
