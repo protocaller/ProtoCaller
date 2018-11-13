@@ -24,10 +24,16 @@ def stdout_stderr(stdout=_os.devnull, stderr=_os.devnull):
 
 def warnings_as_errors(f):
     def f_mod(*args, **kwargs):
-        _warnings.filterwarnings("error")
-        try:
+        with _warnings.catch_warnings():
+            _warnings.filterwarnings("error")
             result = f(*args, **kwargs)
-        finally:
-            _warnings.filterwarnings("always")
+        return result
+    return f_mod
+
+def ignore_warnings(f):
+    def f_mod(*args, **kwargs):
+        with _warnings.catch_warnings():
+            _warnings.filterwarnings("ignore")
+            result = f(*args, **kwargs)
         return result
     return f_mod

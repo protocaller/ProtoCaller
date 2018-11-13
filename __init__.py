@@ -74,9 +74,12 @@ PROTEINFFS = AMBERPROTEINFFS
 LIGANDFFS = AMBERLIGANDFFS
 WATERFFS = AMBERWATERFFS
 
-from . import Ensemble
-from . import IO
-from . import Parametrise
-from . import Protocol
-from . import Simulation
-from . import Utils
+import warnings as _warnings
+with _warnings.catch_warnings():
+    _warnings.filterwarnings("ignore")
+    from . import Ensemble
+    from . import IO
+    from . import Parametrise
+    from . import Protocol
+    from . import Simulation
+    from . import Utils

@@ -14,6 +14,7 @@ import ProtoCaller.IO as _IO
 import ProtoCaller.Parametrise as _parametrise
 import ProtoCaller.Utils.pdbconnect as _pdbconnect
 import ProtoCaller.Utils.runexternal as _runexternal
+import ProtoCaller.Utils.stdio as _stdio
 import ProtoCaller.Utils.subdir as _subdir
 import ProtoCaller.Wrappers.babelwrapper as _babel
 import ProtoCaller.Wrappers.modellerwrapper as _modeller
@@ -306,7 +307,7 @@ class Ensemble:
                 if box_length > self.box_length:
                     self.box_length = int(box_length) + 1
                     print("Insufficient input box size. Changing to a box length of %d nm..." % self.box_length)
-                    centre -= _np.asarray(3 * [5 * box_length])
+                centre -= _np.asarray(3 * [5 * box_length])
                 for atom in system.atoms:
                     atom.xx -= centre[0]
                     atom.xy -= centre[1]
@@ -421,7 +422,7 @@ class Ensemble:
 
                 waters.save("waters.pdb")
                 waters_prep = _parametrise.parametriseAndLoadPmd(self.params, "waters.pdb", "water")
-                waters_prep.box = _pmd.load_file(files[1], xyz=files[0], skip_bonds=True).box
+                waters_prep.box = _stdio.ignore_warnings(_pmd.load_file)(files[1], xyz=files[0], skip_bonds=True).box
                 for residue in waters_prep.residues:
                     residue.name = "SOL"
                 waters_prep_filenames = ["waters.gro", "waters.top"]
