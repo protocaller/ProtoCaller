@@ -79,7 +79,7 @@ def translateMolecule(mol, vector):
         mol_conf.SetAtomPosition(i, new_atom_position)
     return mol
 
-def alignTwoMolecules(mol, ref, n_min=-1, match="any"):
+def alignTwoMolecules(ref, mol, n_min=-1, match="any"):
     """
     :param mol: molecule to be aligned
     :param ref: reference molecule
@@ -116,4 +116,4 @@ def alignTwoMolecules(mol, ref, n_min=-1, match="any"):
             #n_min = -1 means infinite minimisation
             if n_min != -1:
                 n_min -= 1
-    return mol
+    return mol, list(zip(match1, match2))

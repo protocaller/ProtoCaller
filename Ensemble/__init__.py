@@ -345,8 +345,8 @@ class Ensemble:
                     ligand2_H = _rdkit.openAsRdkit("../" + self._ligands[ligand2][0], removeHs=False)
 
                     #aligning protonated ligands
-                    ligand1_H = _rdkit.alignTwoMolecules(ligand1_H, self._ligand_ref)
-                    ligand2_H = _rdkit.alignTwoMolecules(ligand2_H, ligand1_H)
+                    ligand1_H, _ = _rdkit.alignTwoMolecules(self._ligand_ref, ligand1_H)
+                    ligand2_H, mcs = _rdkit.alignTwoMolecules(ligand1_H, ligand2_H)
 
                     #replacing coordinates of parametrised ligands with new coordinates while keeping the topology
                     filenames = ["morph%d_1.inpcrd" % (i + 1), "morph%d_2.inpcrd" % (i + 1)]
@@ -356,7 +356,13 @@ class Ensemble:
                     #loading the shifted ligands into BioSimSpace
                     ligand1_BSS = _BSS.IO.readMolecules(ligand1_prep).getMolecules()[0]
                     ligand2_BSS = _BSS.IO.readMolecules(ligand2_prep).getMolecules()[0]
-                    mapping = _BSS.Align.matchAtoms(ligand1_BSS, ligand2_BSS)
+
+                    #transling RDKit mapping into BioSimSpace mapping
+                    mapping = {}
+                    indices_1 = [atom.index() for atom in ligand1_BSS._sire_molecule.edit().atoms()]
+                    indices_2 = [atom.index() for atom in ligand2_BSS._sire_molecule.edit().atoms()]
+                    for idx1, idx2 in mcs:
+                        mapping[indices_1[idx1]] = indices_2[idx2]
 
                     #merging the two ligands into a morph and adding it to the protein template
                     morph = _BSS.Align.merge(ligand1_BSS, ligand2_BSS, mapping=mapping)
