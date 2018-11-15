@@ -384,19 +384,18 @@ class Ensemble:
                     morph = _BSS.Align.merge(ligand1_BSS, ligand2_BSS, mapping=mapping)
                     complexes = [self._complex_template + morph]
 
+                    #solvating and saving the prepared complex and morph with the appropriate box size
+                    print("Solvating...")
+                    complexes = [self._solvate(complexes[0], work_dir=curdir.path)]
+                    box = complexes[0]._sire_system.property("space")
+                    morph = morph.toSystem()
+                    morph._sire_system.setProperty("space", box)
+
                     #rescaling complexes for replica exchange
                     if len(scales) != 1:
                         print("Creating replicas...")
                         complexes = [_BSSwrap.rescaleSystemParams(complexes[0], scale) for scale in scales]
 
-                    #solvating and saving the prepared complex and morph with the appropriate box size
-                    print("Solvating...")
-                    for j, complex in enumerate(complexes):
-                        work_dir = curdir.path + "/Replica %d" % j if len(complexes) else curdir.path
-                        complexes[j] = self._solvate(complex, work_dir=work_dir)
-                    box = complexes[0]._sire_system.property("space")
-                    morph = morph.toSystem()
-                    morph._sire_system.setProperty("space", box)
                     self.systems_prep[tuple(self.morphs[i])] = (morph, complexes)
 
     def saveSystems(self):

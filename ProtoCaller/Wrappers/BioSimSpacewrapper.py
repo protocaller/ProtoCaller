@@ -1,11 +1,16 @@
 import BioSimSpace as _BSS
 
-def rescaleSystemParams(system, scale):
+def rescaleSystemParams(system, scale, excludelist=None):
+    if excludelist is None:
+        excludelist = ["WAT"]
     if scale == 1:
         return system
     mols_mod = []
 
     for mol in system.getMolecules():
+        if mol._sire_molecule.name().value() in excludelist:
+            mols_mod += [mol]
+            continue
         mol_edit = mol._sire_molecule.edit()
         for atom in mol_edit.atoms():
             idx = atom.index()
