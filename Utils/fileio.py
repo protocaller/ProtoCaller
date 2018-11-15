@@ -23,3 +23,20 @@ class Subdir():
         _os.chdir(self.workdirname)
         if(self.temp):
             _shutil.rmtree(self.path)
+
+class Dir(Subdir):
+    def __init__(self, dirname, *args, **kwargs):
+        if _os.path.isabs(dirname):
+            self.workdirname = _os.path.dirname(dirname)
+        else:
+            self.workdirname = _os.getcwd()
+        self.initialdirname = _os.getcwd()
+        super().__init__(_os.path.basename(dirname), *args, *kwargs)
+
+    def __enter__(self):
+        _os.chdir(self.workdirname)
+        return super().__enter__()
+
+    def __exit__(self, *args):
+        super().__exit__(*args)
+        _os.chdir(self.initialdirname)

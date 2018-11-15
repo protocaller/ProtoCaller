@@ -3,8 +3,8 @@ import os as _os
 
 import ProtoCaller as _PC
 import ProtoCaller.Protocol as _Protocol
+import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Utils.runexternal as _runexternal
-import ProtoCaller.Utils.subdir as _subdir
 
 class GMXSingleRun:
     def __init__(self, name, gro_file, top_file, lambda_index, work_dir=None):
@@ -13,12 +13,12 @@ class GMXSingleRun:
         self.files = {}
         self.files["gro"] = "%s/%s" % (_os.getcwd(), gro_file)
         self.files["top"] = "%s/%s" % (_os.getcwd(), top_file)
-        self._subdir = _subdir.Subdir("%s/%s/Lambda_%d" % (work_dir, name, lambda_index))
+        self._workdir = _fileio.Subdir("%s/%s/Lambda_%d" % (work_dir, name, lambda_index))
         self.lambda_index = lambda_index
 
     def runSimulation(self, name, protocol):
-        with self._subdir:
-            with _subdir.Subdir(name, overwrite=True):
+        with self._workdir:
+            with _fileio.Subdir(name, overwrite=True):
                 protocol.current_lambda = self.lambda_index
                 self.files["mdp"] = "%s/%s" % (_os.getcwd(), protocol.write(engine="GROMACS"))
 

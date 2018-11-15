@@ -15,8 +15,9 @@ import ProtoCaller.Parametrise as _parametrise
 import ProtoCaller.Utils.pdbconnect as _pdbconnect
 import ProtoCaller.Utils.runexternal as _runexternal
 import ProtoCaller.Utils.stdio as _stdio
-import ProtoCaller.Utils.subdir as _subdir
+import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Wrappers.babelwrapper as _babel
+import ProtoCaller.Wrappers.BioSimSpacewrapper as _BSSwrap
 import ProtoCaller.Wrappers.modellerwrapper as _modeller
 import ProtoCaller.Wrappers.PDB2PQRwrapper as _PDB2PQR
 import ProtoCaller.Wrappers.protosswrapper as _protoss
@@ -38,7 +39,7 @@ class Ensemble:
         self._ligands = {}
         self.morphs = morphs
         self._complex_template = None
-        self.complexes = []
+        self.systems_prep = {}
 
     @property
     def engine(self):
@@ -75,9 +76,9 @@ class Ensemble:
     def protein(self, val):
         # set protein ID and directory name
         self._protein = Ensemble._checkProtein(val)
-        self._subdir = _subdir.Subdir(val, overwrite=True)
+        self._workdir = _fileio.Subdir(val, overwrite=True)
 
-        with self._subdir:
+        with self._workdir:
             #download protein PDB
             self._protein_file = _IO.PDB.downloadPDB(id=self.protein)
             self._protein_obj = _IO.PDB.PDB(self._protein_file)
@@ -87,7 +88,7 @@ class Ensemble:
             self._ligand_files_pdb = self._downloader.downloadLigandSDF()
             self._ligand_files_pdb = _IO.SDF.splitSDFs(self._ligand_files_pdb)
 
-        self._subdir.overwrite = False
+        self._workdir.overwrite = False
 
         # remove ligands from PDB file and non-ligands from SDF files
         self.filterPDB(chains="all", waters="all", simple_anions="all", complex_anions="all", simple_cations="all",
@@ -160,7 +161,7 @@ class Ensemble:
         if include_mols is None: include_mols = []
         if exclude_mols is None: exclude_mols = []
 
-        with self._subdir:
+        with self._workdir:
             # filter ligands
             ligand_files = []
             for filename in self._ligand_files_pdb:
@@ -240,7 +241,7 @@ class Ensemble:
 
     def preparePDB(self, add_missing_residues="modeller", add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
                    protonate_ligands="babel"):
-        with self._subdir:
+        with self._workdir:
             add_missing_residues = add_missing_residues.strip().lower() if add_missing_residues is not None else ""
             add_missing_atoms = add_missing_atoms.strip().lower() if add_missing_atoms is not None else ""
             protonate_proteins = protonate_proteins.strip().lower() if protonate_proteins is not None else ""
@@ -277,7 +278,7 @@ class Ensemble:
                 self._ligand_files_pdb = [_babel.babelTransform(f) for f in self._ligand_files_pdb if f is not None]
 
     def parametrisePDB(self):
-        with self._subdir:
+        with self._workdir:
             print("Parametrising original crystal system...")
             #extract non-protein residues from pdb file and save them as separate pdb files
             hetatm_files, hetatm_types = self._protein_obj.writeHetatms()
@@ -323,7 +324,7 @@ class Ensemble:
 
     def parametriseLigands(self):
         print("Parametrising all ligands. This will take a while...")
-        with self._subdir:
+        with self._workdir:
             for i, ligand in enumerate(self._ligands.keys()):
                 filename_temp = _rdkit.saveFromRdkit(ligand, filename="ligand_%d.mol" % (i + 1))
                 filename_babel = _babel.babelTransform(filename_temp, "mol2")
@@ -331,18 +332,33 @@ class Ensemble:
                 self._ligands[ligand] += [_parametrise.parametriseFile(params=self.params, filename=filename_babel,
                                                                        molecule_type="ligand", id="ligand_%d" % (i + 1))]
 
-    def prepareComplexes(self):
-        with self._subdir:
+    def prepareComplexes(self, replica_temps=None, intermediate_files=False):
+        if replica_temps is None or len(replica_temps) == 1:
+            scales = [1]
+        else:
+            sorted_list = sorted(replica_temps)
+            if sorted_list != replica_temps:
+                _warnings.warn("Input replica temperatures were not in ascending order. Sorting...")
+                replica_temps = sorted_list
+            scales = [replica_temps[0] / elem for elem in replica_temps]
+
+        with self._workdir:
             for i, (ligand1, ligand2) in enumerate(self.morphs):
-                with _subdir.Subdir("Pair %d" % (i + 1)) as curdir:
+                if intermediate_files:
+                    curdir =_fileio.Dir("Pair %d" % (i + 1))
+                else:
+                    curdir = _fileio.Dir(_tempfile.TemporaryDirectory().name)
+                with curdir:
                     print("Creating morph %d..." % (i + 1))
                     #getting parametrised ligand filenames
-                    ligand1_prep = ["../" + i for i in self._ligands[ligand1][1]]
-                    ligand2_prep = ["../" + i for i in self._ligands[ligand2][1]]
+                    ligand1_prep = ["%s/%s" % (curdir.initialdirname, i) for i in self._ligands[ligand1][1]]
+                    ligand2_prep = ["%s/%s" % (curdir.initialdirname, i) for i in self._ligands[ligand2][1]]
 
                     #loading protonated ligands into rdkit
-                    ligand1_H = _rdkit.openAsRdkit("../" + self._ligands[ligand1][0], removeHs=False)
-                    ligand2_H = _rdkit.openAsRdkit("../" + self._ligands[ligand2][0], removeHs=False)
+                    ligand1_H = _rdkit.openAsRdkit("%s/%s" % (curdir.initialdirname, self._ligands[ligand1][0]),
+                                                   removeHs=False)
+                    ligand2_H = _rdkit.openAsRdkit("%s/%s" % (curdir.initialdirname, self._ligands[ligand2][0]),
+                                                   removeHs=False)
 
                     #aligning protonated ligands
                     ligand1_H, _ = _rdkit.alignTwoMolecules(self._ligand_ref, ligand1_H)
@@ -366,23 +382,45 @@ class Ensemble:
 
                     #merging the two ligands into a morph and adding it to the protein template
                     morph = _BSS.Align.merge(ligand1_BSS, ligand2_BSS, mapping=mapping)
-                    _BSS.IO.saveMolecules("morph", morph, "Gro87,GroTop")
-                    complex = self._complex_template + morph
+                    complexes = [self._complex_template + morph]
 
+                    #rescaling complexes for replica exchange
+                    if len(scales) != 1:
+                        print("Creating replicas...")
+                        complexes = [_BSSwrap.rescaleSystemParams(complexes[0], scale) for scale in scales]
+
+                    #solvating and saving the prepared complex and morph with the appropriate box size
                     print("Solvating...")
-                    complex = self._solvate(complex, work_dir=curdir.path)
-                    self.complexes += [complex]
+                    for j, complex in enumerate(complexes):
+                        work_dir = curdir.path + "/Replica %d" % j if len(complexes) else curdir.path
+                        complexes[j] = self._solvate(complex, work_dir=work_dir)
+                    box = complexes[0]._sire_system.property("space")
+                    morph = morph.toSystem()
+                    morph._sire_system.setProperty("space", box)
+                    self.systems_prep[tuple(self.morphs[i])] = (morph, complexes)
 
-                    print("Saving solvated complex as GROMACS...")
-                    _BSS.IO.saveMolecules("complex_final", complex, "Gro87,GroTop")
-                    _pmd.load_file("complex_final.gro87").save("complex_final.gro")
-                    _os.rename("complex_final.grotop", "complex_final.top")
+    def saveSystems(self):
+        print("Saving solvated complexes as GROMACS...")
+        with self._workdir:
+            for i, pair in enumerate(self.morphs):
+                with _fileio.Subdir("Pair %d" % (i + 1)):
+                    try:
+                        morph, complexes = self.systems_prep[tuple(pair)]
+                    except:
+                        continue
+                    _IO.GROMACS.saveAsGromacs("morph", morph)
+
+                    if len(complexes) == 1:
+                        _IO.GROMACS.saveAsGromacs("complex_final", complex)
+                    else:
+                        for j, complex in enumerate(complexes):
+                            _IO.GROMACS.saveAsGromacs("complex_final%d" % j, complex)
 
     def _solvate(self, complex, work_dir=None):
         if work_dir is None:
             tmp_dir = _tempfile.TemporaryDirectory()
             work_dir = tmp_dir.name
-        with _subdir.Subdir(dirname=work_dir):
+        with _fileio.Dir(dirname=work_dir):
             """CENTERING"""
 
             box_length = self.box_length
