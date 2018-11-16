@@ -1,40 +1,57 @@
+import glob as _glob
 import os as _os
 import platform as _platform
 import re as _re
 import subprocess as _subprocess
 import sys as _sys
+import warnings as _warnings
 
 HOMEDIR = _os.path.dirname(_os.path.abspath(__file__))
 _sys.path.append("%s/shared" % HOMEDIR)
 OS = _platform.system()
-GROMACSEXE = None
-if OS == "Linux":
-    if not "GROMACSHOME" in _os.environ:
-        if any(sys in _platform.linux_distribution()[0].lower() for sys in ["red hat", "centos"]):
-            p = _subprocess.Popen(["module load gromacs\n which gmx"], stdout=_subprocess.PIPE, stderr=_subprocess.PIPE,
-                                  shell=True)
-            out, err = p.communicate()
-            if err:
-                p = _subprocess.Popen(["which gmx"], stdout=_subprocess.PIPE, stderr=_subprocess.PIPE, shell=True)
-                out, err = p.communicate()
-                if err:
-                    p = _subprocess.Popen(["which gmx_mpi"], stdout=_subprocess.PIPE, stderr=_subprocess.PIPE, shell=True)
-                    out, err = p.communicate()
-                    if err:
-                        print("GROMACS cannot be found on this system. This will affect some functionality.")
-                    else:
-                        _os.environ['GROMACSHOME'] = _re.match(r"([\S]*)/bin/gmx", out.decode()).group(1)
-                        GROMACSEXE = _os.environ['GROMACSHOME'] + "/bin/gmx_mpi"
-                else:
-                    _os.environ['GROMACSHOME'] = _re.match(r"([\S]*)/bin/gmx", out.decode()).group(1)
-            if out:
-                GROMACSHOME = _re.match(r"([\S]*)/bin/gmx", out.decode()).group(1)
-                _os.environ["GROMACSHOME"] = GROMACSHOME
 
-if "GROMACSHOME" in _os.environ and GROMACSEXE is None:
-    GROMACSEXE = _os.environ["GROMACSHOME"] + "/bin/gmx"
-PDB2PQRDIR = "%s/shared/pdb2pqr-%s" % (HOMEDIR, OS)
-assert _os.path.isdir(PDB2PQRDIR), "Cannot find pdb2pqr binary for the current operating system"
+def searchForPath(exe_name=None, var_name=None):
+    if exe_name is not None:
+        p = _subprocess.Popen(["which " + exe_name], stdout=_subprocess.PIPE, stderr=_subprocess.PIPE, shell=True)
+        out, err = p.communicate()
+
+    if exe_name is None or err:
+        if var_name in _os.environ:
+            out = _os.environ[var_name]
+        else:
+            out = None
+    return out
+
+#setting MPI path variable
+MPIEXE = searchForPath("mpirun", "MPIEXE")
+if not MPIEXE:
+    _warnings.warn("Cannot find MPI binary for the current operating system.")
+
+#setting GROMACS path variables
+GROMACSHOME = searchForPath(var_name="GROMACSHOME")
+if not GROMACSHOME:
+    GROMACSMPIEXE = searchForPath("gmx_mpi", "GROMACSMPIEXE")
+    GROMACSEXE = searchForPath("gmx", "GROMACSEXE")
+    if not GROMACSMPIEXE and not GROMACSEXE:
+        _warnings.warn("GROMACS executable not found. Some functionality will be affected.")
+    else:
+        GROMACSMPIEXE = GROMACSMPIEXE if GROMACSMPIEXE else GROMACSEXE
+        GROMACSEXE = GROMACSEXE if GROMACSEXE else GROMACSMPIEXE
+        GROMACSHOME = _re.match(r"([\S]*)/bin/gmx", GROMACSEXE).group(1)
+else:
+    GROMACSEXE = _os.path.join(GROMACSHOME, "bin/gmx")
+    GROMACSMPIEXE = _os.path.join(GROMACSHOME, "bin/gmx_mpi")
+    if not _os.path.isfile(GROMACSEXE) and not _os.path.isfile(GROMACSMPIEXE):
+        print("GROMACSHOME not a valid variable. Some functionality will be affected")
+    else:
+        GROMACSMPIEXE = GROMACSMPIEXE if _os.path.isfile(GROMACSMPIEXE) else GROMACSEXE
+        GROMACSEXE = GROMACSEXE if _os.path.isfile(GROMACSEXE) else GROMACSMPIEXE
+
+#setting PDB2PQR path variable
+PDB2PQREXE = searchForPath("%s/shared/pdb2pqr-%s/pdb2pqr" % (HOMEDIR, OS), "PDB2PQREXE")
+if not PDB2PQREXE:
+    _warnings.warn("Cannot find PDB2PQR binary for the current operating system.")
+
 _os.environ["SIRE_SILENT_PHONEHOME"] = "1"
 #AMBERHOME = _os.environ["AMBERHOME"]
 
@@ -74,7 +91,6 @@ PROTEINFFS = AMBERPROTEINFFS
 LIGANDFFS = AMBERLIGANDFFS
 WATERFFS = AMBERWATERFFS
 
-import warnings as _warnings
 with _warnings.catch_warnings():
     _warnings.filterwarnings("ignore")
     from . import Ensemble
