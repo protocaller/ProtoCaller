@@ -20,6 +20,7 @@ class GMXSingleRun:
             self.replica_tops = ["%s/%s" % (_os.getcwd(), file) for file in replica_top_files]
 
     def runSimulation(self, name, protocol, replex=None, n_cores=None):
+        print("Running %s..." % name)
         with self._workdir:
             with _fileio.Subdir(name, overwrite=True):
                 protocol.current_lambda = self.lambda_index
@@ -68,7 +69,7 @@ class GMXSingleRun:
                     self.files[ext] = output_file
 
 class GMXSerialRuns:
-    def __init__(self, gro_file, top_file, name, work_dir=None, **lambda_dict):
+    def __init__(self, name, gro_file, top_file, work_dir=None, replica_top_files=None, **lambda_dict):
         for key, arr in lambda_dict.items():
             if len(arr):
                 self.lambda_size = len(arr)
@@ -76,16 +77,21 @@ class GMXSerialRuns:
                 raise ValueError("Need lists of the same size")
 
         self.lambda_dict = lambda_dict
-        self.gmx_run_list = [GMXSingleRun(gro_file, top_file, name, i, work_dir) for i in range(self.lambda_size)]
+        self.gmx_run_list = [GMXSingleRun(name, gro_file, top_file, i, work_dir, replica_top_files)
+                             for i in range(self.lambda_size)]
         self.protocols = []
 
-    def addProtocol(self, name, use_preset=None, **kwargs):
-        self.protocols += [(name, _Protocol.Protocol(use_preset=use_preset, **kwargs, **self.lambda_dict))]
+    def addProtocol(self, name, use_preset=None, run_options=None, **kwargs):
+        run_options = run_options if run_options is not None else {}
+        self.protocols += [(name,
+                            _Protocol.Protocol(use_preset=use_preset, **kwargs, **self.lambda_dict),
+                            run_options)]
 
     def runSimulations(self):
-        for gmx_run in self.gmx_run_list:
-            for name, protocol in self.protocols:
+        for i, gmx_run in enumerate(self.gmx_run_list):
+            print("Running simulation %d..." % (i + 1))
+            for name, protocol, kwargs in self.protocols:
                 try:
-                    gmx_run.runSimulation(name, protocol)
+                    gmx_run.runSimulation(name, protocol, **kwargs)
                 except:
                     "An error occurred. Check the log. Continuing..."
