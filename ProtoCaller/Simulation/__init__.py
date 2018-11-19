@@ -1,3 +1,4 @@
+import copy as _copy
 import glob as _glob
 import os as _os
 
@@ -19,7 +20,7 @@ class GMXSingleRun:
         if replica_top_files not in [None, []]:
             self.replica_tops = ["%s/%s" % (_os.getcwd(), file) for file in replica_top_files]
 
-    def runSimulation(self, name, protocol, replex=None, n_cores=None):
+    def runSimulation(self, name, protocol, replex=None, n_cores=None, **replica_params):
         print("Running %s..." % name)
         with self._workdir:
             with _fileio.Subdir(name, overwrite=True):
@@ -43,19 +44,31 @@ class GMXSingleRun:
 
                     mdrun_command = "%s mdrun -s input.tpr -deffnm %s" % (_PC.GROMACSEXE, filebase)
                 else:
+                    protocol_temp = _copy.copy(protocol)
                     n_replicas = len(self.replica_tops) + 1
+                    for key, value in replica_params.items():
+                        if isinstance(value, list) and len(value) != n_replicas:
+                            raise ValueError("Size of parameter list not the same as the number of replicas.")
+                        elif not isinstance(value, list):
+                            replica_params[key] = [value] * n_replicas
                     for i in range(n_replicas):
                         grompp_command = "%s grompp -maxwarn 10 -o input%d.tpr" % (_PC.GROMACSEXE, i)
                         for grompp_arg, filetype in grompp_args.items():
                             if filetype in self.files.keys():
-                                if filetype != "top":
-                                    grompp_command += " %s '%s'" % (grompp_arg, self.files[filetype])
+                                if filetype == "top":
+                                    grompp_command += " %s '%s'" % (grompp_arg, ([self.files["top"]] + self.replica_tops)[i])
+                                elif filetype == "mdp":
+                                    for key, value in replica_params.items():
+                                        protocol_temp.__setattr__(key, value[i])
+                                    filename_mdp = _os.path.join(_os.getcwd(), protocol.write("GROMACS", "input%d" % i))
+                                    grompp_command += " %s '%s'" % (grompp_arg, filename_mdp)
                                 else:
-                                    grompp_command += " %s '%s'" % (grompp_arg, (self.replica_tops + [self.files["top"]])[i])
+                                    grompp_command += " %s '%s'" % (grompp_arg, self.files[filetype])
                         _runexternal.runExternal(grompp_command, procname="gmx grompp")
                     open("plumed.dat", "a").close()
                     n_cores = n_replicas if not n_cores else n_cores
-                    mdrun_command = "%s -np %d %s mdrun -plumed plumed.dat -multi %d -s input.tpr -deffnm %s " \
+                    # disable dynamic load balancing due to GROMACS bug
+                    mdrun_command = "%s -np %d %s mdrun -dlb no -plumed plumed.dat -multi %d -s input.tpr -deffnm %s " \
                                     "-replex %d -hrex" % (_PC.MPIEXE, n_cores, _PC.GROMACSMPIEXE, n_replicas, filebase,
                                                           replex)
 

@@ -115,9 +115,16 @@ class Protocol:
         for name, value in kwargs.items():
             self.__setattr__(name, value)
 
+    def __copy__(self):
+        newone = type(self)()
+        newone.__dict__.update(self.__dict__)
+        return newone
+
     def __getattr__(self, name):
         if name == "_Protocol__attrs":
             return self._attrs
+        elif "__" in name:
+            return self.name
         try:
             val = self.__attrs[name]
             if "Gateway" in str(type(val)):
