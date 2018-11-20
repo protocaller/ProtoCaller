@@ -394,7 +394,8 @@ class Ensemble:
                     #rescaling complexes for replica exchange
                     if len(scales) != 1:
                         print("Creating replicas...")
-                        complexes = [_BSSwrap.rescaleSystemParams(complexes[0], scale) for scale in scales]
+                        complexes = [_BSSwrap.rescaleSystemParams(complexes[0], scale, includelist=["Merged_Molecule"])
+                                     for scale in scales]
 
                     self.systems_prep[tuple(self.morphs[i])] = (morph, complexes)
 

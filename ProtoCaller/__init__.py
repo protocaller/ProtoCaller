@@ -14,9 +14,10 @@ def searchForPath(exe_name=None, var_name=None):
     if exe_name is not None:
         p = _subprocess.Popen(["which " + exe_name], stdout=_subprocess.PIPE, stderr=_subprocess.PIPE, shell=True)
         out, err = p.communicate()
+        out = out.strip().decode()
 
     if exe_name is None or err:
-        if var_name in _os.environ:
+        if var_name in _os.environ.keys():
             out = _os.environ[var_name]
         else:
             out = None
