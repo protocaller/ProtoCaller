@@ -508,11 +508,11 @@ class Ensemble:
                     file.write("\n; VdW\n")
                     file.write("rvdw                    = 1.0\n")
 
-                n_Na, n_Cl = [int((box_length * 10**-8)** 3 * 6.022 * 10**23 * self.ion_conc)] * 2
+                charge = 0 if self.neutralise else round(complex.charge().magnitude())
+                n_Na, n_Cl = [int((box_length * 10**-8)**3 * 6.022 * 10**23 * self.ion_conc) - abs(charge) // 2] * 2
                 if self.neutralise:
-                    charge = round(complex.charge().magnitude())
-                    if charge > 0:
-                        n_Na += charge
+                    if charge < 0:
+                        n_Na -= charge
                     else:
                         n_Cl += charge
 
