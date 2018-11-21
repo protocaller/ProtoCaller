@@ -76,7 +76,7 @@ class Ensemble:
     def protein(self, val):
         # set protein ID and directory name
         self._protein = Ensemble._checkProtein(val)
-        self._workdir = _fileio.Subdir(val, overwrite=True)
+        self._workdir = _fileio.Subdir(val)
 
         with self._workdir:
             #download protein PDB
@@ -87,8 +87,6 @@ class Ensemble:
             self._downloader = _pdbconnect.PDBDownloader(id=self.protein)
             self._ligand_files_pdb = self._downloader.downloadLigandSDF()
             self._ligand_files_pdb = _IO.SDF.splitSDFs(self._ligand_files_pdb)
-
-        self._workdir.overwrite = False
 
         # remove ligands from PDB file and non-ligands from SDF files
         self.filterPDB(chains="all", waters="all", simple_anions="all", complex_anions="all", simple_cations="all",
@@ -129,16 +127,16 @@ class Ensemble:
             ligand1, ligand2 = val
 
             try:
-                ligand1 = _rdkit.openAsRdkit(ligand1)
-                ligand2 = _rdkit.openAsRdkit(ligand2)
+                mol1 = _rdkit.openAsRdkit(ligand1)
+                mol2 = _rdkit.openAsRdkit(ligand2)
             except:
                 _warnings.warn("One or more of these values is not valid: %s. Skipping values..." % val)
                 continue
 
             if ligand1 not in self._ligands.keys():
-                self._ligands[ligand1] = []
+                self._ligands[ligand1] = [mol1]
             if ligand2 not in self._ligands.keys():
-                self._ligands[ligand2] = []
+                self._ligands[ligand2] = [mol2]
 
             self._morphs += [[ligand1, ligand2]]
 
@@ -239,6 +237,25 @@ class Ensemble:
             self._protein_obj.purgeResidues(filter)
             self._protein_obj.writePDB(self._protein_file)
 
+    def loadParametrisedLigands(self, ligand_dict):
+        for ligand, filearr in ligand_dict.items():
+            if len(filearr) != 2:
+                _warnings.warn("Need to pass a protonated structure file and a list of parametrised files. "
+                               "Skipping value...")
+            else:
+                try:
+                    mol = _rdkit.openAsRdkit(ligand)
+                    self._ligands[ligand] = [mol, *filearr]
+                    self._ligands[ligand][1] = _os.path.abspath(filearr[0])
+                    self._ligands[ligand][2] = [_os.path.abspath(x) for x in filearr[1]]
+
+                    if any([not _os.path.exists(f) for f in [self._ligands[ligand][1], self._ligands[ligand][2][0],
+                                                             self._ligands[ligand][2][1]]]):
+                        raise ValueError()
+                except:
+                    _warnings.warn("An error occured. Skipping ligand...")
+                    self._ligands[ligand] = [mol]
+
     def preparePDB(self, add_missing_residues="modeller", add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
                    protonate_ligands="babel"):
         with self._workdir:
@@ -318,14 +335,14 @@ class Ensemble:
                 _rdkit.saveFromRdkit(self._ligand_ref, self._ligand_id)
 
             system.box = [10 * self.box_length, 10 * self.box_length, 10 * self.box_length, 90, 90, 90]
-            system.save("complex_template.top")
-            system.save("complex_template.gro")
+            _IO.GROMACS.saveAsGromacs("complex_template", system)
             self._complex_template = _BSS.IO.readMolecules(["complex_template.top", "complex_template.gro"])
 
     def parametriseLigands(self):
         print("Parametrising all ligands. This will take a while...")
         with self._workdir:
             for i, ligand in enumerate(self._ligands.keys()):
+                if len(self._ligands[ligand]) == 3: continue
                 filename_temp = _rdkit.saveFromRdkit(ligand, filename="ligand_%d.mol" % (i + 1))
                 filename_babel = _babel.babelTransform(filename_temp, "mol2")
                 self._ligands[ligand] += [filename_babel]
@@ -345,20 +362,18 @@ class Ensemble:
         with self._workdir:
             for i, (ligand1, ligand2) in enumerate(self.morphs):
                 if intermediate_files:
-                    curdir =_fileio.Dir("Pair %d" % (i + 1))
+                    curdir =_fileio.Dir("Pair %d" % (i + 1), overwrite=True)
                 else:
-                    curdir = _fileio.Dir(_tempfile.TemporaryDirectory().name)
+                    curdir = _fileio.Dir(_tempfile.TemporaryDirectory().name, overwrite=True)
                 with curdir:
                     print("Creating morph %d..." % (i + 1))
                     #getting parametrised ligand filenames
-                    ligand1_prep = ["%s/%s" % (curdir.initialdirname, i) for i in self._ligands[ligand1][1]]
-                    ligand2_prep = ["%s/%s" % (curdir.initialdirname, i) for i in self._ligands[ligand2][1]]
+                    ligand1_prep = self._ligands[ligand1][2]
+                    ligand2_prep = self._ligands[ligand2][2]
 
                     #loading protonated ligands into rdkit
-                    ligand1_H = _rdkit.openAsRdkit("%s/%s" % (curdir.initialdirname, self._ligands[ligand1][0]),
-                                                   removeHs=False)
-                    ligand2_H = _rdkit.openAsRdkit("%s/%s" % (curdir.initialdirname, self._ligands[ligand2][0]),
-                                                   removeHs=False)
+                    ligand1_H = _rdkit.openAsRdkit(self._ligands[ligand1][1], removeHs=False)
+                    ligand2_H = _rdkit.openAsRdkit(self._ligands[ligand2][1], removeHs=False)
 
                     #aligning protonated ligands
                     ligand1_H, _ = _rdkit.alignTwoMolecules(self._ligand_ref, ligand1_H)
@@ -366,8 +381,8 @@ class Ensemble:
 
                     #replacing coordinates of parametrised ligands with new coordinates while keeping the topology
                     filenames = ["morph%d_1.inpcrd" % (i + 1), "morph%d_2.inpcrd" % (i + 1)]
-                    ligand1_prep[1] = _rdkit.saveFromRdkit(ligand1_H, filenames[0])
-                    ligand2_prep[1] = _rdkit.saveFromRdkit(ligand2_H, filenames[1])
+                    ligand1_prep[1] = _os.path.abspath(_rdkit.saveFromRdkit(ligand1_H, filenames[0]))
+                    ligand2_prep[1] = _os.path.abspath(_rdkit.saveFromRdkit(ligand2_H, filenames[1]))
 
                     #loading the shifted ligands into BioSimSpace
                     ligand1_BSS = _BSS.IO.readMolecules(ligand1_prep).getMolecules()[0]

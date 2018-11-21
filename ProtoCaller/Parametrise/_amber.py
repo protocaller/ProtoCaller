@@ -38,14 +38,14 @@ def runAntechamber(force_field, file, output_ext="mol2"):
         file, input_ext, output_name, output_ext, force_field)
     _runexternal.runExternal(commandstr, procname="antechamber")
 
-    return output_name
+    return _os.path.abspath(output_name)
 
 def runParmchk(force_field, file):
     input_base, input_ext = _os.path.splitext(file)[0], file.split(".")[-1]
     commandstr = "parmchk2 -i '{0}.{1}' -f {1} -o '{0}.frcmod' -s %s".format(input_base, input_ext, force_field)
     _runexternal.runExternal(commandstr, procname="parmchk2")
 
-    return input_base + ".frcmod"
+    return _os.path.abspath(input_base + ".frcmod")
 
 def runTleap(force_fields=None, files=None, param_files=None, id=None):
     if id is None: id = "molecule"
@@ -78,7 +78,7 @@ def runTleap(force_fields=None, files=None, param_files=None, id=None):
         out.write("quit\n")
 
     _runexternal.runExternal("tleap -f %s" % filename_tleap, procname="tleap")
-    return filenames
+    return [_os.path.abspath(f) for f in filenames]
 
 def returnFFPath(name):
     if(name in _PC.AMBEROLDFFS):

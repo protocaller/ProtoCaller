@@ -13,8 +13,8 @@ import ProtoCaller.Utils.stdio as _stdio
 def openFileAsRdkit(filename, **kwargs):
     extension = filename.split(".")[-1]
 
-    if extension == "mol2":
-        mol = _Chem.MolFromMol2File(filename, **kwargs)
+    if extension in ["mol", "mol2"]:
+        exec("mol = _Chem.MolFrom%sFile(filename, **kwargs)" % extension.title(), locals(), globals())
     else:
         exec("mol = _Chem.MolFrom%sFile(filename, **kwargs)" % extension.upper(), locals(), globals())
 
