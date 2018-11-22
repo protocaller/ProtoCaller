@@ -4,7 +4,7 @@ import os as _os
 import ProtoCaller as _PC
 import ProtoCaller.Utils.runexternal as _runexternal
 
-def amberWrapper(params, filename, molecule_type, id=None):
+def amberWrapper(params, filename, molecule_type, id=None, *args, **kwargs):
     if id is None: id = molecule_type
     force_fields, files, param_files = [], [filename], []
 
@@ -28,7 +28,7 @@ def amberWrapper(params, filename, molecule_type, id=None):
     else:
         raise ValueError("Value %s for molecule_type not supported " % molecule_type)
 
-    return runTleap(force_fields=force_fields, files=files, param_files=param_files, id=id)
+    return runTleap(force_fields=force_fields, files=files, param_files=param_files, id=id, *args, **kwargs)
 
 def runAntechamber(force_field, file, output_ext="mol2"):
     input_base, input_ext = _os.path.splitext(file)[0], file.split(".")[-1]
@@ -47,8 +47,10 @@ def runParmchk(force_field, file):
 
     return _os.path.abspath(input_base + ".frcmod")
 
-def runTleap(force_fields=None, files=None, param_files=None, id=None):
+def runTleap(force_fields=None, files=None, param_files=None, id=None, disulfide_bonds=None):
     if id is None: id = "molecule"
+    if disulfide_bonds is None: disulfide_bonds = []
+
     filename_tleap = "tleap_script_%s.in" % id
     filenames = [id + ".prmtop", id + ".inpcrd"]
 
@@ -56,7 +58,6 @@ def runTleap(force_fields=None, files=None, param_files=None, id=None):
         for force_field in force_fields:
             out.write("source \"%s\"\n" % returnFFPath(force_field))
         if param_files is not None:
-            out.write("check MOL\n")
             for param_file in param_files:
                 ext = param_file.split(".")[-1].lower()
                 if ext in ["frcmod", "frcfld"]:
@@ -73,6 +74,8 @@ def runTleap(force_fields=None, files=None, param_files=None, id=None):
             ext = file.split(".")[-1]
             if ext == "pqr": ext = "pdb"
             out.write("MOL = load%s \"%s\"\n" % (ext, file))
+        for disulfide_bond in disulfide_bonds:
+            out.write("bond MOL.%d.SG MOL.%d.SG\n" % (disulfide_bond[0]._resSeq, disulfide_bond[1]._resSeq))
         out.write("check MOL\n")
         out.write("saveAmberParm MOL {0} {1}\n".format(*filenames))
         out.write("quit\n")

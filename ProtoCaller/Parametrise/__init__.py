@@ -54,18 +54,18 @@ def parametriseAndLoadPmd(params, *args, **kwargs):
 def parametriseAndLoadBSS(params, *args, **kwargs):
     return _BSS.IO.readMolecules(parametriseFile(params, *args, **kwargs))
 
-def parametriseFile(params, filename, molecule_type, id=None):
+def parametriseFile(params, filename, molecule_type, id=None, *args, **kwargs):
     if id is None: id = molecule_type
 
     if molecule_type == "protein":
         if params.protein_ff in _PC.AMBERPROTEINFFS:
-            return _amber.amberWrapper(params, filename, molecule_type, id)
+            return _amber.amberWrapper(params, filename, molecule_type, id, *args, **kwargs)
     elif molecule_type in ["ligand", "cofactor"]:
         if params.ligand_ff in _PC.AMBERLIGANDFFS:
-            return _amber.amberWrapper(params, filename, molecule_type, id)
+            return _amber.amberWrapper(params, filename, molecule_type, id, *args, **kwargs)
     elif molecule_type in ["water", "simple_anion", "complex_anion", "simple_cation", "complex_cation"]:
         if params.water_ff in _PC.AMBERWATERFFS:
-            return _amber.amberWrapper(params, filename, molecule_type, id)
+            return _amber.amberWrapper(params, filename, molecule_type, id, *args, **kwargs)
     else:
         raise ValueError("Invalid argument: %s. Argument must be one of: protein, ligand, cofactor, simple anion, "
                          "complex anion, simple cation, complex or water." % molecule_type)

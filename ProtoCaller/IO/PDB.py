@@ -216,6 +216,7 @@ class Residue(MissingResidue):
 
     def copyFrom(self, other):
         self.__atomList = other.__atomList
+        self._resName = other._resName
         self._chainID = other._chainID
         self._resSeq = other._resSeq
         self._iCode = other._iCode
@@ -226,8 +227,8 @@ class Residue(MissingResidue):
     def removeAtoms(self, *atoms):
         self.__atomList = [atom for atom in self.__atomList if atom in atoms]
 
-    def reAssign(self, chainID=None, resName=None, iCode=None):
-        for name, attribute in zip(["chainID", "resName", "iCode"], [chainID, resName, iCode]):
+    def reAssign(self, chainID=None, resName=None, resSeq=None, iCode=None):
+        for name, attribute in zip(["_chainID", "_resName", "_resSeq", "_iCode"], [chainID, resName, resSeq, iCode]):
             if(attribute is not None):
                 setattr(self, name, attribute)
 
@@ -318,7 +319,7 @@ class Chain:
     def reNumberResidues(self, start=1, custom_resSeqs=None, custom_iCodes=None):
         if custom_resSeqs is None:
             for i, residue in enumerate(self.__residueList):
-                residue.reAssign(seqRes = i + start, iCode = " ")
+                residue.reAssign(resSeq = i + start, iCode = " ")
         else:
             if len(custom_resSeqs) != len(self.__residueList) and (custom_iCodes is not None and
                                                                    len(custom_iCodes) != len(custom_resSeqs)):

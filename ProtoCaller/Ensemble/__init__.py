@@ -281,6 +281,7 @@ class Ensemble:
 
             if add_missing_atoms == "pdb2pqr":
                 self._protein_file = _PDB2PQR.PDB2PQRtransform(self._protein_file)
+                self._protein_obj = _IO.PDB.PDB(self._protein_file)
 
             if protonate_proteins == "protoss":
                 if protonate_ligands != "protoss":
@@ -307,7 +308,7 @@ class Ensemble:
             # BioSimSpace
             # we can't use a direct BioSimSpace object because it throws an error if the file contains single ions
             system = _parametrise.parametriseAndLoadPmd(params=self.params, filename=self._protein_file,
-                                                        molecule_type="protein")
+                molecule_type="protein", disulfide_bonds=self._protein_obj._disulfide_bonds)
 
             self._ligand_id = _babel.babelTransform(self._ligand_id, "mol2")
             self._ligand_ref = _rdkit.openAsRdkit(self._ligand_id, removeHs=False)
