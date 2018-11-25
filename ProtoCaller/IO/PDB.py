@@ -467,7 +467,8 @@ class PDB:
                 continue
             for residue in chain:
                 filename = "%s_%s.pdb" % (filebase, residue._type)
-                with open(filename, "a") as file:
+                mode = "w" if filename not in filenames else "a"
+                with open(filename, mode) as file:
                     file.write(residue.__str__())
                 if filename not in filenames:
                     filenames += [filename]

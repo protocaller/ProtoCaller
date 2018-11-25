@@ -344,7 +344,7 @@ class Ensemble:
         with self._workdir:
             for i, ligand in enumerate(self._ligands.keys()):
                 if len(self._ligands[ligand]) == 3: continue
-                filename_temp = _rdkit.saveFromRdkit(ligand, filename="ligand_%d.mol" % (i + 1))
+                filename_temp = _rdkit.saveFromRdkit(self._ligands[ligand][0], filename="ligand_%d.mol" % (i + 1))
                 filename_babel = _babel.babelTransform(filename_temp, "mol2")
                 self._ligands[ligand] += [filename_babel]
                 self._ligands[ligand] += [_parametrise.parametriseFile(params=self.params, filename=filename_babel,
@@ -389,7 +389,7 @@ class Ensemble:
                     ligand1_BSS = _BSS.IO.readMolecules(ligand1_prep).getMolecules()[0]
                     ligand2_BSS = _BSS.IO.readMolecules(ligand2_prep).getMolecules()[0]
 
-                    #transling RDKit mapping into BioSimSpace mapping
+                    #translating RDKit mapping into BioSimSpace mapping
                     mapping = {}
                     indices_1 = [atom.index() for atom in ligand1_BSS._sire_molecule.edit().atoms()]
                     indices_2 = [atom.index() for atom in ligand2_BSS._sire_molecule.edit().atoms()]
@@ -509,7 +509,7 @@ class Ensemble:
                     file.write("\n; VdW\n")
                     file.write("rvdw                    = 1.0\n")
 
-                charge = 0 if self.neutralise else round(complex.charge().magnitude())
+                charge = round(complex.charge().magnitude()) if self.neutralise else 0
                 n_Na, n_Cl = [int((box_length * 10**-8)**3 * 6.022 * 10**23 * self.ion_conc) - abs(charge) // 2] * 2
                 if self.neutralise:
                     if charge < 0:
