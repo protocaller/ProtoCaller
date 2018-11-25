@@ -12,8 +12,8 @@ class GMXSingleRun:
         if work_dir is None:
             work_dir = _os.getcwd()
         self.files = {}
-        self.files["gro"] = "%s/%s" % (_os.getcwd(), gro_file)
-        self.files["top"] = "%s/%s" % (_os.getcwd(), top_file)
+        self.files["gro"] = _os.path.abspath(gro_file)
+        self.files["top"] = _os.path.abspath(top_file)
         self._workdir = _fileio.Subdir("%s/%s/Lambda_%d" % (work_dir, name, lambda_index))
         self.lambda_index = lambda_index
         self.replica_tops = []
@@ -25,7 +25,7 @@ class GMXSingleRun:
         with self._workdir:
             with _fileio.Subdir(name, overwrite=True):
                 protocol.current_lambda = self.lambda_index
-                self.files["mdp"] = "%s/%s" % (_os.getcwd(), protocol.write(engine="GROMACS"))
+                self.files["mdp"] = _os.path.abspath(protocol.write(engine="GROMACS"))
 
                 filebase = "%s_%d" % (name, self.lambda_index)
                 grompp_args = {
@@ -108,3 +108,65 @@ class GMXSerialRuns:
                     gmx_run.runSimulation(name, protocol, **kwargs)
                 except:
                     "An error occurred. Check the log. Continuing..."
+
+class GMX_REST_FEP_Runs():
+    def __init__(self, name, gro_file, top_files, work_dir=None, **lambda_dict):
+        for key, arr in lambda_dict.items():
+            if len(arr) and len(arr) != len(top_files):
+                raise ValueError("Need lists of the same size")
+        self.lambda_size = len(top_files)
+        if work_dir is None:
+            work_dir = _os.getcwd()
+
+        self.files = [{} for i in range(self.lambda_size)]
+        for f, top_file in zip(self.files, top_files):
+            f["gro"] = _os.path.abspath(gro_file)
+            f["top"] = _os.path.abspath(top_file)
+        self._workdir = _fileio.Subdir("%s/%s/" % (work_dir, name))
+        self.lambda_dict = lambda_dict
+        self.protocols = []
+
+    def runSimulation(self, name, parallel, use_preset=None, replex=500, n_cores=None, **protocol_params):
+        protocol = _Protocol.Protocol(use_preset=use_preset, **protocol_params, **self.lambda_dict)
+
+        print("Running %s..." % name)
+        with self._workdir:
+            with _fileio.Subdir(name, overwrite=True):
+                for i in range(self.lambda_size):
+                    filebase = "%s_%d" % (name, i)
+                    protocol.init_lambda_state = i
+                    self.files[i]["mdp"] = _os.path.abspath(protocol.write(engine="GROMACS", filebase=filebase))
+                    grompp_args = {
+                        "-f" : "mdp",
+                        "-c" : "gro",
+                        "-p" : "top",
+                        "-t" : "cpt",
+                    }
+
+                    grompp_command = "%s grompp -maxwarn 10 -o %s.tpr" % (_PC.GROMACSEXE, filebase)
+                    for grompp_arg, filetype in grompp_args.items():
+                        if filetype in self.files[i].keys():
+                            grompp_command += " %s '%s'" % (grompp_arg, self.files[i][filetype])
+                    _runexternal.runExternal(grompp_command, procname="gmx grompp")
+
+                    if not parallel:
+                        mdrun_command = "{0} mdrun -s {1}.tpr -deffnm {1}".format(_PC.GROMACSEXE, filebase)
+                        _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
+
+                        self.files[i] = {"top" : self.files[i]["top"],}
+                        output_files = _glob.glob("%s.*" % filebase)
+                        for output_file in output_files:
+                            ext = output_file.split(".")[-1].lower()
+                            if ext == "tpr": ext = "gro"
+                            self.files[i][ext] = _os.path.abspath(output_file)
+
+                if parallel:
+                    open("plumed.dat", "a").close()
+                    filebase = name + "_"
+                    n_cores = self.lambda_size if not n_cores else n_cores
+                    # disable dynamic load balancing due to GROMACS bug
+                    mdrun_command = "{0} -np {1} {2} mdrun -dlb no -plumed plumed.dat -multi {3} -s {4}.tpr -deffnm {4} " \
+                                    "-replex {5} -hrex".format(_PC.MPIEXE, n_cores, _PC.GROMACSMPIEXE, self.lambda_size,
+                                                               filebase, replex)
+
+                    _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
