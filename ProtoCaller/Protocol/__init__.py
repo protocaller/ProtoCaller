@@ -1,12 +1,11 @@
 from collections.abc import Iterable as _Iterable
 from collections import OrderedDict
+import warnings as _warnings
 
 import BioSimSpace as _BSS
 
-import ProtoCaller as _PC
-
 class Protocol:
-    def __init__(self, use_preset=None, **kwargs):
+    def __init__(self, use_preset=None, extra_params=None, **kwargs):
         self._attrs = OrderedDict()
         #integrators
         self.integrator = _BSS.Gateway.String(help="Which integrator to use",
@@ -54,7 +53,7 @@ class Protocol:
                                               allowed=["no", "berendsen", "nose-hoover", "andersen"])
         self.temp_frequency = _BSS.Gateway.Integer(help="Thermostat friction coefficient / collision frequency in THz.",
                                                    minimum=-1)
-        self.temp_time_PC = _BSS.Gateway.Float(
+        self.temp_time_coupling = _BSS.Gateway.Float(
             help="Time constant for thermostat coupling in ps. -1 means no coupling",
             minimum=-1)
         self.temperature = _BSS.Gateway.Integer(help="Simulation temperature",
@@ -67,7 +66,7 @@ class Protocol:
                                             allowed=["no", "berendsen", "parrinello-rahman", "mttk"])
         self.pres_frequency = _BSS.Gateway.Integer(help="Barostat friction coefficient / collision frequency in THz.",
                                                    minimum=-1)
-        self.pres_time_PC = _BSS.Gateway.Float(
+        self.pres_time_coupling = _BSS.Gateway.Float(
             help="Time constant for barostat coupling in ps. -1 means no coupling",
             minimum=-1)
         self.pressure = _BSS.Gateway.Float(help="Simulation pressure",
@@ -111,8 +110,14 @@ class Protocol:
             self._generateNPTEquilibrationParams()
         elif use_preset == "production":
             self._generateProductionParams()
+        elif use_preset == "vacuum":
+            self._generateVacuumParams()
+        else:
+            _warnings.warn("Invalid preset name: %s" % use_preset)
 
-        for name, value in kwargs.items():
+        extra_params = extra_params if extra_params is not None else {}
+        all_kwargs = {**extra_params, **kwargs}
+        for name, value in all_kwargs.items():
             self.__setattr__(name, value)
 
     def __copy__(self):
@@ -193,7 +198,7 @@ class Protocol:
         self.integrator = "stochastic"
         self.n_steps = 25000
         self.thermostat = "berendsen"
-        self.temp_time_PC = 1
+        self.temp_time_coupling = 1
         self.temperature = 298
         self.temp_groups = "all"
         self.barostat = "no"
@@ -205,11 +210,11 @@ class Protocol:
         self.integrator = "stochastic"
         self.n_steps = 25000
         self.thermostat = "berendsen"
-        self.temp_time_PC = 1
+        self.temp_time_coupling = 1
         self.temperature = 298
         self.temp_groups = "all"
         self.barostat = "berendsen"
-        self.pres_time_PC = 1
+        self.pres_time_coupling = 1
         self.pressure = 1
         self.compressibility = 4.5 * 10**-5
         self.random_velocities = False
@@ -220,6 +225,34 @@ class Protocol:
         self.n_steps = 2500000
         self.thermostat = "nose-hoover"
         self.barostat = "parrinello-rahman"
+
+    def _generateVacuumParams(self):
+        self.timestep = 0.002
+        self.skip_positions = 500
+        self.skip_velocities = 500
+        self.skip_forces = 500
+        self.skip_energies = 500
+        self.periodic_boundary_conditions = "no"
+        self.neighbour_cutoff = 0
+        self.neighbour_frequency = 0
+        self.coulomb_type = "cutoff"
+        self.coulomb_cutoff = 0
+        self.vdw_type = "cutoff"
+        self.vdw_cutoff = 0
+        self.vdw_corr = "no"
+        self.constraint = "h_bonds"
+        self.constraint_type = "lincs"
+        self.integrator = "leapfrog"
+        self.n_steps = 250000
+        self.thermostat = "nose-hoover"
+        self.temp_time_coupling = 1
+        self.temperature = 298
+        self.temp_groups = "all"
+        self.barostat = "no"
+        self.random_velocities = True
+        self.random_velocities_temperature = 298
+        self.__setattr__("cutoff-scheme", "group")
+        self.__setattr__("comm_mode", "ANGULAR")
 
     def _writeToGROMACS(self, filebase):
         name_dict = {
@@ -246,12 +279,12 @@ class Protocol:
 
             "thermostat": "tcoupl",
             "temp_frequency": "nsttcouple",
-            "temp_time_PC": "tau-t",
+            "temp_time_coupling": "tau-t",
             "temperature": "ref-t",
 
             "barostat": "pcoupl",
             "pres_frequency": "nstpcouple",
-            "pres_time_PC": "tau-p",
+            "pres_time_coupling": "tau-p",
             "pressure": "ref-p",
             "compressibility": "compressibility",
             "temp_groups" : "tc-grps",
