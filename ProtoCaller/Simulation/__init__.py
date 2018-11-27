@@ -170,3 +170,22 @@ class GMX_REST_FEP_Runs():
                                                                filebase, replex)
 
                     _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
+
+def generateMBARInput(input_files, trajectory_files):
+    if len(input_files) != len(trajectory_files):
+        raise TypeError("Need to have a trajectory file for each input file.")
+
+    xvg_files = []
+
+    for i, tpr in enumerate(input_files):
+        for j, trr in enumerate(trajectory_files):
+            filebase = "Energy_%d_%d" % (i, j)
+            mdrun_command = "%s mdrun -s %s -rerun %s -deffnm %s" % (_PC.GROMACSEXE, tpr, trr, filebase)
+            try:
+                _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
+            except:
+                print("Mdrun failed for input file %d and trajectory %d. You might want to check your files.")
+                continue
+            xvg_files += [filebase + ".xvg"]
+
+    return xvg_files
