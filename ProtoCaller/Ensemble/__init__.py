@@ -427,7 +427,7 @@ class Ensemble:
                     _IO.GROMACS.saveAsGromacs("morph", morph)
 
                     if len(complexes) == 1:
-                        _IO.GROMACS.saveAsGromacs("complex_final", complex)
+                        _IO.GROMACS.saveAsGromacs("complex_final", complexes[0])
                     else:
                         for j, complex in enumerate(complexes):
                             _IO.GROMACS.saveAsGromacs("complex_final%d" % j, complex)

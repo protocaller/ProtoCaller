@@ -2,6 +2,7 @@ import BioSimSpace as _BSS
 import parmed as _pmd
 
 import ProtoCaller as _PC
+import ProtoCaller.Wrappers.parmedwrapper as _pmdwrap
 from . import _amber
 
 class Params:
@@ -46,28 +47,30 @@ class Params:
 
 def parametriseAndLoadPmd(params, *args, **kwargs):
     files = parametriseFile(params, *args, **kwargs)
-    if len(files) == 2:
-        return _pmd.load_file(files[0], xyz=files[1])
-    else:
-        return _pmd.load_file(files[0])
+    return _pmdwrap.openFilesAsParmed(files)
 
 def parametriseAndLoadBSS(params, *args, **kwargs):
-    return _BSS.IO.readMolecules(parametriseFile(params, *args, **kwargs))
+    files = parametriseFile(params, *args, **kwargs)
+    return _BSS.IO.readMolecules(files)
 
-def parametriseFile(params, filename, molecule_type, id=None, *args, **kwargs):
+def parametriseFile(params, filename, molecule_type, fix_charge=True, id=None, *args, **kwargs):
     if id is None: id = molecule_type
+    files = []
 
     if molecule_type == "protein":
         if params.protein_ff in _PC.AMBERPROTEINFFS:
-            return _amber.amberWrapper(params, filename, molecule_type, id, *args, **kwargs)
+            files = _amber.amberWrapper(params, filename, molecule_type, id, *args, **kwargs)
     elif molecule_type in ["ligand", "cofactor"]:
         if params.ligand_ff in _PC.AMBERLIGANDFFS:
-            return _amber.amberWrapper(params, filename, molecule_type, id, *args, **kwargs)
+            files = _amber.amberWrapper(params, filename, molecule_type, id, *args, **kwargs)
     elif molecule_type in ["water", "simple_anion", "complex_anion", "simple_cation", "complex_cation"]:
         if params.water_ff in _PC.AMBERWATERFFS:
-            return _amber.amberWrapper(params, filename, molecule_type, id, *args, **kwargs)
+            files = _amber.amberWrapper(params, filename, molecule_type, id, *args, **kwargs)
     else:
         raise ValueError("Invalid argument: %s. Argument must be one of: protein, ligand, cofactor, simple anion, "
                          "complex anion, simple cation, complex or water." % molecule_type)
 
-    raise ValueError("No force fields available for the input system")
+    if files:
+        return _pmdwrap.fixCharge(files) if fix_charge else files
+    else:
+        raise ValueError("No force fields available for the input system")
