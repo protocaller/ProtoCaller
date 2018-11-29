@@ -378,19 +378,20 @@ class PDB:
         self.filename = filename
         self.__chainList = []
         pdb_string = open(filename).readlines()
+        if pdb_string[-1][:3] != "END": pdb_string += ["END" + " "*80]
 
         curr_atom, curr_res, curr_chain = None, Residue(), Chain()
 
         #first populate with all atoms
         for i, line in enumerate(pdb_string):
-            if line[:4] == "ATOM" or line[:6] == "HETATM" or line[:3] == "TER" or i == len(pdb_string) - 1:
+            if line[:4] == "ATOM" or line[:6] == "HETATM" or line[:3] in ["TER", "END"] or i == len(pdb_string) - 1:
                 if line[:4] == "ATOM" or line[:6] == "HETATM":
                     curr_atom = Atom(line)
-                if len(curr_res) and (line[:3] == "TER" or i == len(pdb_string) - 1 or
+                if len(curr_res) and (line[:3] in ["TER", "END"] or i == len(pdb_string) - 1 or
                                       not curr_atom.sameResidue(curr_res)):
                     curr_chain.addResidues(curr_res)
                     curr_res = Residue()
-                if len(curr_chain) and (line[:3] == "TER" or i == len(pdb_string) - 1 or
+                if len(curr_chain) and (line[:3] in ["TER", "END"] or i == len(pdb_string) - 1 or
                                         curr_atom._chainID != curr_chain._chainID):
                     self.addChains(curr_chain)
                     curr_chain = Chain()
@@ -456,6 +457,7 @@ class PDB:
                 file.write(chain.__str__())
                 if chain._type == "chain":
                     file.write("TER\n")
+            file.write("END")
         return filename
 
     def writeHetatms(self, filebase=None):
