@@ -1,5 +1,4 @@
 import os as _os
-import tempfile as _tempfile
 
 from rdkit import Chem as _Chem
 from rdkit.Chem import AllChem as _AllChem
@@ -9,6 +8,7 @@ from rdkit.Geometry import rdGeometry as _Geom
 import parmed as _pmd
 
 import ProtoCaller.Utils.stdio as _stdio
+from . import babelwrapper as _babel
 
 def openFileAsRdkit(filename, **kwargs):
     extension = filename.split(".")[-1]
@@ -55,20 +55,23 @@ def openAsRdkit(val, **kwargs):
 
     return mol
 
-def saveFromRdkit(mol, filename):
+def saveFromRdkit(mol, filename, **kwargs):
     if _os.path.exists(filename):
         _os.remove(filename)
     extension = filename.split(".")[-1]
     if extension.lower() == "sdf":
-        writer = _Chem.SDWriter(filename)
+        writer = _Chem.SDWriter(filename, **kwargs)
         writer.write(mol)
         writer.close()
     elif extension.lower() == "mol":
-        _Chem.MolToMolFile(mol, filename=filename)
+        _Chem.MolToMolFile(mol, filename=filename, **kwargs)
     else:
-        tempfilename = _tempfile.NamedTemporaryFile(suffix=".mol").name
-        _Chem.MolToMolFile(mol, filename=tempfilename)
-        _pmd.load_file(tempfilename)[0].save(filename)
+        tempfilename = _os.path.splitext(filename)[0] + ".mol"
+        _Chem.MolToMolFile(mol, filename=tempfilename, **kwargs)
+        if extension == "mol2":
+            _babel.babelTransform(tempfilename, output_extension=extension, pH=None)
+        else:
+            _pmd.load_file(tempfilename)[0].save(filename)
 
     return filename
 
@@ -116,4 +119,5 @@ def alignTwoMolecules(ref, mol, n_min=-1, match="any"):
             #n_min = -1 means infinite minimisation
             if n_min != -1:
                 n_min -= 1
+
     return mol, list(zip(match1, match2))

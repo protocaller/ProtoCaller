@@ -8,8 +8,8 @@ import parmed as _pmd
 import ProtoCaller.Utils.fileio as _fileio
 
 def saveAsGromacs(filebase, system):
-    tmp_dir = _tempfile.TemporaryDirectory()
-    with _fileio.Dir(dirname=tmp_dir.name) as dir:
+    name = _os.path.basename(_tempfile.TemporaryDirectory().name)
+    with _fileio.Dir(dirname=name, temp=True) as dir:
         if "BioSimSpace" in str(type(system)):
             _BSS.IO.saveMolecules(filebase, system, "Gro87,GroTop")
             _pmd.load_file(filebase + ".gro87").save(filebase + ".gro")

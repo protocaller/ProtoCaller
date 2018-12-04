@@ -24,7 +24,7 @@ import ProtoCaller.Wrappers.protosswrapper as _protoss
 import ProtoCaller.Wrappers.rdkitwrapper as _rdkit
 
 class Ensemble:
-    def __init__(self, engine, box_length=12, ion_conc=0.154, shell=0, neutralise=True, centre=True,
+    def __init__(self, engine, box_length=9, ion_conc=0.154, shell=0, neutralise=True, centre=True,
                  protein_ff=_PC.AMBERDEFAULTPROTEINFF, ligand_ff=_PC.AMBERDEFAULTLIGANDFF,
                  water_ff=_PC.AMBERDEFAULTWATERFF, protein=None, ligand_id=None, morphs=None):
         self.engine = engine
@@ -311,7 +311,7 @@ class Ensemble:
                 molecule_type="protein", disulfide_bonds=self._protein_obj._disulfide_bonds)
 
             self._ligand_id = _babel.babelTransform(self._ligand_id, "mol2")
-            self._ligand_ref = _rdkit.openAsRdkit(self._ligand_id, removeHs=False)
+            self._ligand_ref = _rdkit.openAsRdkit(self._ligand_id, removeHs=False, sanitize=False)
 
             for filename, type in zip(self._ligand_files_pdb + hetatm_files,
                                       ["ligand"] * len(self._ligand_files_pdb) + hetatm_types):
@@ -333,7 +333,7 @@ class Ensemble:
                     atom.xz -= centre[2]
 
                 _rdkit.translateMolecule(self._ligand_ref, -centre)
-                _rdkit.saveFromRdkit(self._ligand_ref, self._ligand_id)
+                _rdkit.saveFromRdkit(self._ligand_ref, self._ligand_id, kekulize=False)
 
             system.box = [10 * self.box_length, 10 * self.box_length, 10 * self.box_length, 90, 90, 90]
             _IO.GROMACS.saveAsGromacs("complex_template", system)
@@ -365,7 +365,8 @@ class Ensemble:
                 if intermediate_files:
                     curdir =_fileio.Dir("Pair %d" % (i + 1), overwrite=True)
                 else:
-                    curdir = _fileio.Dir(_tempfile.TemporaryDirectory().name, overwrite=True)
+                    name = _os.path.basename(_tempfile.TemporaryDirectory().name)
+                    curdir = _fileio.Dir(name, overwrite=True, temp=True)
                 with curdir:
                     print("Creating morph %d..." % (i + 1))
                     #getting parametrised ligand filenames
@@ -434,9 +435,11 @@ class Ensemble:
 
     def _solvate(self, complex, work_dir=None):
         if work_dir is None:
-            tmp_dir = _tempfile.TemporaryDirectory()
-            work_dir = tmp_dir.name
-        with _fileio.Dir(dirname=work_dir):
+            work_dir = _os.path.basename(_tempfile.TemporaryDirectory().name)
+            temp = True
+        else:
+            temp = False
+        with _fileio.Dir(dirname=work_dir, temp=temp):
             """CENTERING"""
 
             box_length = self.box_length
