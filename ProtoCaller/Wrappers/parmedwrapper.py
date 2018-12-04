@@ -2,7 +2,7 @@ import os as _os
 
 import parmed as _pmd
 
-def openFilesAsParmed(filearr):
+def openFilesAsParmed(filearr, fix_dihedrals=True):
     if len(filearr) == 1:
         mol = _pmd.load_file(filearr[0])
     else:
@@ -13,6 +13,15 @@ def openFilesAsParmed(filearr):
                 mol = _pmd.load_file(filearr[1], xyz=filearr[0])
             except:
                 raise OSError("There was an error while reading the input files.")
+
+    if fix_dihedrals:
+        for i, d_i in enumerate(mol.dihedrals):
+            for j, d_j in enumerate(mol.dihedrals):
+                if i < j:
+                    continue
+                if (d_i.atom1 == d_j.atom1 and d_i.atom2 == d_j.atom2 and
+                    d_i.atom3 == d_j.atom3 and d_i.atom4 == d_j.atom4):
+                    d_i.funct, d_j.funct = 9, 9
 
     return mol
 
