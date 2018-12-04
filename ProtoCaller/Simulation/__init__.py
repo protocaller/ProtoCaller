@@ -2,6 +2,10 @@ import copy as _copy
 import glob as _glob
 import os as _os
 
+import MDAnalysis as _MDAnalysis
+import numpy as _np
+import pymbar as _pymbar
+
 import ProtoCaller as _PC
 import ProtoCaller.Protocol as _Protocol
 import ProtoCaller.Utils.fileio as _fileio
@@ -78,7 +82,7 @@ class GMXSingleRun:
                 self.files = {"top" : self.files["top"],}
                 for output_file in output_files:
                     ext = output_file.split(".")[-1].lower()
-                    if ext == "tpr": ext = "gro"
+                    if ext == "tpr": continue
                     self.files[ext] = output_file
 
 class GMXSerialRuns:
@@ -125,6 +129,7 @@ class GMX_REST_FEP_Runs():
         self._workdir = _fileio.Subdir("%s/%s/" % (work_dir, name))
         self.lambda_dict = lambda_dict
         self.protocols = []
+        self.mbar_data = []
 
     def runSimulation(self, name, parallel, use_preset=None, replex=500, n_cores=None, **protocol_params):
         protocol = _Protocol.Protocol(use_preset=use_preset, **protocol_params, **self.lambda_dict)
@@ -157,7 +162,7 @@ class GMX_REST_FEP_Runs():
                         output_files = _glob.glob("%s.*" % filebase)
                         for output_file in output_files:
                             ext = output_file.split(".")[-1].lower()
-                            if ext == "tpr": ext = "gro"
+                            if ext == "tpr": continue
                             self.files[i][ext] = _os.path.abspath(output_file)
 
                 if parallel:
@@ -171,21 +176,64 @@ class GMX_REST_FEP_Runs():
 
                     _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
-def generateMBARInput(input_files, trajectory_files):
-    if len(input_files) != len(trajectory_files):
-        raise TypeError("Need to have a trajectory file for each input file.")
+    def generateMBARData(self):
+        self.mbar_data = []
 
-    xvg_files = []
+        print("Generating Energy files...")
+        with self._workdir:
+            with _fileio.Subdir("MBAR"):
+                for i, file in enumerate(self.files):
+                    self.mbar_data += [[]]
+                    gro, top = file["gro"], file["top"]
+                    for j, file in enumerate(self.files):
+                        trr = file["trr"]
+                        filebase = "Energy_%d_%d" % (i, j)
+                        protocol = _Protocol.Protocol(use_preset="default", **self.lambda_dict)
+                        protocol.init_lambda_state = i
+                        protocol.skip_positions = 5000000000000
+                        protocol.skip_velocities = 5000000000000
+                        protocol.skip_forces = 5000000000000
+                        protocol.write_derivatives = False
+                        protocol.__setattr__("dhdl-print-energy", "potential")
+                        protocol.__setattr__("calc-lambda-neighbors", "0")
+                        protocol.__setattr__("calc-lambda-neighbors", "0")
 
-    for i, tpr in enumerate(input_files):
-        for j, trr in enumerate(trajectory_files):
-            filebase = "Energy_%d_%d" % (i, j)
-            mdrun_command = "%s mdrun -s %s -rerun %s -deffnm %s" % (_PC.GROMACSEXE, tpr, trr, filebase)
-            try:
-                _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
-            except:
-                print("Mdrun failed for input file %d and trajectory %d. You might want to check your files.")
-                continue
-            xvg_files += [filebase + ".xvg"]
+                        mdp = protocol.write("GROMACS", filebase=filebase)
+                        tpr = filebase + ".tpr"
 
-    return xvg_files
+                        grompp_command = "%s grompp -maxwarn 10 -f '%s' -c '%s' -p '%s' -o '%s'" % (_PC.GROMACSEXE, mdp,
+                                                                                                    gro, top, tpr)
+                        _runexternal.runExternal(grompp_command, procname="gmx grompp")
+
+                        mdrun_command = "%s mdrun -s %s -rerun %s -deffnm %s" % (_PC.GROMACSEXE, tpr, trr, filebase)
+                        _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
+
+                        self.mbar_data[i] += list(_MDAnalysis.auxiliary.XVG.XVGReader(filebase + ".xvg").
+                                                  _auxdata_values[:, 1])
+
+        return self.mbar_data
+
+    def runMBAR(self, n_points_to_ignore=1):
+        if not self.mbar_data:
+            raise ValueError("No MBAR data to analyse")
+
+        if n_points_to_ignore:
+            mbar_data = []
+            for row in self.mbar_data:
+                mbar_data += [[x for i, x in enumerate(row)
+                               if i % (len(self.mbar_data[0]) / len(self.mbar_data)) >= n_points_to_ignore]]
+        else:
+            mbar_data = self.mbar_data
+
+        N = len(mbar_data[0])
+        size = len(mbar_data)
+        N_k = [N / size] * size
+        u_kln = _np.reshape(mbar_data, (size, N))
+        mbar = _pymbar.mbar.MBAR(u_kn=u_kln, N_k=N_k, verbose=True, initialize="BAR", maximum_iterations=10000)
+        f, df, _ = mbar.getFreeEnergyDifferences()
+
+        print()
+        print("Free Energy change from A to B in kJ/mol: ", f[0][size - 1])
+        print("Uncertainty in kJ/mol: ", df[0][size - 1])
+        print("Free Energy change from A to B in kcal/mol: ", f[0][size - 1] / 4.184)
+        print("Uncertainty in kcal/mol: ", df[0][size - 1] / 4.184)
