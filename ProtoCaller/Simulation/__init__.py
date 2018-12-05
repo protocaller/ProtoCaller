@@ -205,7 +205,7 @@ class GMX_REST_FEP_Runs():
                                                                                                     gro, top, tpr)
                         _runexternal.runExternal(grompp_command, procname="gmx grompp")
 
-                        mdrun_command = "%s mdrun -s %s -rerun %s -deffnm %s" % (_PC.GROMACSEXE, tpr, trr, filebase)
+                        mdrun_command = "%s mdrun -s '%s' -rerun '%s' -deffnm '%s'" % (_PC.GROMACSEXE, tpr, trr, filebase)
                         _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
                         self.mbar_data[i] += list(_MDAnalysis.auxiliary.XVG.XVGReader(filebase + ".xvg").
