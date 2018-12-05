@@ -176,6 +176,15 @@ class GMX_REST_FEP_Runs():
 
                     _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
+                    for i in range(self.lambda_size):
+                        filebase = "%s_%d" % (name, i)
+                        self.files[i] = {"top": self.files[i]["top"], }
+                        output_files = _glob.glob("%s.*" % filebase)
+                        for output_file in output_files:
+                            ext = output_file.split(".")[-1].lower()
+                            if ext == "tpr": continue
+                            self.files[i][ext] = _os.path.abspath(output_file)
+
     def generateMBARData(self):
         self.mbar_data = []
 
