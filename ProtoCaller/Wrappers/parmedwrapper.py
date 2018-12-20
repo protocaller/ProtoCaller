@@ -33,8 +33,8 @@ def saveFilesFromParmed(system, filearr, overwrite=True):
                 continue
             else:
                 _os.remove(filename)
-            system.save(filename)
-            saved_files += [filename]
+        system.save(filename)
+        saved_files += [filename]
     return saved_files
 
 def fixCharge(filearr):

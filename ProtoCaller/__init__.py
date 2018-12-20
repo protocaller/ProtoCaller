@@ -99,5 +99,6 @@ with _warnings.catch_warnings():
     from . import Parametrise
     from . import Protocol
     from . import Simulation
+    from . import Solvate
     from . import Utils
     from . import Wrappers
