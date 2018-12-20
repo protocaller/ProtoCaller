@@ -92,10 +92,23 @@ PROTEINFFS = AMBERPROTEINFFS
 LIGANDFFS = AMBERLIGANDFFS
 WATERFFS = AMBERWATERFFS
 
+try:
+    import BioSimSpace as _BSS
+    BIOSIMSPACE = True
+except:
+    BIOSIMSPACE = False
+
+try:
+    import Sire as _Sire
+    SIRE = True
+except:
+    SIRE = False
+
 with _warnings.catch_warnings():
     _warnings.filterwarnings("ignore")
     from . import Ensemble
     from . import IO
+    from . import Morph
     from . import Parametrise
     from . import Protocol
     from . import Simulation

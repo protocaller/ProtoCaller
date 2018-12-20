@@ -1,3 +1,7 @@
+import ProtoCaller as _PC
+if not _PC.BIOSIMSPACE:
+    raise ImportError("BioSimSpace module cannot be imported")
+
 import BioSimSpace as _BSS
 import Sire.MM as _SireMM
 import Sire.Mol as _SireMol

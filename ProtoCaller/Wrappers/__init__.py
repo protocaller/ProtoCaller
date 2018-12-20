@@ -1,5 +1,7 @@
+import ProtoCaller as _PC
 from . import babelwrapper
-from . import BioSimSpacewrapper
+if _PC.BIOSIMSPACE:
+    from . import BioSimSpacewrapper
 from . import modellerwrapper
 from . import PDB2PQRwrapper
 from . import protosswrapper

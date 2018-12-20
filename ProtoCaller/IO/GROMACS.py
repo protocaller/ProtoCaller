@@ -1,8 +1,11 @@
+import ProtoCaller as _PC
+
 import os as _os
 import shutil as _shutil
 import tempfile as _tempfile
 
-import BioSimSpace as _BSS
+if _PC.BIOSIMSPACE:
+    import BioSimSpace as _BSS
 import parmed as _pmd
 
 import ProtoCaller.Utils.fileio as _fileio

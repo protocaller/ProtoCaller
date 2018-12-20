@@ -1,7 +1,8 @@
-import BioSimSpace as _BSS
-import parmed as _pmd
-
 import ProtoCaller as _PC
+
+if _PC.BIOSIMSPACE:
+    import BioSimSpace as _BSS
+
 import ProtoCaller.Wrappers.parmedwrapper as _pmdwrap
 from . import _amber
 
@@ -50,8 +51,11 @@ def parametriseAndLoadPmd(params, *args, **kwargs):
     return _pmdwrap.openFilesAsParmed(files)
 
 def parametriseAndLoadBSS(params, *args, **kwargs):
-    files = parametriseFile(params, *args, **kwargs)
-    return _BSS.IO.readMolecules(files)
+    if _PC.BIOSIMSPACE:
+        files = parametriseFile(params, *args, **kwargs)
+        return _BSS.IO.readMolecules(files)
+    else:
+        raise ImportError("BioSimSpace module cannot be imported")
 
 def parametriseFile(params, filename, molecule_type, fix_charge=True, id=None, *args, **kwargs):
     if id is None: id = molecule_type
