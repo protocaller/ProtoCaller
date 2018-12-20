@@ -98,8 +98,9 @@ def alignTwoMolecules(ref, mol, n_min=-1, match="any"):
     else:
         raise ValueError("'match' arguments needs to be either 'any' or 'elements'")
 
-    mcs = _Chem.MolFromSmarts(_FMCS.FindMCS([ref, mol], atomCompare=comp_method,
-                                            ringMatchesRingOnly=True, completeRingsOnly=True).smartsString)
+    mcs_string = _FMCS.FindMCS([ref, mol], atomCompare=comp_method, bondCompare=_FMCS.BondCompare.CompareAny,
+                               ringMatchesRingOnly=True, completeRingsOnly=True).smartsString
+    mcs = _Chem.MolFromSmarts(mcs_string)
     match1 = ref.GetSubstructMatch(mcs)
     match2 = mol.GetSubstructMatch(mcs)
 
