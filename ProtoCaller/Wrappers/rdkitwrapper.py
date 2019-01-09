@@ -73,7 +73,7 @@ def saveFromRdkit(mol, filename, **kwargs):
         else:
             _pmd.load_file(tempfilename)[0].save(filename)
 
-    return filename
+    return _os.path.abspath(filename)
 
 def translateMolecule(mol, vector):
     mol_conf = mol.GetConformer(-1)
@@ -98,21 +98,41 @@ def alignTwoMolecules(ref, mol, n_min=-1, match="any"):
     else:
         raise ValueError("'match' arguments needs to be either 'any' or 'elements'")
 
-    mcs_string = _FMCS.FindMCS([ref, mol], atomCompare=comp_method, bondCompare=_FMCS.BondCompare.CompareAny,
-                               ringMatchesRingOnly=True, completeRingsOnly=True).smartsString
-    mcs = _Chem.MolFromSmarts(mcs_string)
-    match1 = ref.GetSubstructMatch(mcs)
-    match2 = mol.GetSubstructMatch(mcs)
+    #now we match aliphatic chains to rings, but not rings to other rings with different size
+    #this functionality is not at the moment present in RDKit, so we implement it manually
+    #since ring breaking is not good practice, we throw an error if we could match two different rings to each other
+    #TODO maybe fix this behaviour later on?
+    mcs_string_strict = _FMCS.FindMCS([ref, mol], atomCompare=comp_method, bondCompare=_FMCS.BondCompare.CompareAny,
+                                       ringMatchesRingOnly=False, completeRingsOnly=True).smartsString
+    mcs_string_loose = _FMCS.FindMCS([ref, mol], atomCompare=comp_method, bondCompare=_FMCS.BondCompare.CompareAny,
+                                      ringMatchesRingOnly=False, completeRingsOnly=False).smartsString
+
+    mcs_strict = _Chem.MolFromSmarts(mcs_string_strict)
+    mcs_loose = _Chem.MolFromSmarts(mcs_string_loose)
+
+    match1_strict, match2_strict = ref.GetSubstructMatch(mcs_strict), mol.GetSubstructMatch(mcs_strict)
+    match1_loose, match2_loose = ref.GetSubstructMatch(mcs_loose), mol.GetSubstructMatch(mcs_loose)
+    
+    #find extra pairs of atoms found with loose matching
+    extra_pairs = list(set(zip(match1_loose, match2_loose)) - set(zip(match1_strict, match2_strict)))
+
+    #If any extra pairs contain matched atoms contained in different rings,
+    #then this is not a complete ring and we throw an error.
+    #Otherwise, we pick the loose match
+    for i_ref, i_mol in extra_pairs:
+        rings_ref, rings_mol = getRings(i_ref, ref), getRings(i_mol, mol)
+        if [] not in [rings_ref, rings_mol] and rings_ref != rings_mol:
+            raise ValueError("MCS cannot match molecules with rings of different sizes")
 
     ref_conf = ref.GetConformer(-1)
     mol_conf = mol.GetConformer(-1)
 
     ff = _FF.MMFFGetMoleculeForceField(mol, _FF.MMFFGetMoleculeProperties(mol), confId=0)
-    for i_ref, i_mol in zip(match1, match2):
+    for i_ref, i_mol in zip(match1_loose, match2_loose):
         mol_conf.SetAtomPosition(i_mol, ref_conf.GetAtomPosition(i_ref))
         ff.AddFixedPoint(i_mol)
 
-    if mol_conf.GetNumAtoms() != len(match1):
+    if mol_conf.GetNumAtoms() != len(match1_loose):
         ff.Initialize()
         more = ff.Minimize()
         while more and n_min:
@@ -121,4 +141,9 @@ def alignTwoMolecules(ref, mol, n_min=-1, match="any"):
             if n_min != -1:
                 n_min -= 1
 
-    return mol, list(zip(match1, match2))
+    return mol, list(zip(match1_loose, match2_loose))
+
+#returns an array with the sorted ring sizes of all rings the target atom is contained in
+def getRings(atom_idx, molecule):
+    rings = molecule.GetRingInfo().AtomRings()
+    return sorted([len(ring) for ring in rings if atom_idx in ring])
