@@ -189,7 +189,7 @@ class GMX_REST_FEP_Runs():
         #GROMACS might generate a bunch of warnings when we apply a non-dummy Hamiltonian to a trajectory with dummies
         #due to clashes and backup too many structures. Here we suppress this backing up
         gmx_suppress_dump = _os.environ["GMX_SUPPRESS_DUMP"] if "GMX_SUPPRESS_DUMP" in _os.environ.keys() else None
-        _os.environ["GMX_SUPPRESS_DUMP"] = 1
+        _os.environ["GMX_SUPPRESS_DUMP"] = "1"
         self.mbar_data = []
 
         print("Generating Energy files...")
