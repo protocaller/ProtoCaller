@@ -1,14 +1,15 @@
-#makes the generation of subdirectories a bit easier, more readable and less prone to errors
+#makes the generation of (sub)directories a bit easier, more readable and less prone to errors
 import atexit as _atexit
 import os as _os
 import shutil as _shutil
 
 class Subdir():
-    def __init__(self, dirname, copydirname=None, overwrite=False, temp=False):
+    def __init__(self, dirname, copydirname=None, overwrite=False, temp=False, purge_immediately=True):
         self.dirname = dirname
         self.copydirname = copydirname
         self.overwrite = overwrite
         self.temp = temp
+        self.purge_immediately = purge_immediately
     def __enter__(self):
         self.workdirname = _os.getcwd()
         if self.overwrite and _os.path.exists(self.dirname):
@@ -23,13 +24,16 @@ class Subdir():
     def __exit__(self, exc_type, exc_value, traceback):
         _os.chdir(self.workdirname)
         #removes temporary directory at the end of execution
-        if(self.temp):
-            def exit():
+        if self.temp:
+            def delete():
                 try:
                     _shutil.rmtree(self.path)
                 except:
                     pass
-            _atexit.register(exit)
+            if self.purge_immediately:
+                delete()
+            else:
+                _atexit.register(delete)
 
 class Dir(Subdir):
     def __init__(self, dirname, *args, **kwargs):
