@@ -186,6 +186,10 @@ class GMX_REST_FEP_Runs():
                             self.files[i][ext] = _os.path.abspath(output_file)
 
     def generateMBARData(self):
+        #GROMACS might generate a bunch of warnings when we apply a non-dummy Hamiltonian to a trajectory with dummies
+        #due to clashes and backup too many structures. Here we suppress this backing up
+        gmx_suppress_dump = _os.environ["GMX_SUPPRESS_DUMP"] if "GMX_SUPPRESS_DUMP" in _os.environ.keys() else None
+        _os.environ["GMX_SUPPRESS_DUMP"] = 1
         self.mbar_data = []
 
         print("Generating Energy files...")
@@ -203,6 +207,9 @@ class GMX_REST_FEP_Runs():
                         protocol.skip_velocities = 5000000000000
                         protocol.skip_forces = 5000000000000
                         protocol.write_derivatives = False
+                        protocol.constraint = "no"
+                        protocol.constraint_type = None
+                        protocol.__setattr__("continuation", "yes")
                         protocol.__setattr__("dhdl-print-energy", "potential")
                         protocol.__setattr__("calc-lambda-neighbors", "0")
                         protocol.__setattr__("calc-lambda-neighbors", "0")
@@ -219,6 +226,10 @@ class GMX_REST_FEP_Runs():
 
                         self.mbar_data[i] += list(_MDAnalysis.auxiliary.XVG.XVGReader(filebase + ".xvg").
                                                   _auxdata_values[:, 1])
+
+        #restore the original environment variable
+        del _os.environ["GMX_SUPPRESS_DUMP"]
+        if gmx_suppress_dump is not None: _os.environ["GMX_SUPPRESS_DUMP"] = gmx_suppress_dump
 
         return self.mbar_data
 

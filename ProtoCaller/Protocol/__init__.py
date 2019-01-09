@@ -157,7 +157,7 @@ class Protocol:
             if "Gateway" not in str(type(val_old)):
                 if not isinstance(value, type(val_old)):
                     raise TypeError("Type of argument ({}) does not agree with requested type ({}).".format(
-                        str(type(value), str(type(val_old)))))
+                        str(type(value)), str(type(val_old))))
                 else:
                     self.__attrs[name] = value
             else:
