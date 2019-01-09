@@ -1,4 +1,3 @@
-import collections as _collections
 import os as _os
 import re as _re
 import tempfile as _tempfile
@@ -8,6 +7,7 @@ import BioSimSpace as _BSS
 import numpy as _np
 
 import ProtoCaller as _PC
+from . import ligand as _ligand
 import ProtoCaller.IO as _IO
 import ProtoCaller.Parametrise as _parametrise
 import ProtoCaller.Solvate as _solvate
@@ -33,7 +33,6 @@ class Ensemble:
         self.params = _parametrise.Params(protein_ff=protein_ff, ligand_ff=ligand_ff, water_ff=water_ff)
         self.protein = protein
         self.ligand_id = ligand_id
-        self._ligands = _collections.OrderedDict()
         self.morphs = morphs
         self._complex_template = None
         self.systems_prep = {}
@@ -73,7 +72,7 @@ class Ensemble:
     def protein(self, val):
         # set protein ID and directory name
         self._protein = Ensemble._checkProtein(val)
-        self._workdir = _fileio.Subdir(val)
+        self._workdir = _fileio.Dir(val)
 
         with self._workdir:
             #download protein PDB
@@ -117,25 +116,11 @@ class Ensemble:
         self._morphs = []
         if vals is None: return
         for val in vals:
-            if len(val) != 2:
-                _warnings.warn("Value %s not recognised as a container of ligand1 and ligand2. "
+            if len(val) != 2 or any([not isinstance(v, _ligand.Ligand) for v in val]):
+                _warnings.warn("Value %s not recognised as a container of two Ligand objects. "
                                "Skipping value..." % val)
-                continue
-            ligand1, ligand2 = val
-
-            try:
-                mol1 = _rdkit.openAsRdkit(ligand1)
-                mol2 = _rdkit.openAsRdkit(ligand2)
-            except:
-                _warnings.warn("One or more of these values is not valid: %s. Skipping values..." % val)
-                continue
-
-            if ligand1 not in self._ligands.keys():
-                self._ligands[ligand1] = [mol1]
-            if ligand2 not in self._ligands.keys():
-                self._ligands[ligand2] = [mol2]
-
-            self._morphs += [[ligand1, ligand2]]
+            else:
+                self._morphs += [val]
 
     def filterPDB(self, missing_residues="middle", chains="all", waters="site", ligands="chain", cofactors="chain",
                   simple_anions="chain", complex_anions="chain", simple_cations="chain", complex_cations="chain",
@@ -234,25 +219,6 @@ class Ensemble:
             self._protein_obj.purgeResidues(filter)
             self._protein_obj.writePDB(self._protein_file)
 
-    def loadParametrisedLigands(self, ligand_dict):
-        for ligand, filearr in ligand_dict.items():
-            if len(filearr) != 2:
-                _warnings.warn("Need to pass a protonated structure file and a list of parametrised files. "
-                               "Skipping value...")
-            else:
-                try:
-                    mol = _rdkit.openAsRdkit(ligand)
-                    self._ligands[ligand] = [mol, *filearr]
-                    self._ligands[ligand][1] = _os.path.abspath(filearr[0])
-                    self._ligands[ligand][2] = [_os.path.abspath(x) for x in filearr[1]]
-
-                    if any([not _os.path.exists(f) for f in [self._ligands[ligand][1], self._ligands[ligand][2][0],
-                                                             self._ligands[ligand][2][1]]]):
-                        raise ValueError()
-                except:
-                    _warnings.warn("An error occured. Skipping ligand...")
-                    self._ligands[ligand] = [mol]
-
     def preparePDB(self, add_missing_residues="modeller", add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
                    protonate_ligands="babel"):
         with self._workdir:
@@ -281,6 +247,8 @@ class Ensemble:
                 self._protein_obj = _IO.PDB.PDB(self._protein_file)
 
             if protonate_proteins == "protoss":
+                #TODO: fix
+                raise ValueError("Protoss support is not yet fully functional")
                 if protonate_ligands != "protoss":
                     ligand_file = None
                 else:
@@ -290,7 +258,10 @@ class Ensemble:
                     self._ligand_files_pdb = _IO.SDF.splitSDFs([ligand_file])
 
             if protonate_ligands == "babel":
-                self._ligand_files_pdb = [_babel.babelTransform(f) for f in self._ligand_files_pdb if f is not None]
+                for morph in self.morphs:
+                    for ligand in morph:
+                        if not ligand.protonated:
+                            ligand.protonate()
 
     def parametrisePDB(self):
         with self._workdir:
@@ -337,17 +308,12 @@ class Ensemble:
             self._complex_template = _BSS.IO.readMolecules(["complex_template.top", "complex_template.gro"])
 
     def parametriseLigands(self):
-        print("Parametrising all ligands. This will take a while...")
-        with self._workdir:
-            for i, ligand in enumerate(self._ligands.keys()):
-                if len(self._ligands[ligand]) == 3: continue
-                filename_temp = _rdkit.saveFromRdkit(self._ligands[ligand][0], filename="ligand_%d.mol" % (i + 1))
-                filename_babel = _babel.babelTransform(filename_temp, "mol2")
-                self._ligands[ligand] += [filename_babel]
-                self._ligands[ligand] += [_parametrise.parametriseFile(params=self.params, filename=filename_babel,
-                                                                       molecule_type="ligand", id="ligand_%d" % (i + 1))]
+        for morph in self.morphs:
+            for ligand in morph:
+                if not ligand.parametrised:
+                    ligand.parametrise()
 
-    def prepareComplexes(self, replica_temps=None, intermediate_files=False):
+    def prepareComplexes(self, replica_temps=None, intermediate_files=False, store_complexes=False, output_files=True):
         if replica_temps is None or len(replica_temps) == 1:
             scales = [1]
         else:
@@ -367,21 +333,17 @@ class Ensemble:
                 with curdir:
                     print("Creating morph %d..." % (i + 1))
                     #getting parametrised ligand filenames
-                    ligand1_prep = self._ligands[ligand1][2]
-                    ligand2_prep = self._ligands[ligand2][2]
+                    ligand1_prep = ligand1.parametrised_files
+                    ligand2_prep = ligand2.parametrised_files
 
-                    #loading protonated ligands into rdkit
-                    ligand1_H = _rdkit.openAsRdkit(self._ligands[ligand1][1], removeHs=False)
-                    ligand2_H = _rdkit.openAsRdkit(self._ligands[ligand2][1], removeHs=False)
-
-                    #aligning protonated ligands
-                    ligand1_H, _ = _rdkit.alignTwoMolecules(self._ligand_ref, ligand1_H)
-                    ligand2_H, mcs = _rdkit.alignTwoMolecules(ligand1_H, ligand2_H)
+                    #aligning the ligands
+                    ligand1_aligned, _ = _rdkit.alignTwoMolecules(self._ligand_ref, ligand1.molecule)
+                    ligand2_aligned, mcs = _rdkit.alignTwoMolecules(ligand1_aligned, ligand2.molecule)
 
                     #replacing coordinates of parametrised ligands with new coordinates while keeping the topology
                     filenames = ["morph%d_1.inpcrd" % (i + 1), "morph%d_2.inpcrd" % (i + 1)]
-                    ligand1_prep[1] = _os.path.abspath(_rdkit.saveFromRdkit(ligand1_H, filenames[0]))
-                    ligand2_prep[1] = _os.path.abspath(_rdkit.saveFromRdkit(ligand2_H, filenames[1]))
+                    ligand1_prep[1] = _os.path.abspath(_rdkit.saveFromRdkit(ligand1_aligned, filenames[0]))
+                    ligand2_prep[1] = _os.path.abspath(_rdkit.saveFromRdkit(ligand2_aligned, filenames[1]))
 
                     #loading the shifted ligands into BioSimSpace
                     ligand1_BSS = _BSS.IO.readMolecules(ligand1_prep).getMolecules()[0]
@@ -416,14 +378,19 @@ class Ensemble:
                         complexes = [_BSSwrap.rescaleSystemParams(complexes[0], scale, includelist=["Merged_Molecule"])
                                      for scale in scales]
 
-                    self.systems_prep[tuple(self.morphs[i])] = (morph, complexes)
+                    if store_complexes:
+                        self.systems_prep["%s~%s" % (ligand1.name, ligand2.name)] = (morph, complexes)
 
-    def saveSystems(self):
+                if output_files:
+                    self.saveSystems({"%s~%s" % (ligand1.name, ligand2.name) : (morph, complexes)})
+
+    def saveSystems(self, systems=None):
+        if systems is None: systems = self.systems_prep
+        #TODO support other engines
         print("Saving solvated complexes as GROMACS...")
         with self._workdir:
-            for i, pair in enumerate(self.morphs):
-                with _fileio.Subdir("Pair %d" % (i + 1)):
-                    morph, complexes = self.systems_prep[tuple(pair)]
+            for name, (morph, complexes) in systems.items():
+                with _fileio.Subdir(name):
                     _IO.GROMACS.saveAsGromacs("morph", morph)
 
                     if len(complexes) == 1:
