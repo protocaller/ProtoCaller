@@ -95,7 +95,7 @@ class Atom:
 class MissingResidue:
     def __init__(self, resName, chainID, resSeq, iCode=" "):
         if iCode == "": iCode = " "
-        self._resName = resName
+        self._resName = resName.strip()
         self._chainID = chainID
         self._resSeq = Atom._convert_to_int(resSeq)
         self._iCode = iCode
@@ -283,7 +283,7 @@ class Chain:
             return None
         else:
             for residue in self.__residueList:
-                if residue._type in ["amino acid"]:
+                if residue._type in ["amino_acid"]:
                     return "chain"
             return "molecules"
 
@@ -575,7 +575,7 @@ class PDB:
 
 
     def totalResidueList(self, sorted=True):
-        total_res = self._missing_residues + self.filter("_type=='amino acid'")
+        total_res = self._missing_residues + self.filter("_type=='amino_acid'")
         if(sorted):
             PDB.sortResidueList(total_res)
         return total_res

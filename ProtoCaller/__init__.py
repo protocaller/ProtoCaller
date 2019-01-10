@@ -60,20 +60,20 @@ _os.environ["SIRE_SILENT_PHONEHOME"] = "1"
 ENGINES = ["AMBER", "GROMACS"]
 
 def RESIDUETYPE(res):
-    res = res.upper()
+    res = res.upper().strip()
     if res in ["HOH", "WAT", "H2O", "SOL"]:
         return "water"
     elif res in ["CL", "BR", "F", "I"]:
-        return "simple anion"
+        return "simple_anion"
     elif res in ["SO4", "PO4", "CO3"]:
-        return "complex anion"
+        return "complex_anion"
     elif res in ["MG", "NA", "CA", "K"]:
-        return "simple cation"
+        return "simple_cation"
     elif res in ["FE", "CU", "NI", "CO", "MN", "CD"]:
-        return "complex cation"
+        return "complex_cation"
     elif res in ["ALA", "ARG", "ASH", "ASN", "ASP", "CYM", "CYS", "CYX", "GLH", "GLN", "GLU", "GLY", "HID", "HIE",
                  "HIS", "HIP", "ILE", "LEU", "LYN", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL"]:
-        return "amino acid"
+        return "amino_acid"
     elif res in ["ATP", "ADP", "GTP", "GDP", "FMN", "FAD", "HEM", "HEME", "NAD", "NAI", "NAP", "NDP"]:
         return "cofactor"
     else:

@@ -170,7 +170,7 @@ class Ensemble:
 
             # filter by chain
             filter = []
-            mask = "_type=='amino acid'"
+            mask = "_type=='amino_acid'"
             if chains != "all":
                 mask += "&_chainID in %s" % str(chains)
             filter += self._protein_obj.filter(mask)
@@ -268,7 +268,7 @@ class Ensemble:
             print("Parametrising original crystal system...")
             #extract non-protein residues from pdb file and save them as separate pdb files
             hetatm_files, hetatm_types = self._protein_obj.writeHetatms()
-            non_protein_residues = self._protein_obj.filter("_type not in ['water', 'simple cation', 'simple anion']")
+            non_protein_residues = self._protein_obj.filter("_type not in ['water', 'simple_cation', 'simple_anion']")
             self._protein_obj.purgeResidues(non_protein_residues)
             self._protein_obj.writePDB()
 

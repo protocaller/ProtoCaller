@@ -10,7 +10,7 @@ def amberWrapper(params, filename, molecule_type, id=None, *args, **kwargs):
 
     if molecule_type == "protein":
         force_fields = [params.protein_ff, params.water_ff]
-    elif molecule_type in ["water", "simple anion", "simple cation"]:
+    elif molecule_type in ["water", "simple_anion", "simple_cation"]:
         force_fields = [params.water_ff]
     elif molecule_type == "complex anion":
         print("AMBER parametrisation failed: polyatomic anions not supported")

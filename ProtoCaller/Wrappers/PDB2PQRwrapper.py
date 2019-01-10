@@ -47,7 +47,7 @@ def fixPDB2PQRPQR(pdb_obj, pqr_file, filebase=None):
     for i, chain in enumerate(pdb_obj):
         if chain._type == "chain":
             for j, residue in enumerate(chain):
-                if residue._type == "amino acid":
+                if residue._type == "amino_acid":
                     updateResidue(residue)
 
     pdb_obj.reNumberResidues()
