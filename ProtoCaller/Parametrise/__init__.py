@@ -71,8 +71,8 @@ def parametriseFile(params, filename, molecule_type, fix_charge=True, id=None, *
         if params.water_ff in _PC.AMBERWATERFFS:
             files = _amber.amberWrapper(params, filename, molecule_type, id, *args, **kwargs)
     else:
-        raise ValueError("Invalid argument: %s. Argument must be one of: protein, ligand, cofactor, simple anion, "
-                         "complex anion, simple cation, complex or water." % molecule_type)
+        raise ValueError("Invalid argument: %s. Argument must be one of: protein, ligand, cofactor, simple_anion, "
+                         "complex_anion, simple_cation, complex_cation or water." % molecule_type)
 
     if files:
         return _pmdwrap.fixCharge(files) if fix_charge else files

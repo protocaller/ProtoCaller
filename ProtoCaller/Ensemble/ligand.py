@@ -86,12 +86,13 @@ class Ligand:
     @parametrised_files.setter
     def parametrised_files(self, val):
         if val is None:
-            self.parametrised = None
             self._parametrised_files = None
+            self.parametrised = False
         else:
             for i, file in enumerate(val):
                 val[i] = self._checkFileExists(file)
             self._parametrised_files = val
+            self.parametrised = True
 
     def protonate(self, reprotonate=False, babel_parameters=None, rdkit_parameters=None):
         if babel_parameters is None: babel_parameters = {}

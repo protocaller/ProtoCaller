@@ -308,12 +308,14 @@ class Ensemble:
             self._complex_template = _BSS.IO.readMolecules(["complex_template.top", "complex_template.gro"])
 
     def parametriseLigands(self):
-        for morph in self.morphs:
-            for ligand in morph:
-                if not ligand.parametrised:
-                    ligand.parametrise()
+        with self._workdir:
+            for morph in self.morphs:
+                for ligand in morph:
+                    if not ligand.parametrised:
+                        ligand.parametrise(self.params)
 
     def prepareComplexes(self, replica_temps=None, intermediate_files=False, store_complexes=False, output_files=True):
+        self.parametriseLigands()
         if replica_temps is None or len(replica_temps) == 1:
             scales = [1]
         else:
