@@ -76,7 +76,7 @@ class Ligand:
             self._protonated_filename = None
         else:
             self._protonated_filename = self._checkFileExists(val)
-            self._molecule = _rdkit.openAsRdkit(self._protonated_filename)
+            self._molecule = _rdkit.openAsRdkit(self._protonated_filename, removeHs=False)
             self._string = _rdmolfiles.MolToSmiles(self.molecule)
 
     @property
