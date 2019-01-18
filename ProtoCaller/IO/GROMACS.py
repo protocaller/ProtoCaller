@@ -15,7 +15,7 @@ def saveAsGromacs(filebase, system):
     with _fileio.Dir(dirname=name, temp=True) as dir:
         if "BioSimSpace" in str(type(system)):
             _BSS.IO.saveMolecules(filebase, system, "Gro87,GroTop")
-            _pmd.load_file(filebase + ".gro87").save(filebase + ".gro")
+            _pmd.load_file(filebase + ".gro87").save(filebase + ".gro", combine="all")
             _shutil.move(filebase + ".gro", _os.path.join(dir.initialdirname, filebase + ".gro"))
             _shutil.move(filebase + ".grotop", _os.path.join(dir.initialdirname, filebase + ".top"))
         elif "GromacsTopologyFile" in str(type(system)) or "parmed" in str(type(system)):
