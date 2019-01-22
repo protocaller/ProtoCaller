@@ -150,7 +150,7 @@ class Protocol:
         if isinstance(value, str):
             value = value.strip().lower()
 
-        if "lambda" in name:
+        if "lambdas" in name:
             self.free_energy = True
 
         if name == "_attrs":
@@ -168,7 +168,7 @@ class Protocol:
                 else:
                     self.__attrs[name] = value
             else:
-                self.__attrs[name].setValue(value)
+                self.__attrs[name].setValue(value, name)
 
     def write(self, engine, filebase="protocol"):
         engine = engine.strip().upper()
