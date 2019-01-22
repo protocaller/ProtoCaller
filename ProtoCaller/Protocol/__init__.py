@@ -178,8 +178,8 @@ class Protocol:
     def _generateGenericParams(self):
         self.timestep = 0.002
         self.skip_positions = 500
-        self.skip_velocities = 500
-        self.skip_forces = 500
+        self.skip_velocities = 0
+        self.skip_forces = 0
         self.skip_energies = 500
         self.periodic_boundary_conditions = "3d"
         self.neighbour_cutoff = 1.2
@@ -198,6 +198,7 @@ class Protocol:
 
     def _generateMinimisationParams(self):
         self._generateGenericParams()
+        self.skip_positions = 0
         self.integrator = "steep"
         self.n_steps = 5000
         self.thermostat = "no"
@@ -206,6 +207,8 @@ class Protocol:
 
     def _generateNVTEquilibrationParams(self):
         self._generateGenericParams()
+        self.skip_positions = 5000
+        self.skip_energies = 5000
         self.integrator = "stochastic"
         self.n_steps = 25000
         self.thermostat = "berendsen"
@@ -218,6 +221,8 @@ class Protocol:
 
     def _generateNPTEquilibrationParams(self):
         self._generateGenericParams()
+        self.skip_positions = 5000
+        self.skip_energies = 5000
         self.integrator = "stochastic"
         self.n_steps = 25000
         self.thermostat = "berendsen"
@@ -231,6 +236,8 @@ class Protocol:
         self.random_velocities = False
 
     def _generateProductionParams(self):
+        self.skip_positions = 10000
+        self.skip_energies = 10000
         self._generateNPTEquilibrationParams()
         self.integrator = "leapfrog"
         self.n_steps = 2500000
@@ -239,10 +246,10 @@ class Protocol:
 
     def _generateVacuumParams(self):
         self.timestep = 0.002
-        self.skip_positions = 500
-        self.skip_velocities = 500
-        self.skip_forces = 500
-        self.skip_energies = 500
+        self.skip_positions = 10000
+        self.skip_velocities = 0
+        self.skip_forces = 0
+        self.skip_energies = 10000
         self.periodic_boundary_conditions = "no"
         self.neighbour_cutoff = 0
         self.neighbour_frequency = 0
