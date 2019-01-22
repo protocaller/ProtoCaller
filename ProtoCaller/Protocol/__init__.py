@@ -99,6 +99,13 @@ class Protocol:
         self.temperature_lambdas = []
         self.write_derivatives = _BSS.Gateway.Boolean(help="Whether to write dH/dλ")
 
+        #softcore options
+        self.softcore_vdw = _BSS.Gateway.Boolean(help="Apply soft-core potential to van der Waals interactions")
+        self.softcore_coulomb = _BSS.Gateway.Boolean(help="Apply soft-core potential to Coulomb interactions")
+        self.softcore_alpha = _BSS.Gateway.Float(help="Soft-core alpha parameter, default is 0.5")
+        self.softcore_lambda_power = _BSS.Gateway.Integer(help="Power for lambda in the soft-core function",
+                                                          allowed=[1, 2])
+
         use_preset = use_preset.strip().lower() if use_preset is not None else ""
         if use_preset == "default":
             self._generateGenericParams()
@@ -182,6 +189,10 @@ class Protocol:
         self.vdw_type = "cutoff"
         self.vdw_cutoff = 1.2
         self.vdw_corr = "energy_pressure"
+        self.softcore_vdw = True
+        self.softcore_coulomb = True
+        self.softcore_alpha = 0.5
+        self.softcore_lambda_power = 1
         self.constraint = "h_bonds"
         self.constraint_type = "lincs"
 
@@ -373,7 +384,30 @@ class Protocol:
 
         filename = filebase + ".mdp"
         with open(filename, "w") as file:
+            #bool flags keeping track of special cases
+            write_softcore = True
+
             for name, value in self.__attrs.items():
+                #screen for special cases:
+
+                # SPECIAL CASE: constraints - don't write constraint type of there is no constraint
+                if name == "constraint_type" and self.constraint == "no":
+                    continue
+
+                #SPECIAL CASE: softcore parameters
+                if name in ["softcore_vdw", "softcore_coulomb", "softcore_lambda_power", "softcore_alpha"]:
+                    if write_softcore:
+                        if self.free_energy:
+                            if self.softcore_vdw:
+                                file.write("{:<30} = {}\n".format("sc-alpha", self.softcore_alpha))
+                                file.write("{:<30} = {}\n".format("sc-power", self.softcore_lambda_power))
+                            if self.softcore_coulomb:
+                                coulomb_str = "yes" if self.softcore_coulomb else "no"
+                                file.write("{:<30} = {}\n".format("sc-coul", coulomb_str))
+                        write_softcore = False
+                    continue
+
+                #translate the parameter name in GROMACS language
                 if name in name_dict.keys():
                     name_str = name_dict[name]
                 elif name[0] == "_":
@@ -381,6 +415,7 @@ class Protocol:
                 else:
                     name_str = name
 
+                #translate the parameter value in GROMACS language
                 if isinstance(value, _BSS.Gateway.Boolean):
                     if value.getValue() is True:
                         value_str = "yes"
@@ -402,6 +437,7 @@ class Protocol:
                 else:
                     continue
 
+                #write a parameter name and value pair
                 if name_str and value_str:
                     file.write("{:<30} = {}\n".format(name_str, value_str))
         return filename
