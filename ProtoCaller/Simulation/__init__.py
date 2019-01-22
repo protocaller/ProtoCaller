@@ -133,6 +133,7 @@ class GMX_REST_FEP_Runs():
 
     def runSimulation(self, name, parallel, use_preset=None, replex=500, n_cores=None, **protocol_params):
         protocol = _Protocol.Protocol(use_preset=use_preset, **protocol_params, **self.lambda_dict)
+        self.protocols += [protocol]
 
         print("Running %s..." % name)
         with self._workdir:
@@ -185,9 +186,9 @@ class GMX_REST_FEP_Runs():
                             if ext == "tpr": continue
                             self.files[i][ext] = _os.path.abspath(output_file)
 
-    def generateMBARData(self):
-        #GROMACS might generate a bunch of warnings when we apply a non-dummy Hamiltonian to a trajectory with dummies
-        #due to clashes and backup too many structures. Here we suppress this backing up
+    def generateMBARData(self, cont=False):
+        # GROMACS might generate a bunch of warnings when we apply a non-dummy Hamiltonian to a trajectory with dummies
+        # due to clashes and backup too many structures. Here we suppress this backing up
         gmx_suppress_dump = _os.environ["GMX_SUPPRESS_DUMP"] if "GMX_SUPPRESS_DUMP" in _os.environ.keys() else None
         _os.environ["GMX_SUPPRESS_DUMP"] = "1"
         self.mbar_data = []
@@ -199,35 +200,48 @@ class GMX_REST_FEP_Runs():
                     self.mbar_data += [[]]
                     gro, top = file["gro"], file["top"]
                     for j, file in enumerate(self.files):
+                        run = True
                         trr = file["trr"]
                         filebase = "Energy_%d_%d" % (i, j)
-                        protocol = _Protocol.Protocol(use_preset="default", **self.lambda_dict)
-                        protocol.init_lambda_state = i
-                        protocol.skip_positions = 5000000000000
-                        protocol.skip_velocities = 5000000000000
-                        protocol.skip_forces = 5000000000000
-                        protocol.write_derivatives = False
-                        protocol.constraint = "no"
-                        protocol.constraint_type = None
-                        protocol.__setattr__("continuation", "yes")
-                        protocol.__setattr__("dhdl-print-energy", "potential")
-                        protocol.__setattr__("calc-lambda-neighbors", "0")
-                        protocol.__setattr__("calc-lambda-neighbors", "0")
+                        # we only overwrite the last generated energies, because they might be incomplete
+                        if cont:
+                            filebase_next = "Energy_%d_%d" % ((i + 1) % len(self.files), (j + 1) % len(self.files))
+                            files_current = _glob.glob("%s/%s.xvg" % (_os.getcwd(), filebase))
+                            files_next = _glob.glob("%s/%s.xvg" % (_os.getcwd(), filebase_next))
+                            if len(files_current) and len(files_next):
+                                run = False
+                        if run:
+                            #use the last protocol or create a default one
+                            if len(self.protocols):
+                                protocol = self.protocols[-1]
+                            else:
+                                protocol = _Protocol.Protocol(use_preset="default", **self.lambda_dict)
+                            protocol.init_lambda_state = i
+                            protocol.skip_positions = 0
+                            protocol.skip_velocities = 0
+                            protocol.skip_forces = 0
+                            protocol.write_derivatives = False
+                            protocol.constraint = "no"
+                            protocol.__setattr__("continuation", "yes")
+                            protocol.__setattr__("dhdl-print-energy", "potential")
+                            protocol.__setattr__("calc-lambda-neighbors", "0")
+                            protocol.__setattr__("calc-lambda-neighbors", "0")
 
-                        mdp = protocol.write("GROMACS", filebase=filebase)
-                        tpr = filebase + ".tpr"
+                            mdp = protocol.write("GROMACS", filebase=filebase)
+                            tpr = filebase + ".tpr"
 
-                        grompp_command = "%s grompp -maxwarn 10 -f '%s' -c '%s' -p '%s' -o '%s'" % (_PC.GROMACSEXE, mdp,
-                                                                                                    gro, top, tpr)
-                        _runexternal.runExternal(grompp_command, procname="gmx grompp")
+                            grompp_command = "%s grompp -maxwarn 10 -f '%s' -c '%s' -p '%s' -o '%s'" % (
+                                _PC.GROMACSEXE, mdp, gro, top, tpr)
+                            _runexternal.runExternal(grompp_command, procname="gmx grompp")
 
-                        mdrun_command = "%s mdrun -s '%s' -rerun '%s' -deffnm '%s'" % (_PC.GROMACSEXE, tpr, trr, filebase)
-                        _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
+                            mdrun_command = "%s mdrun -s '%s' -rerun '%s' -deffnm '%s'" % (_PC.GROMACSEXE, tpr, trr,
+                                                                                           filebase)
+                            _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
                         self.mbar_data[i] += list(_MDAnalysis.auxiliary.XVG.XVGReader(filebase + ".xvg").
                                                   _auxdata_values[:, 1])
 
-        #restore the original environment variable
+        # restore the original environment variable
         del _os.environ["GMX_SUPPRESS_DUMP"]
         if gmx_suppress_dump is not None: _os.environ["GMX_SUPPRESS_DUMP"] = gmx_suppress_dump
 
