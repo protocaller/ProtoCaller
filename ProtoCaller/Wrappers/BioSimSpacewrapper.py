@@ -4,7 +4,23 @@ if not _PC.BIOSIMSPACE:
 
 import BioSimSpace as _BSS
 import Sire.MM as _SireMM
+import Sire.Maths as _SireMaths
 import Sire.Mol as _SireMol
+import Sire.Vol as _SireVol
+
+def centre(complex, box_length):
+    box = complex._getAABox()
+    min_coords, max_coords = box.minCoords(), box.maxCoords()
+    centre = (min_coords + max_coords) / 2
+    difference = max_coords - min_coords
+    if any([x / 10 > box_length for x in difference]):
+        box_length = int(max(difference / 10)) + 1
+        print("Insufficient input box size. Changing to a box length of %d nm..." % box_length)
+        complex.translate(tuple(-centre + _SireMaths.Vector(3 * (box_length * 5,))))
+        complex._sire_system.setProperty("space",
+                                         _SireVol.PeriodicBox(_SireMaths.Vector(3 * (box_length * 10,))))
+
+    return complex, box_length, centre
 
 def rescaleSystemParams(system, scale, includelist=None, excludelist=None, neutralise=True):
     if excludelist is None and includelist is None:
