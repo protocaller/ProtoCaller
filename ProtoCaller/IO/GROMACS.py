@@ -18,7 +18,7 @@ def saveAsGromacs(filebase, system):
             _pmd.load_file(filebase + ".gro87").save(filebase + ".gro", combine="all")
             _shutil.move(filebase + ".gro", _os.path.join(dir.initialdirname, filebase + ".gro"))
             _shutil.move(filebase + ".grotop", _os.path.join(dir.initialdirname, filebase + ".top"))
-        elif "GromacsTopologyFile" in str(type(system)) or "parmed" in str(type(system)):
+        elif isinstance(system, (_pmd.Structure, _PC.Morph.Morph)):
             system.save(filebase + ".gro")
             system.save(filebase + ".top")
             _shutil.move(filebase + ".gro", _os.path.join(dir.initialdirname, filebase + ".gro"))
