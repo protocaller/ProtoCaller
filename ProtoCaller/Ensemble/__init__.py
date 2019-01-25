@@ -328,7 +328,7 @@ class Ensemble:
         with self._workdir:
             for i, (ligand1, ligand2) in enumerate(self.morphs):
                 if intermediate_files:
-                    curdir =_fileio.Dir("Pair %d" % (i + 1), overwrite=True)
+                    curdir =_fileio.Dir("%s~%s" % (ligand1.name, ligand2.name), overwrite=True)
                 else:
                     name = _os.path.basename(_tempfile.TemporaryDirectory().name)
                     curdir = _fileio.Dir(name, overwrite=True, temp=True)
@@ -392,7 +392,7 @@ class Ensemble:
         print("Saving solvated complexes as GROMACS...")
         with self._workdir:
             for name, (morph, complexes) in systems.items():
-                with _fileio.Subdir(name):
+                with _fileio.Dir(name):
                     _IO.GROMACS.saveAsGromacs("morph", morph)
 
                     if len(complexes) == 1:

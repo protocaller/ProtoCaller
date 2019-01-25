@@ -18,7 +18,7 @@ class GMXSingleRun:
         self.files = {}
         self.files["gro"] = _os.path.abspath(gro_file)
         self.files["top"] = _os.path.abspath(top_file)
-        self._workdir = _fileio.Subdir("%s/%s/Lambda_%d" % (work_dir, name, lambda_index))
+        self._workdir = _fileio.Dir("%s/%s/Lambda_%d" % (work_dir, name, lambda_index))
         self.lambda_index = lambda_index
         self.replica_tops = []
         if replica_top_files not in [None, []]:
@@ -27,7 +27,7 @@ class GMXSingleRun:
     def runSimulation(self, name, protocol, replex=None, n_cores=None, **replica_params):
         print("Running %s..." % name)
         with self._workdir:
-            with _fileio.Subdir(name, overwrite=True):
+            with _fileio.Dir(name, overwrite=True):
                 protocol.current_lambda = self.lambda_index
                 self.files["mdp"] = _os.path.abspath(protocol.write(engine="GROMACS"))
 
@@ -126,7 +126,7 @@ class GMX_REST_FEP_Runs():
         for f, top_file in zip(self.files, top_files):
             f["gro"] = _os.path.abspath(gro_file)
             f["top"] = _os.path.abspath(top_file)
-        self._workdir = _fileio.Subdir("%s/%s/" % (work_dir, name))
+        self._workdir = _fileio.Dir("%s/%s/" % (work_dir, name))
         self.lambda_dict = lambda_dict
         self.protocols = []
         self.mbar_data = []
@@ -137,7 +137,7 @@ class GMX_REST_FEP_Runs():
 
         print("Running %s..." % name)
         with self._workdir:
-            with _fileio.Subdir(name, overwrite=True):
+            with _fileio.Dir(name, overwrite=True):
                 for i in range(self.lambda_size):
                     filebase = "%s_%d" % (name, i)
                     protocol.init_lambda_state = i
@@ -195,7 +195,7 @@ class GMX_REST_FEP_Runs():
 
         print("Generating Energy files...")
         with self._workdir:
-            with _fileio.Subdir("MBAR"):
+            with _fileio.Dir("MBAR"):
                 for i, file in enumerate(self.files):
                     self.mbar_data += [[]]
                     gro, top = file["gro"], file["top"]
