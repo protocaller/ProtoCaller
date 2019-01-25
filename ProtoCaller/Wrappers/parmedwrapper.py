@@ -54,16 +54,22 @@ def fixCharge(filearr):
 
 def centre(system, box_length):
     coords = system.coordinates
-    c_min, c_max = _np.amin(coords, axis=0), _np.amax(coords, axis=0)
-    centre = (c_min + c_max) / 2
-    box_length_min = max(c_max - c_min) / 10
-    if box_length_min > box_length:
-        box_length = int(box_length_min) + 1
+    min_coords, max_coords = _np.amin(coords, axis=0), _np.amax(coords, axis=0)
+    centre = (min_coords + max_coords) / 2
+    difference = max_coords - min_coords
+    if any([x / 10 > box_length for x in difference]):
+        box_length = int(max(difference / 10)) + 1
         print("Insufficient input box size. Changing to a box length of %d nm..." % box_length)
-    centre -= _np.asarray(3 * [5 * box_length])
+    translation_vec = -centre + _np.asarray(3 * [5 * box_length])
     for atom in system.atoms:
-        atom.xx -= centre[0]
-        atom.xy -= centre[1]
-        atom.xz -= centre[2]
+        atom.xx += translation_vec[0]
+        atom.xy += translation_vec[1]
+        atom.xz += translation_vec[2]
+    system = resize(system, box_length)
 
-    return system, box_length, centre
+    return system, box_length, translation_vec
+
+def resize(system, box_length):
+    system.box = 3 * [10 * box_length] + 3 * [90]
+    system.box[0] = system.box[1] = system.box[2] = 10 * box_length
+    return system
