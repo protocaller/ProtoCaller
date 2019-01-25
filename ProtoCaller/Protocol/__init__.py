@@ -236,9 +236,9 @@ class Protocol:
         self.random_velocities = False
 
     def _generateProductionParams(self):
+        self._generateNPTEquilibrationParams()
         self.skip_positions = 10000
         self.skip_energies = 10000
-        self._generateNPTEquilibrationParams()
         self.integrator = "leapfrog"
         self.n_steps = 2500000
         self.thermostat = "nose-hoover"
