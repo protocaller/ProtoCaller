@@ -1,4 +1,7 @@
-class Atom:
+from . import _Helper_Mixin
+
+
+class Atom(_Helper_Mixin.HelperMixin):
     _common_properties = ["type", "serial", "name", "altloc", "resName", "chainID", "resSeq", "iCode", "x", "y", "z",
                           "occupancy", "tempFactor", "element", "charge"]
 
@@ -20,6 +23,9 @@ class Atom:
         self.charge = pdb_line[78:80]
 
     def __getattr__(self, item):
+        if item not in self._common_properties:
+            raise ValueError("Invalid attribute {}. Attributes need to be one of {}".format(item,
+                                                                                            self._common_properties))
         return getattr(self, "_" + item)
 
     def __str__(self):
@@ -36,18 +42,14 @@ class Atom:
         value = value.strip()
 
         # checks
-        if key == "chainID":
-            if not isinstance(value, str) or len(value) != 1:
-                raise ValueError("ChainID must be a single character")
-            value = value.upper()
-        elif key in ["serial", "resSeq"]:
+        if key in ["serial", "resSeq"]:
             value = int(float(value))
         elif key in ["x", "y", "z"]:
             value = float(value)
-        elif key == "iCode":
+        elif key in ["iCode", "chainID"]:
             if not isinstance(value, str) or len(value) > 1:
-                raise ValueError("iCode must be a single character")
-            value = value if value != "" else " "
+                raise ValueError("{} must be a single character".format(key))
+            value = value.upper() if value != "" else " "
         elif key == "type":
             value = value.upper()
             if value not in ["ATOM", "HETATM"]:
@@ -57,18 +59,4 @@ class Atom:
         super(Atom, self).__setattr__("_" + key, value)
 
     def __repr__(self):
-        return "<Atom>"
-
-    def sameChain(self, obj):
-        from . import Chain as _Chain
-        try:
-            return all([getattr(self, prop) == getattr(obj, prop) for prop in _Chain.Chain._common_properties])
-        except AttributeError:
-            print("Need to pass a valid object with {} attributes".format(_Chain.Chain._common_properties))
-
-    def sameResidue(self, obj):
-        from . import Residue as _Residue
-        try:
-            return all([getattr(self, prop) == getattr(obj, prop) for prop in _Residue.Residue._common_properties])
-        except AttributeError:
-            print("Need to pass a valid object with {} attributes".format(_Residue.Residue._common_properties))
+        return "<Atom of type {}>".format(self.type)

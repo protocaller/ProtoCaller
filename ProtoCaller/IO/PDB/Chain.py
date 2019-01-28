@@ -2,7 +2,7 @@ import ProtoCaller.Utils.ConditionalList as _CondList
 from . import Residue as _Residue
 
 
-class Chain(_CondList.ConditionalList):
+class Chain(_Residue.Residue, _CondList.ConditionalList):
     # properties which have to be conserved within the whole chain
     _common_properties = ["chainID"]
     # methods partially inherited from Residue
@@ -15,7 +15,7 @@ class Chain(_CondList.ConditionalList):
     def __init__(self, residues=None):
         if residues is None:
             residues = []
-        super(Chain, self).__init__(residues, self._checkResidue)
+        _CondList.ConditionalList.__init__(self, residues, self._checkResidue)
 
     def __eq__(self, other):
         return self.sameChain(other)
@@ -47,7 +47,7 @@ class Chain(_CondList.ConditionalList):
 
         i = 0
         for residue in self.__iter__():
-            residue.reNumberAtoms(custom_serials=custom_serials[i:i+residue.numberOfAtoms()])
+            residue.reNumberAtoms(custom_serials=custom_serials[i:i + residue.numberOfAtoms()])
             i += residue.numberOfAtoms()
 
     def reNumberResidues(self, start=1, custom_resSeqs=None, custom_iCodes=None):

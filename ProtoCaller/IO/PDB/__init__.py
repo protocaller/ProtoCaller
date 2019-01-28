@@ -2,6 +2,7 @@ import re as _re
 
 import pypdb as _pypdb
 
+from . import _Helper_Mixin
 from . import Atom as _Atom
 from . import Missing as _Missing
 from . import Residue as _Residue

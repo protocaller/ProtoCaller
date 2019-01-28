@@ -2,16 +2,10 @@ import copy as _copy
 
 import ProtoCaller as _PC
 
-from . import Atom as _Atom
+from . import _Helper_Mixin
 
 
-class MissingResidue:
-    # methods partially inherited from Atom
-    _inherited_methods = ["sameChain", "sameResidue"]
-
-    for method in _inherited_methods:
-        vars()[method] = getattr(_Atom.Atom, method)
-
+class MissingResidue(_Helper_Mixin.HelperMixin):
     def __init__(self, resName, chainID, resSeq, iCode=" "):
         self.resName = resName
         self.chainID = chainID
