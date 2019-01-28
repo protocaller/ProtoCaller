@@ -48,7 +48,7 @@ class MissingResidue(_Helper_Mixin.HelperMixin):
         return id(self)
 
     def __setattr__(self, key, value):
-        value = value.strip()
+        if isinstance(value, str): value = value.strip()
 
         # checks
         if key == "chainID":
@@ -65,7 +65,7 @@ class MissingResidue(_Helper_Mixin.HelperMixin):
             raise AttributeError("No attribute {}".format(key))
 
         # setter
-        super(MissingResidue, self).__setattr__(self, "_" + key, value)
+        super(MissingResidue, self).__setattr__("_" + key, value)
 
     def __str__(self):
         string = "REMARK 465     {:3.3} {:1.1} {:5d}{:1.1}\n".format(self.resName, self.chainID, self.resSeq,

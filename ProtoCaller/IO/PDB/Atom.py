@@ -39,7 +39,7 @@ class Atom(_Helper_Mixin.HelperMixin):
         if key not in self._common_properties:
             raise ValueError("Invalid attribute {}. Attributes need to be one of {}".format(key,
                                                                                             self._common_properties))
-        value = value.strip()
+        if isinstance(value, str): value = value.strip()
 
         # checks
         if key in ["serial", "resSeq"]:

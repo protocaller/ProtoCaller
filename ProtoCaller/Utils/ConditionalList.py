@@ -16,14 +16,12 @@ class ConditionalList(list):
 
     def _check(self, listfunc):
         def decorated(*args):
-            print(self)
-            if not self:
-                return
-            items = args[-1]
-            if not isinstance(items, list):
-                items = [items]
-            for checkfunc in self._checkfuncs:
-                for item in items:
-                    checkfunc(item)
+            if self:
+                items = args[-1]
+                if not isinstance(items, list):
+                    items = [items]
+                for checkfunc in self._checkfuncs:
+                    for item in items:
+                        checkfunc(item)
             return listfunc(*args)
         return decorated

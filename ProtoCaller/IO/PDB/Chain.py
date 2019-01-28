@@ -5,12 +5,6 @@ from . import Residue as _Residue
 class Chain(_Residue.Residue, _CondList.ConditionalList):
     # properties which have to be conserved within the whole chain
     _common_properties = ["chainID"]
-    # methods partially inherited from Residue
-    _inherited_methods = ["__copy__", "__deepcopy__", "__getattr__", "__hash__", "__setattr__", "__str__", "sameChain",
-                          "sameResidue"]
-
-    for method in _inherited_methods:
-        vars()[method] = getattr(_Residue.Residue, method)
 
     def __init__(self, residues=None):
         if residues is None:
@@ -21,23 +15,23 @@ class Chain(_Residue.Residue, _CondList.ConditionalList):
         return self.sameChain(other)
 
     def __repr__(self):
-        return "<Chain of {} residues>".format(self.__len__())
+        return "<Chain of {} residues>".format(len(self))
 
     @property
     def type(self):
-        if not self.__len__():
+        if not len(self):
             return None
         else:
-            for residue in self.__iter__():
+            for residue in self:
                 if residue.type in ["amino_acid"]:
                     return "chain"
             return "molecules"
 
     def numberOfAtoms(self):
-        return sum([residue.numberOfAtoms() for residue in self.__iter__()])
+        return sum([residue.numberOfAtoms() for residue in self])
 
     def numberOfResidues(self):
-        return self.__len__()
+        return len(self)
 
     def reNumberAtoms(self, start=1, custom_serials=None):
         if custom_serials is None:
@@ -46,20 +40,34 @@ class Chain(_Residue.Residue, _CondList.ConditionalList):
             raise ValueError("Custom number of atoms does not match chain number of atoms")
 
         i = 0
-        for residue in self.__iter__():
+        for residue in self:
             residue.reNumberAtoms(custom_serials=custom_serials[i:i + residue.numberOfAtoms()])
             i += residue.numberOfAtoms()
 
     def reNumberResidues(self, start=1, custom_resSeqs=None, custom_iCodes=None):
         if custom_resSeqs is None:
-            custom_resSeqs = [start + i for i in range(self.__len__())]
+            custom_resSeqs = [start + i for i in range(len(self))]
         if custom_iCodes is None:
             custom_iCodes = [" "] * len(custom_resSeqs)
-        if not len(custom_resSeqs) == len(custom_iCodes) == self.__len__():
+        if not len(custom_resSeqs) == len(custom_iCodes) == len(self):
             raise ValueError("Custom number of residues does not match chain number of residues")
 
-        for resSeq, iCode, residue in zip(custom_resSeqs, custom_iCodes, self.__iter__()):
+        for resSeq, iCode, residue in zip(custom_resSeqs, custom_iCodes, self):
             residue.resSeq, residue.iCode = resSeq, iCode
+
+    def purgeAtoms(self, atoms):
+        for residue in self:
+            residue.purgeAtoms(atoms)
+        self.purgeEmpty()
+
+    def purgeEmpty(self):
+        empty_residues = [res for res in self if not len(res)]
+        for empty_residue in empty_residues:
+            self.remove(empty_residue)
+
+    def purgeResidues(self, residues):
+        for residue in residues:
+            self.remove(residue)
 
     def _checkResidue(self, residue):
         # checks whether the residue has the same chainID as the current object
