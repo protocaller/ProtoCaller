@@ -52,5 +52,5 @@ def test_protonate_1bji():
                 # don't deal with terminal amino acids
                 if i == 0 or i == len(obj_protonated[0]) - 1:
                     continue
-                if residue._resName in size_dict.keys():
-                    assert len(residue) == size_dict[residue._resName]
+                if residue.resName in size_dict.keys():
+                    assert len(residue) == size_dict[residue.resName]
