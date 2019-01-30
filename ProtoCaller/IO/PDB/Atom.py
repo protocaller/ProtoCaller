@@ -6,6 +6,7 @@ class Atom(_Helper_Mixin.HelperMixin):
                           "occupancy", "tempFactor", "element", "charge"]
 
     def __init__(self, pdb_line):
+        pdb_line = "{0: <81}".format(pdb_line.strip())
         self.type = pdb_line[:6]
         self.serial = pdb_line[6:11]
         self.name = pdb_line[12:16]
@@ -29,7 +30,7 @@ class Atom(_Helper_Mixin.HelperMixin):
         return getattr(self, "_" + item)
 
     def __str__(self):
-        string = "{:<6.6}{:5d} {:<4.4}{:>1.1}{:>3.3} {:>1.1}{:4d}{:>1.1}   {:>8.8}{:>8.8}{:>8.8}{:>6.6}{:>6.6}" \
+        string = "{:<6.6}{:5d} {:<4.4}{:>1.1}{:<3.3} {:>1.1}{:4d}{:>1.1}   {:>8.3f}{:>8.3f}{:>8.3f}{:>6.6}{:>6.6}" \
                  "          {:>2.2}{:>2.2}".format(self.type, self.serial, self.name, self.altloc, self.resName,
                                                    self.chainID, self.resSeq, self.iCode, self.x, self.y, self.z,
                                                    self.occupancy, self.tempFactor, self.element, self.charge)
