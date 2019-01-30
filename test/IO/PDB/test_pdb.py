@@ -6,7 +6,7 @@ import tempfile
 
 
 def test_read_write_1bji():
-    with Dir(PC.TESTDIR + "/IO/PDB"):
+    with Dir(PC.TESTDIR + "/shared"):
         obj = PDB.PDB("1bji.pdb")
         filestr = open("1bji.pdb").readlines()
         filestr = [line.strip() for line in filestr
