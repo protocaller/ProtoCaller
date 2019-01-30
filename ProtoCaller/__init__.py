@@ -7,6 +7,7 @@ import sys as _sys
 import warnings as _warnings
 
 HOMEDIR = _os.path.dirname(_os.path.abspath(__file__))
+TESTDIR = _os.path.abspath(_os.path.dirname(HOMEDIR) + "/test")
 _sys.path.append("%s/shared" % HOMEDIR)
 OS = _platform.system()
 
