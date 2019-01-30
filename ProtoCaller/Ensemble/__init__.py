@@ -4,7 +4,6 @@ import tempfile as _tempfile
 import warnings as _warnings
 
 import BioSimSpace as _BSS
-import numpy as _np
 
 import ProtoCaller as _PC
 from . import ligand as _ligand
@@ -16,6 +15,7 @@ import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Wrappers.babelwrapper as _babel
 import ProtoCaller.Wrappers.BioSimSpacewrapper as _BSSwrap
 import ProtoCaller.Wrappers.modellerwrapper as _modeller
+import ProtoCaller.Wrappers.parmedwrapper as _pmdwrap
 import ProtoCaller.Wrappers.PDB2PQRwrapper as _PDB2PQR
 import ProtoCaller.Wrappers.protosswrapper as _protoss
 import ProtoCaller.Wrappers.rdkitwrapper as _rdkit
@@ -287,25 +287,15 @@ class Ensemble:
                                                              molecule_type=type)
 
             if self.centre:
-                coords = system.coordinates
-                c_min, c_max = _np.amin(coords, axis=0), _np.amax(coords, axis=0)
-                centre = (c_min + c_max) / 2
-                box_length = max(c_max - c_min) / 10
-                if box_length > self.box_length:
-                    self.box_length = int(box_length) + 1
-                    print("Insufficient input box size. Changing to a box length of %d nm..." % self.box_length)
-                centre -= _np.asarray(3 * [5 * box_length])
-                for atom in system.atoms:
-                    atom.xx -= centre[0]
-                    atom.xy -= centre[1]
-                    atom.xz -= centre[2]
-
-                _rdkit.translateMolecule(self._ligand_ref, -centre)
+                system, self.box_length, translation_vec = _pmdwrap.centre(system, self.box_length)
+                _rdkit.translateMolecule(self._ligand_ref, translation_vec)
                 _rdkit.saveFromRdkit(self._ligand_ref, self._ligand_id)
 
-            system.box = [10 * self.box_length, 10 * self.box_length, 10 * self.box_length, 90, 90, 90]
             _IO.GROMACS.saveAsGromacs("complex_template", system)
-            self._complex_template = _BSS.IO.readMolecules(["complex_template.top", "complex_template.gro"])
+            if _PC.BIOSIMSPACE:
+                self._complex_template = _BSS.IO.readMolecules(["complex_template.top", "complex_template.gro"])
+            else:
+                self._complex_template = system
 
     def parametriseLigands(self):
         with self._workdir:
@@ -328,7 +318,7 @@ class Ensemble:
         with self._workdir:
             for i, (ligand1, ligand2) in enumerate(self.morphs):
                 if intermediate_files:
-                    curdir =_fileio.Dir("Pair %d" % (i + 1), overwrite=True)
+                    curdir =_fileio.Dir("%s~%s" % (ligand1.name, ligand2.name), overwrite=True)
                 else:
                     name = _os.path.basename(_tempfile.TemporaryDirectory().name)
                     curdir = _fileio.Dir(name, overwrite=True, temp=True)
@@ -367,9 +357,6 @@ class Ensemble:
                     complexes = [_solvate.solvate(complexes[0], self.params, box_length=self.box_length,
                                                   shell=self.shell, neutralise=self.neutralise, ion_conc=self.ion_conc,
                                                   centre=self.centre, work_dir=curdir.path, filebase="complex")]
-                    box = complexes[0]._sire_system.property("space")
-                    morph = morph.toSystem()
-                    morph._sire_system.setProperty("space", box)
                     morph = _solvate.solvate(morph, self.params, box_length=4, shell=self.shell,
                                              neutralise=self.neutralise, ion_conc=self.ion_conc, centre=self.centre,
                                              work_dir=curdir.path, filebase="morph")
@@ -392,7 +379,7 @@ class Ensemble:
         print("Saving solvated complexes as GROMACS...")
         with self._workdir:
             for name, (morph, complexes) in systems.items():
-                with _fileio.Subdir(name):
+                with _fileio.Dir(name):
                     _IO.GROMACS.saveAsGromacs("morph", morph)
 
                     if len(complexes) == 1:
