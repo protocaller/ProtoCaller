@@ -2,7 +2,7 @@ import ProtoCaller.Utils.ConditionalList as _CondList
 from . import Residue as _Residue
 
 
-class Chain(_Residue.Residue, _CondList.ConditionalList):
+class Chain(_Residue, _CondList.ConditionalList):
     # properties which have to be conserved within the whole chain
     _common_properties = ["chainID"]
 
