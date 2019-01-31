@@ -1,8 +1,6 @@
 import os as _os
 import re as _re
 
-import pypdb as _pypdb
-
 import ProtoCaller.Utils.ConditionalList as _CondList
 from . import _Helper_Mixin
 from .Atom import *
@@ -31,10 +29,7 @@ class PDB(Chain, _CondList.ConditionalList):
     def filename(self, value):
         self._filename = _os.path.abspath(value)
         if not _os.path.exists(self._filename):
-            try:
-                self._filename = self.downloadPDB(value)
-            except:
-                raise ValueError("Input '{}' is not a valid filename or PDB code".format(value))
+            raise ValueError("Input '{}' is not a valid filename or PDB code".format(value))
 
     def readPDB(self, filename):
         self.filename = filename
@@ -224,18 +219,3 @@ class PDB(Chain, _CondList.ConditionalList):
 
         sortingfunc = lambda res: "{}{:5d}{}".format(res.chainID, res.resSeq, res.iCode)
         residuelist.sort(key=sortingfunc)
-
-    @staticmethod
-    def downloadPDB(code, filename=None):
-        code = code.strip().upper()
-        try:
-            pdb_string = _pypdb.get_pdb_file(code, filetype="pdb", compression=False)
-        except:
-            raise ValueError("Invalid PDB code: '%s'" % code)
-        if filename is None:
-            filename = code + ".pdb"
-
-        with open(filename, "w") as file:
-            file.write(pdb_string)
-
-        return _os.path.abspath(filename)
