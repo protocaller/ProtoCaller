@@ -1,6 +1,7 @@
 # TODO:
 # 1. check proteins with modified AA's
-# 2. check numbering of ignored residues'''
+# 2. check numbering of ignored residues
+
 import ProtoCaller as _PC
 import ProtoCaller.IO.PDB as _PDB
 import ProtoCaller.Utils.runexternal as _runexternal

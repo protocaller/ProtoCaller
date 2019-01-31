@@ -208,7 +208,7 @@ class PDB(_Chain.Chain, _CondList.ConditionalList):
                 del self._disulfide_bonds[i]
 
         for chain in self:
-            chain.purgeResidues(residues)
+            chain.purgeResidues([residue for residue in residues if residue in chain])
         self.purgeEmpty()
 
     def totalResidueList(self, sort=True):

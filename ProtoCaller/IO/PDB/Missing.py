@@ -12,28 +12,16 @@ class MissingResidue(_Helper_Mixin.HelperMixin):
         self.resSeq = resSeq
         self.iCode = iCode
 
-    def __copy__(self):
-        cls = self.__class__
-        obj = cls.__new__(cls)
-        obj.__dict__.update(self.__dict__)
-        return obj
-
-    def __deepcopy__(self, memo):
-        cls = self.__class__
-        obj = cls.__new__(cls)
-        obj.__dict__.update(self.__dict__)
-        memo[id(self)] = obj
-        for k, v in self.__dict__.items():
-            setattr(obj, k, _copy.deepcopy(v, memo))
-        return obj
-
     def __lt__(self, other):
         if not isinstance(other, MissingResidue):
             raise TypeError("Argument needs to be of type Residue")
         else:
-            str1 = "{:1.1}{:5d}{:1.1}".format(self.chainID, self.resSeq, self.iCode)
-            str2 = "{:1.1}{:5d}{:1.1}".format(other.chainID, other.resSeq, other.iCode)
-            return True if str1 < str2 else False
+            try:
+                str1 = "{:1.1}{:5d}{:1.1}".format(self.chainID, self.resSeq, self.iCode)
+                str2 = "{:1.1}{:5d}{:1.1}".format(other.chainID, other.resSeq, other.iCode)
+                return True if str1 < str2 else False
+            except TypeError:
+                raise TypeError("Cannot compare an empty residue")
 
     def __gt__(self, other):
         return not self.__lt__(other)
