@@ -25,9 +25,9 @@ class Atom(_Helper_Mixin.HelperMixin):
 
     def __getattr__(self, item):
         if item not in self._common_properties:
-            raise ValueError("Invalid attribute {}. Attributes need to be one of {}".format(item,
-                                                                                            self._common_properties))
-        return getattr(self, "_" + item)
+            return super().__getattribute__(item)
+        else:
+            return super().__getattribute__("_" + item)
 
     def __str__(self):
         string = "{:<6.6}{:5d} {:<4.4}{:>1.1}{:<3.3} {:>1.1}{:4d}{:>1.1}   {:>8.3f}{:>8.3f}{:>8.3f}{:>6.6}{:>6.6}" \

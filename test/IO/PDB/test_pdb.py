@@ -2,6 +2,7 @@ import ProtoCaller as PC
 import ProtoCaller.IO.PDB as PDB
 from ProtoCaller.Utils.fileio import Dir
 
+import copy
 import tempfile
 
 
@@ -12,8 +13,10 @@ def test_read_write_1bji():
         filestr = [line.strip() for line in filestr
                    if line[:3] in ["TER", "END"] or line[:4] == "ATOM" or line[:6] == "HETATM"]
 
+        assert obj.numberOfAtoms() == 3398
         assert len(obj._missing_atoms) == 0
         assert len(obj._missing_residues) == 0
+        assert len(obj._modified_residues) == 3
         assert len(obj._disulfide_bonds) == 9
         assert len(obj._site_residues) == 74
         assert len(obj[0]) == 388
@@ -31,8 +34,10 @@ def test_read_write_1bji():
         filestr_new = [line.strip() for line in filestr_new]
 
         obj_new = PDB.PDB(new_file.name)
+        assert obj_new.numberOfAtoms() == 3398
         assert len(obj_new._missing_atoms) == 0
         assert len(obj_new._missing_residues) == 0
+        assert len(obj._modified_residues) == 3
         assert len(obj_new._disulfide_bonds) == 9
         assert len(obj_new._site_residues) == 74
         assert len(obj_new[0]) == 388
@@ -40,3 +45,39 @@ def test_read_write_1bji():
 
         # the ultimate test: rewriting the PDB should result in the same PDB
         assert filestr_new == filestr
+
+
+def test_copy_1bji():
+    with Dir(PC.TESTDIR + "/shared"):
+        obj = PDB.PDB("1bji.pdb")
+        obj2 = copy.copy(obj)
+
+        assert obj2.numberOfAtoms() == 3398
+        assert len(obj2._missing_atoms) == 0
+        assert len(obj2._missing_residues) == 0
+        assert len(obj2._modified_residues) == 3
+        assert len(obj2._disulfide_bonds) == 9
+        assert len(obj2._site_residues) == 74
+        assert len(obj2[0]) == 388
+        assert len(obj2[1]) == 202
+
+        obj2.purgeResidues(obj2.filter("type=='amino_acid'"))
+        assert obj.numberOfAtoms() == obj2.numberOfAtoms() != 3398
+
+
+def test_deepcopy_1bji():
+    with Dir(PC.TESTDIR + "/shared"):
+        obj = PDB.PDB("1bji.pdb")
+        obj2 = copy.deepcopy(obj)
+
+        assert obj2.numberOfAtoms() == 3398
+        assert len(obj2._missing_atoms) == 0
+        assert len(obj2._missing_residues) == 0
+        assert len(obj2._modified_residues) == 3
+        assert len(obj2._disulfide_bonds) == 9
+        assert len(obj2._site_residues) == 74
+        assert len(obj2[0]) == 388
+        assert len(obj2[1]) == 202
+
+        obj2.purgeResidues(obj2.filter("type=='amino_acid'"))
+        assert obj.numberOfAtoms() != obj2.numberOfAtoms()
