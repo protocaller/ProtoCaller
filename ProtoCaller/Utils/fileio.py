@@ -43,3 +43,9 @@ class Dir:
             else:
                 _atexit.register(delete)
         _os.chdir(self.initialdirname)
+
+
+def checkFileExists(file):
+    if not _os.path.exists(file):
+        raise ValueError("File %s does not exist. Please provide a valid filename." % file)
+    return _os.path.abspath(file)

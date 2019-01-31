@@ -4,8 +4,10 @@ import rdkit.Chem.rdmolfiles as _rdmolfiles
 import rdkit.Chem.rdchem as _rdchem
 
 import ProtoCaller.Parametrise as _parametrise
+import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Wrappers.rdkitwrapper as _rdkit
 import ProtoCaller.Wrappers.babelwrapper as _babel
+
 
 class Ligand:
     _counter = 1
@@ -75,7 +77,7 @@ class Ligand:
             self.protonated = None
             self._protonated_filename = None
         else:
-            self._protonated_filename = self._checkFileExists(val)
+            self._protonated_filename = _fileio.checkFileExists(val)
             self._molecule = _rdkit.openAsRdkit(self._protonated_filename, removeHs=False)
             self._string = _rdmolfiles.MolToSmiles(self.molecule)
 
@@ -90,7 +92,7 @@ class Ligand:
             self.parametrised = False
         else:
             for i, file in enumerate(val):
-                val[i] = self._checkFileExists(file)
+                val[i] = _fileio.checkFileExists(file)
             self._parametrised_files = val
             self.parametrised = True
 
@@ -107,7 +109,9 @@ class Ligand:
             self.molecule = _rdkit.openFileAsRdkit(self.protonated_filename, removeHs=False, **rdkit_parameters)
             self.protonated = True
 
-    def parametrise(self, params, reparametrise=False):
+    def parametrise(self, params, filename=None, molecule_type="ligand", id=None, reparametrise=False):
+        if filename is None: filename=self.protonated_filename
+        if id is None: id = self.name
         print("Parametrising ligand %s..." % self.name)
         if self.parametrised and not reparametrise:
             print("Ligand %s is already parametrised." % self.name)
@@ -117,11 +121,6 @@ class Ligand:
             print("Cannot parametrise unprotonated ligand. Protonating first with default parameters...")
             self.protonate()
 
-        self.parametrised_files = _parametrise.parametriseFile(params=params, filename=self.protonated_filename,
-                                                               molecule_type="ligand", id=self.name)
+        self.parametrised_files = _parametrise.parametriseFile(params=params, filename=filename,
+                                                               molecule_type=molecule_type, id=id)
         self.parametrised = True
-
-    def _checkFileExists(self, file):
-        if not _os.path.exists(file):
-            raise ValueError("File %s does not exist. Please provide a valid filename." % file)
-        return _os.path.abspath(file)
