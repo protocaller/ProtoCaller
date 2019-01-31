@@ -22,7 +22,7 @@ class MyLoop(_modellerautomodel.loopmodel):
             self.transformed_total_residue_list = self._transform_id(self.total_residue_list)
             self.transformed_missing_residue_list = [self.transformed_total_residue_list[i]
                                                      for i, res in enumerate(self.total_residue_list)
-                                                     if type(res) == _IO.PDB.Missing.MissingResidue]
+                                                     if type(res) == _IO.PDB.MissingResidue]
         else:
             raise ValueError("Need to specify input PDB filename")
 

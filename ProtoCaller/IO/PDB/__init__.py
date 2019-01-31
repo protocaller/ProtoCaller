@@ -5,13 +5,13 @@ import pypdb as _pypdb
 
 import ProtoCaller.Utils.ConditionalList as _CondList
 from . import _Helper_Mixin
-from . import Atom as _Atom
-from . import Missing as _Missing
-from . import Residue as _Residue
-from . import Chain as _Chain
+from .Atom import *
+from .Missing import *
+from .Residue import *
+from .Chain import *
 
 
-class PDB(_Chain.Chain, _CondList.ConditionalList):
+class PDB(Chain, _CondList.ConditionalList):
     # properties which have to be conserved within the whole PDB
     _common_properties = []
 
@@ -41,7 +41,7 @@ class PDB(_Chain.Chain, _CondList.ConditionalList):
         pdb_string = open(self.filename).readlines()
         if pdb_string[-1][:3] != "END": pdb_string += ["END" + " " * 80]
 
-        curr_atom, curr_res, curr_chain = None, _Residue.Residue(), _Chain.Chain()
+        curr_atom, curr_res, curr_chain = None, Residue(), Chain()
 
         # first populate with all atoms
         for i, line in enumerate(pdb_string):
@@ -50,13 +50,13 @@ class PDB(_Chain.Chain, _CondList.ConditionalList):
 
             if any([is_atom, is_end]):
                 if is_atom:
-                    curr_atom = _Atom.Atom(line)
+                    curr_atom = Atom(line)
                 if len(curr_res) and any([is_end, not curr_atom.sameResidue(curr_res)]):
                     curr_chain.append(curr_res)
-                    curr_res = _Residue.Residue()
+                    curr_res = Residue()
                 if len(curr_chain) and any([is_end, not curr_atom.sameChain(curr_chain)]):
                     self.append(curr_chain)
-                    curr_chain = _Chain.Chain()
+                    curr_chain = Chain()
                 if is_atom:
                     curr_res.append(curr_atom)
 
@@ -89,14 +89,14 @@ class PDB(_Chain.Chain, _CondList.ConditionalList):
             else:
                 match = _re.findall(r"^REMARK 465\s*([\w]{3})\s*([\w])\s*([\d]+)([\D|\S]?)\s*$", line)
                 if len(match) != 0:
-                    self._missing_residues += [_Missing.MissingResidue(*match[0])]
+                    self._missing_residues += [MissingResidue(*match[0])]
                     continue
 
                 match = _re.findall(r"^REMARK 470\s*([\w]{3})\s*([\w])\s*([\d]+)([\D|\S]?)\s*", line)
                 if len(match) != 0:
                     args = match[0]
                     arr = line[21:].split()
-                    self._missing_atoms += [_Missing.MissingAtoms(*args, atoms=arr)]
+                    self._missing_atoms += [MissingAtoms(*args, atoms=arr)]
 
     def writePDB(self, filename=None):
         if filename is None: filename = self.filename
@@ -197,7 +197,7 @@ class PDB(_Chain.Chain, _CondList.ConditionalList):
         for chain in self:
             chain.purgeEmpty()
 
-        _Chain.Chain.purgeEmpty(self)
+        Chain.purgeEmpty(self)
 
     def purgeResidues(self, residues):
         for name in ["_missing_residues", "_modified_residues", "_site_residues"]:
