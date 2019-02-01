@@ -11,15 +11,23 @@ import ProtoCaller.Utils.stdio as _stdio
 from . import babelwrapper as _babel
 
 def openFileAsRdkit(filename, **kwargs):
-    extension = filename.split(".")[-1]
+    extension = filename.split(".")[-1].lower()
 
-    if extension in ["mol", "mol2"]:
-        exec("mol = _Chem.MolFrom%sFile(filename, **kwargs)" % extension.title(), locals(), globals())
+    func_dict = {
+        "mol": _Chem.MolFromMolFile,
+        "mol2": _Chem.MolFromMol2File,
+        "pdb":_Chem.MolFromPDBFile,
+    }
+
+    if extension in func_dict.keys():
+        mol = func_dict[extension](filename, **kwargs)
+    elif extension == "sdf":
+        mol = _Chem.SDMolSupplier(filename, **kwargs)[0]
     else:
-        exec("mol = _Chem.MolFrom%sFile(filename, **kwargs)" % extension.upper(), locals(), globals())
+        raise TypeError("Unrecognised input extension for RDKit: {}".format(extension))
 
     if mol is None:
-        raise ValueError("File format not recognised: %s" % filename)
+        raise ValueError("Invalid file format for file: {}".format(filename))
     return mol
 
 @_stdio.stdout_stderr()
