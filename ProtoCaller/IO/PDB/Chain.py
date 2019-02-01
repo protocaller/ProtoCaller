@@ -14,6 +14,9 @@ class Chain(_Residue, _CondList.ConditionalList):
     def __eq__(self, other):
         return self.sameChain(other)
 
+    def __hash__(self):
+        return id(self)
+
     def __repr__(self):
         return "<Chain of {} residues>".format(len(self))
 
