@@ -7,6 +7,7 @@ if PC.BIOSIMSPACE:
     import BioSimSpace as BSS
 
 from rdkit.Chem.rdchem import Mol
+import pytest
 
 
 def test_prepare_1bji():
@@ -31,5 +32,7 @@ def test_prepare_1bji():
 
             if PC.BIOSIMSPACE and isinstance(protein.complex_template, BSS._SireWrappers._system.System):
                 assert protein.complex_template.nAtoms() == 6003
-                assert protein.complex_template.charge().magnitude() == -1
-
+                assert pytest.approx(protein.complex_template.charge().magnitude()) == -1
+            else:
+                # TODO: add support for ParmEd topologies when the Morph class is fully functional
+                pass
