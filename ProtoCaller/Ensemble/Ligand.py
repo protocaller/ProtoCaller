@@ -25,6 +25,8 @@ class Ligand:
                 self.string = input
         elif isinstance(input, _rdchem.Mol):
             self.molecule = input
+        else:
+            raise TypeError("Need a SMILES, InChI string, filename or an RDKit object as an input")
         self.parametrised_files = parametrised_files
         self.protonated = protonated
 
@@ -39,9 +41,9 @@ class Ligand:
     def name(self, val):
         if val is None:
             self._name = "ligand%d" % self._counter
+            Ligand._counter += 1
         else:
             self._name = val
-        Ligand._counter += 1
 
     @property
     def string(self):
