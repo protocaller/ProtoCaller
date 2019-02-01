@@ -75,7 +75,7 @@ def runTleap(force_fields=None, files=None, param_files=None, id=None, disulfide
             if ext == "pqr": ext = "pdb"
             out.write("MOL = load%s \"%s\"\n" % (ext, file))
         for disulfide_bond in disulfide_bonds:
-            out.write("bond MOL.%d.SG MOL.%d.SG\n" % (disulfide_bond[0]._resSeq, disulfide_bond[1]._resSeq))
+            out.write("bond MOL.%d.SG MOL.%d.SG\n" % (disulfide_bond[0].resSeq, disulfide_bond[1].resSeq))
         out.write("check MOL\n")
         out.write("saveAmberParm MOL {0} {1}\n".format(*filenames))
         out.write("quit\n")
