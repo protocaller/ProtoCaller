@@ -13,7 +13,7 @@ def test_read_write_1bji():
         filestr = [line.strip() for line in filestr
                    if line[:3] in ["TER", "END"] or line[:4] == "ATOM" or line[:6] == "HETATM"]
 
-        assert obj.numberOfAtoms() == 3398
+        assert obj.numberOfAtoms == 3398
         assert len(obj._missing_atoms) == 0
         assert len(obj._missing_residues) == 0
         assert len(obj._modified_residues) == 3
@@ -34,7 +34,7 @@ def test_read_write_1bji():
         filestr_new = [line.strip() for line in filestr_new]
 
         obj_new = PDB.PDB(new_file.name)
-        assert obj_new.numberOfAtoms() == 3398
+        assert obj_new.numberOfAtoms == 3398
         assert len(obj_new._missing_atoms) == 0
         assert len(obj_new._missing_residues) == 0
         assert len(obj._modified_residues) == 3
@@ -52,7 +52,7 @@ def test_copy_1bji():
         obj = PDB.PDB("1bji.pdb")
         obj2 = copy.copy(obj)
 
-        assert obj2.numberOfAtoms() == 3398
+        assert obj2.numberOfAtoms == 3398
         assert len(obj2._missing_atoms) == 0
         assert len(obj2._missing_residues) == 0
         assert len(obj2._modified_residues) == 3
@@ -61,8 +61,8 @@ def test_copy_1bji():
         assert len(obj2[0]) == 388
         assert len(obj2[1]) == 202
 
-        obj2.purgeResidues(obj2.filter("type=='amino_acid'"))
-        assert obj.numberOfAtoms() == obj2.numberOfAtoms() != 3398
+        obj2.purgeResidues(obj2.filter("type=='amino_acid'"), mode="keep")
+        assert obj.numberOfAtoms == obj2.numberOfAtoms == 3067
 
 
 def test_deepcopy_1bji():
@@ -70,7 +70,7 @@ def test_deepcopy_1bji():
         obj = PDB.PDB("1bji.pdb")
         obj2 = copy.deepcopy(obj)
 
-        assert obj2.numberOfAtoms() == 3398
+        assert obj2.numberOfAtoms == 3398
         assert len(obj2._missing_atoms) == 0
         assert len(obj2._missing_residues) == 0
         assert len(obj2._modified_residues) == 3
@@ -79,5 +79,5 @@ def test_deepcopy_1bji():
         assert len(obj2[0]) == 388
         assert len(obj2[1]) == 202
 
-        obj2.purgeResidues(obj2.filter("type=='amino_acid'"))
-        assert obj.numberOfAtoms() != obj2.numberOfAtoms()
+        obj2.purgeResidues(obj2.filter("type=='amino_acid'"), mode="keep")
+        assert 3067 == obj2.numberOfAtoms != obj.numberOfAtoms

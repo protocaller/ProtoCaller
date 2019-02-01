@@ -27,22 +27,24 @@ class Chain(_Residue, _CondList.ConditionalList):
                     return "chain"
             return "molecules"
 
+    @property
     def numberOfAtoms(self):
-        return sum([residue.numberOfAtoms() for residue in self])
+        return sum([residue.numberOfAtoms for residue in self])
 
+    @property
     def numberOfResidues(self):
         return len(self)
 
     def reNumberAtoms(self, start=1, custom_serials=None):
         if custom_serials is None:
-            custom_serials = [start + i for i in range(self.numberOfAtoms())]
-        if not len(custom_serials) == self.numberOfAtoms():
+            custom_serials = [start + i for i in range(self.numberOfAtoms)]
+        if not len(custom_serials) == self.numberOfAtoms:
             raise ValueError("Custom number of atoms does not match chain number of atoms")
 
         i = 0
         for residue in self:
-            residue.reNumberAtoms(custom_serials=custom_serials[i:i + residue.numberOfAtoms()])
-            i += residue.numberOfAtoms()
+            residue.reNumberAtoms(custom_serials=custom_serials[i:i + residue.numberOfAtoms])
+            i += residue.numberOfAtoms
 
     def reNumberResidues(self, start=1, custom_resSeqs=None, custom_iCodes=None):
         if custom_resSeqs is None:
@@ -55,9 +57,9 @@ class Chain(_Residue, _CondList.ConditionalList):
         for resSeq, iCode, residue in zip(custom_resSeqs, custom_iCodes, self):
             residue.resSeq, residue.iCode = resSeq, iCode
 
-    def purgeAtoms(self, atoms):
+    def purgeAtoms(self, atoms, mode):
         for residue in self:
-            residue.purgeAtoms(atoms)
+            residue.purgeAtoms(atoms, mode)
         self.purgeEmpty()
 
     def purgeEmpty(self):
@@ -65,8 +67,10 @@ class Chain(_Residue, _CondList.ConditionalList):
         for empty_residue in empty_residues:
             self.remove(empty_residue)
 
-    def purgeResidues(self, residues):
-        for residue in residues:
+    def purgeResidues(self, residues, mode):
+        assert mode in ["keep", "discard"]
+        residues_to_remove = residues if mode == "discard" else [x for x in self if x not in residues]
+        for residue in residues_to_remove:
             self.remove(residue)
 
     def _checkResidue(self, residue):

@@ -165,23 +165,25 @@ class PDB(Chain, _CondList.ConditionalList):
         total_set = eval(mask, globals(), locals())
         return [x for x in all_elems if x in total_set]
 
+    @property
     def numberOfResidues(self):
-        return sum([chain.numberOfResidues() for chain in self])
+        return sum([chain.numberOfResidues for chain in self])
 
+    @property
     def numberOfChains(self):
         return len(self)
 
     def reNumberResidues(self, start=1, custom_resSeqs=None, custom_iCodes=None):
         if custom_resSeqs is None:
-            custom_resSeqs = [start + i for i in range(self.numberOfResidues())]
+            custom_resSeqs = [start + i for i in range(self.numberOfResidues)]
         if custom_iCodes is None:
             custom_iCodes = [" "] * len(custom_resSeqs)
-        if not len(custom_resSeqs) == len(custom_iCodes) == self.numberOfResidues():
+        if not len(custom_resSeqs) == len(custom_iCodes) == self.numberOfResidues:
             raise ValueError("Custom number of residues does not match chain number of residues")
 
         i = 0
         for chain in self:
-            n = chain.numberOfResidues()
+            n = chain.numberOfResidues
             chain.reNumberResidues(custom_resSeqs=custom_resSeqs[i:i + n], custom_iCodes=custom_iCodes[i:i + n])
             i += n
 
@@ -194,16 +196,24 @@ class PDB(Chain, _CondList.ConditionalList):
 
         Chain.purgeEmpty(self)
 
-    def purgeResidues(self, residues):
+    def purgeResidues(self, residues, mode):
+        assert mode in ["keep", "discard"]
         for name in ["_missing_residues", "_modified_residues", "_site_residues"]:
-            setattr(self, name, [item for item in getattr(self, name) if item not in residues])
+            if mode == "keep":
+                setattr(self, name, [item for item in getattr(self, name) if item in residues])
+            else:
+                setattr(self, name, [item for item in getattr(self, name) if item not in residues])
 
         for i in reversed(range(len(self._disulfide_bonds))):
-            if self._disulfide_bonds[i][0] not in residues or self._disulfide_bonds[i][1] not in residues:
-                del self._disulfide_bonds[i]
+            if mode == "keep":
+                if self._disulfide_bonds[i][0] not in residues or self._disulfide_bonds[i][1] not in residues:
+                    del self._disulfide_bonds[i]
+            else:
+                if self._disulfide_bonds[i][0] in residues or self._disulfide_bonds[i][1] in residues:
+                    del self._disulfide_bonds[i]
 
         for chain in self:
-            chain.purgeResidues([residue for residue in residues if residue in chain])
+            chain.purgeResidues([residue for residue in residues if residue in chain], mode=mode)
         self.purgeEmpty()
 
     def totalResidueList(self, sort=True):

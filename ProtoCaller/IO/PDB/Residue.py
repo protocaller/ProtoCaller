@@ -33,6 +33,7 @@ class Residue(_Missing.MissingResidue, _CondList.ConditionalList):
     def __repr__(self):
         return "<Residue of {} atoms>".format(len(self))
 
+    @property
     def numberOfAtoms(self):
         return len(self)
 
@@ -47,8 +48,10 @@ class Residue(_Missing.MissingResidue, _CondList.ConditionalList):
         for i, atom in zip(serials, self):
             atom.serial = i
 
-    def purgeAtoms(self, atoms):
-        for atom in atoms:
+    def purgeAtoms(self, atoms, mode):
+        assert mode in ["keep", "discard"]
+        atoms_to_remove = atoms if mode == "discard" else [x for x in self if x not in atoms]
+        for atom in atoms_to_remove:
             self.remove(atom)
 
     def _checkAtom(self, atom):
