@@ -126,7 +126,7 @@ class GMX_REST_FEP_Runs():
         for f, top_file in zip(self.files, top_files):
             f["gro"] = _os.path.abspath(gro_file)
             f["top"] = _os.path.abspath(top_file)
-        self._workdir = _fileio.Dir("%s/%s/" % (work_dir, name))
+        self._workdir = _fileio.Dir("%s/%s" % (work_dir, name))
         self.lambda_dict = lambda_dict
         self.protocols = []
         self.mbar_data = []
