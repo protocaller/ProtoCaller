@@ -14,9 +14,12 @@ class Dir:
         self.overwrite = overwrite
         self.temp = temp
         self.purge_immediately = purge_immediately
+        self.initialdirnames = []
 
     def __enter__(self):
-        self.initialdirname = _os.getcwd()
+        self.initialdirnames += [_os.getcwd()]
+        if not _os.path.exists(self.workdirname):
+            _os.makedirs(self.workdirname)
         _os.chdir(self.workdirname)
         if self.overwrite and _os.path.exists(self.dirname):
             _shutil.rmtree("%s/%s" % (self.workdirname, self.dirname))
@@ -42,4 +45,10 @@ class Dir:
                 delete()
             else:
                 _atexit.register(delete)
-        _os.chdir(self.initialdirname)
+        _os.chdir(self.initialdirnames.pop())
+
+
+def checkFileExists(file):
+    if not _os.path.exists(file):
+        raise ValueError("File %s does not exist. Please provide a valid filename." % file)
+    return _os.path.abspath(file)
