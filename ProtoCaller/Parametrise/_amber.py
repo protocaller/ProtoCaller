@@ -1,5 +1,6 @@
 import glob as _glob
 import os as _os
+import warnings as _warnings
 
 import ProtoCaller as _PC
 import ProtoCaller.Utils.runexternal as _runexternal
@@ -13,10 +14,10 @@ def amberWrapper(params, filename, molecule_type, id=None, *args, **kwargs):
     elif molecule_type in ["water", "simple_anion", "simple_cation"]:
         force_fields = [params.water_ff]
     elif molecule_type == "complex anion":
-        print("AMBER parametrisation failed: polyatomic anions not supported")
+        _warnings.warn("AMBER parametrisation failed: polyatomic anions not supported")
         return
     elif molecule_type == "complex cation":
-        print("AMBER parametrisation failed: transition metals not supported")
+        _warnings.warn("AMBER parametrisation failed: transition metals not supported")
         return
     elif molecule_type == "cofactor":
         force_fields = [params.ligand_ff]
@@ -67,7 +68,7 @@ def runTleap(force_fields=None, files=None, param_files=None, id=None, disulfide
                 elif ext == "prep":
                     command = "loadamberprep"
                 else:
-                    print("%s if not a valid parameter file. Skipping value..." % param_file)
+                    _warnings.warn("%s is not a valid parameter file. Skipping value..." % param_file)
                     continue
                 out.write("%s \"%s\"\n" % (command, param_file))
         for file in files:
