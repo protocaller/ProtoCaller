@@ -84,6 +84,10 @@ class Ligand:
             self._string = _rdmolfiles.MolToSmiles(self.molecule)
 
     @property
+    def parametrised(self):
+        return self._parametrised
+
+    @property
     def parametrised_files(self):
         return self._parametrised_files
 
@@ -91,12 +95,12 @@ class Ligand:
     def parametrised_files(self, val):
         if val is None:
             self._parametrised_files = None
-            self.parametrised = False
+            self._parametrised = False
         else:
             for i, file in enumerate(val):
                 val[i] = _fileio.checkFileExists(file)
             self._parametrised_files = val
-            self.parametrised = True
+            self._parametrised = True
 
     def protonate(self, reprotonate=False, babel_parameters=None, rdkit_parameters=None):
         if babel_parameters is None: babel_parameters = {}
@@ -111,11 +115,9 @@ class Ligand:
             self.molecule = _rdkit.openFileAsRdkit(self.protonated_filename, removeHs=False, **rdkit_parameters)
             self.protonated = True
 
-    def parametrise(self, params, filename=None, molecule_type="ligand", id=None, reparametrise=False):
-        if filename is None: filename=self.protonated_filename
-        if id is None: id = self.name
+    def parametrise(self, params=None, filename=None, molecule_type="ligand", id=None, reparametrise=False):
         print("Parametrising ligand %s..." % self.name)
-        if self.parametrised and not reparametrise:
+        if self._parametrised and not reparametrise:
             print("Ligand %s is already parametrised." % self.name)
             return
 
@@ -123,6 +125,10 @@ class Ligand:
             print("Cannot parametrise unprotonated ligand. Protonating first with default parameters...")
             self.protonate()
 
+        if params is None: params = _parametrise.Params()
+        if filename is None: filename = self.protonated_filename
+        if id is None: id = self.name
+
         self.parametrised_files = _parametrise.parametriseFile(params=params, filename=filename,
                                                                molecule_type=molecule_type, id=id)
-        self.parametrised = True
+        self._parametrised = True

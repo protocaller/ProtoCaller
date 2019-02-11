@@ -1,0 +1,106 @@
+4W53_MBN_A_200
+  RCSB PDB12061715543D
+Coordinates from PDB:4W53:A:200 Model:1 without hydrogens
+  7  7  0  0  0  0            999 V2000
+  -32.3550    7.2630    2.2070   C 0  0  0  0  0  0  0  0  0  0  0  0
+  -33.1810    6.6060    3.3010   C 0  0  0  0  0  0  0  0  0  0  0  0
+  -33.2380    7.1600    4.5650   C 0  0  0  0  0  0  0  0  0  0  0  0
+  -33.9920    6.5710    5.5700   C 0  0  0  0  0  0  0  0  0  0  0  0
+  -34.7110    5.4170    5.3320   C 0  0  0  0  0  0  0  0  0  0  0  0
+  -34.6380    4.8780    4.0600   C 0  0  0  0  0  0  0  0  0  0  0  0
+  -33.8940    5.4470    3.0480   C 0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0  0  0  0
+  2  3  2  0  0  0  0
+  2  7  1  0  0  0  0
+  3  4  1  0  0  0  0
+  4  5  2  0  0  0  0
+  5  6  1  0  0  0  0
+  6  7  2  0  0  0  0
+A    1
+C
+A    2
+C1
+A    3
+C2
+A    4
+C3
+A    5
+C4
+A    6
+C5
+A    7
+C6
+M  END
+>  <InstanceId>
+4W53_MBN_A_200
+
+>  <ChemCompId>
+MBN
+
+>  <PdbId>
+4W53
+
+>  <ChainId>
+A
+
+>  <ResidueNumber>
+200
+
+>  <InsertionCode>
+
+
+>  <Model>
+1
+
+>  <AltIds>
+
+
+>  <MissingHeavyAtoms>
+0
+
+>  <ObservedFormula>
+C7
+
+>  <Name>
+TOLUENE
+
+>  <SystematicName>
+methylbenzene
+
+>  <Synonyms>
+
+
+>  <Type>
+NON-POLYMER
+
+>  <Formula>
+C7 H8
+
+>  <MolecularWeight>
+92.138
+
+>  <ModifiedDate>
+2011-06-04
+
+>  <Parent>
+
+
+>  <OneLetterCode>
+
+
+>  <SubcomponentList>
+
+
+>  <AmbiguousFlag>
+N
+
+>  <InChI>
+InChI=1S/C7H8/c1-7-5-3-2-4-6-7/h2-6H,1H3
+
+>  <InChIKey>
+YXFVVABEGXRONW-UHFFFAOYSA-N
+
+>  <SMILES>
+Cc1ccccc1
+
+$$$$
