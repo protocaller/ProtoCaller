@@ -1,9 +1,11 @@
 import re as _re
 import warnings as _warnings
 
-import BioSimSpace as _BSS
-
 import ProtoCaller as _PC
+
+if _PC.BIOSIMSPACE:
+    import BioSimSpace as _BSS
+
 import ProtoCaller.Ensemble.Ligand as _ligand
 import ProtoCaller.IO.PDB as _PDB
 import ProtoCaller.IO.SDF as _SDF
