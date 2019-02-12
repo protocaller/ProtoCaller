@@ -18,6 +18,8 @@ class Dir:
 
     def __enter__(self):
         self.initialdirnames += [_os.getcwd()]
+        if not _os.path.exists(self.workdirname):
+            _os.makedirs(self.workdirname)
         _os.chdir(self.workdirname)
         if self.overwrite and _os.path.exists(self.dirname):
             _shutil.rmtree("%s/%s" % (self.workdirname, self.dirname))
