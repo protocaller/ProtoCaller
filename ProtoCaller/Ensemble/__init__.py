@@ -1,383 +1,144 @@
 import os as _os
-import re as _re
 import tempfile as _tempfile
 import warnings as _warnings
 
-import BioSimSpace as _BSS
-
 import ProtoCaller as _PC
-from . import ligand as _ligand
+from .Ligand import Ligand
+from .Perturbation import Perturbation
+from .PerturbationList import PerturbationList
+from .Protein import Protein
 import ProtoCaller.IO as _IO
 import ProtoCaller.Parametrise as _parametrise
 import ProtoCaller.Solvate as _solvate
-import ProtoCaller.Utils.pdbconnect as _pdbconnect
 import ProtoCaller.Utils.fileio as _fileio
-import ProtoCaller.Wrappers.babelwrapper as _babel
 import ProtoCaller.Wrappers.BioSimSpacewrapper as _BSSwrap
-import ProtoCaller.Wrappers.modellerwrapper as _modeller
-import ProtoCaller.Wrappers.parmedwrapper as _pmdwrap
-import ProtoCaller.Wrappers.PDB2PQRwrapper as _PDB2PQR
-import ProtoCaller.Wrappers.protosswrapper as _protoss
-import ProtoCaller.Wrappers.rdkitwrapper as _rdkit
+import ProtoCaller.Utils.stdio as _stdio
+
 
 class Ensemble:
-    def __init__(self, engine, box_length=9, ion_conc=0.154, shell=0, neutralise=True, centre=True,
-                 protein_ff=_PC.AMBERDEFAULTPROTEINFF, ligand_ff=_PC.AMBERDEFAULTLIGANDFF,
-                 water_ff=_PC.AMBERDEFAULTWATERFF, protein=None, ligand_id=None, morphs=None):
+    _common_properties = ["engine", "box_length_complex", "box_length_morph", "ion_conc", "shell", "protein",
+                          "ligand_ref", "morphs"]
+
+    def __init__(self, engine="GROMACS", box_length_complex=9, box_length_morph=4, ion_conc=0.154, shell=0,
+                 neutralise=True, centre=True, protein_ff=_PC.AMBERDEFAULTPROTEINFF, ligand_ff=_PC.AMBERDEFAULTLIGANDFF,
+                 water_ff=_PC.AMBERDEFAULTWATERFF, protein=None, ligand_ref=None, morphs=None, workdir=None):
+        # work directory
+        self.workdir = _fileio.Dir(workdir) if workdir else _fileio.Dir(".")
+
+        # writing options
         self.engine = engine
-        self.box_length = box_length
+
+        # solvation options
+        self.box_length_complex = box_length_complex
+        self.box_length_morph = box_length_morph
         self.ion_conc = ion_conc
         self.shell = shell
         self.neutralise = neutralise
         self.centre = centre
+
+        # parametrisation options
         self.params = _parametrise.Params(protein_ff=protein_ff, ligand_ff=ligand_ff, water_ff=water_ff)
+
+        # molecular systems
         self.protein = protein
-        self.ligand_id = ligand_id
+        self.ligand_ref = ligand_ref
         self.morphs = morphs
         self._complex_template = None
         self.systems_prep = {}
 
-    @property
-    def engine(self):
-        return self._engine
+    def __getattr__(self, item):
+        if item not in self._common_properties:
+            return super().__getattribute__(item)
+        else:
+            return super().__getattribute__("_" + item)
 
-    @engine.setter
-    def engine(self, val):
-        val = val.strip().upper()
-        if val not in _PC.ENGINES:
-            raise ValueError("Value %s not supported. Supported values: " % val, _PC.ENGINES)
-        self._engine = val
+    def __setattr__(self, key, value):
+        if key not in self._common_properties:
+            super(Ensemble, self).__setattr__(key, value)
 
-    @property
-    def box_length(self):
-        return self._box_length
+        if isinstance(value, str): value = value.strip()
 
-    @box_length.setter
-    def box_length(self, val):
-        self._box_length = int(val)
-
-    @property
-    def ion_conc(self):
-        return self._ion_conc
-
-    @ion_conc.setter
-    def ion_conc(self, val):
-        self._ion_conc = float(val)
-
-    @property
-    def protein(self):
-        return self._protein
-
-    @protein.setter
-    def protein(self, val):
-        # set protein ID and directory name
-        self._protein = Ensemble._checkProtein(val)
-        self._workdir = _fileio.Dir(val)
-
-        with self._workdir:
-            #download protein PDB
-            self._protein_file = _IO.PDB.downloadPDB(id=self.protein)
-            self._protein_obj = _IO.PDB.PDB(self._protein_file)
-
-            # download SDF files and split them
-            self._downloader = _pdbconnect.PDBDownloader(id=self.protein)
-            self._ligand_files_pdb = self._downloader.downloadLigandSDF()
-            self._ligand_files_pdb = _IO.SDF.splitSDFs(self._ligand_files_pdb)
-
-        # remove ligands from PDB file and non-ligands from SDF files
-        self.filterPDB(chains="all", waters="all", simple_anions="all", complex_anions="all", simple_cations="all",
-                       complex_cations="all", ligands="all", cofactors="all")
-
-    @property
-    def ligand_id(self):
-        return self._ligand_id
-
-    @ligand_id.setter
-    def ligand_id(self, id):
-        if id is None and len(self._ligand_files_pdb) == 1:
-            self._ligand_id = self._ligand_files_pdb[0]
-            self._ligand_files_pdb = []
-            return
-
-        for i, filename in enumerate(self._ligand_files_pdb):
-            _, _, _, resSeq = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", filename).groups()
-            if resSeq == id:
-                self._ligand_id = filename
-                del self._ligand_files_pdb[i]
-                return
-        raise ValueError("Molecule ID not found: %s" % id)
-
-    @property
-    def morphs(self):
-        return self._morphs
-
-    @morphs.setter
-    def morphs(self, vals):
-        self._morphs = []
-        if vals is None: return
-        for val in vals:
-            if len(val) != 2 or any([not isinstance(v, _ligand.Ligand) for v in val]):
-                _warnings.warn("Value %s not recognised as a container of two Ligand objects. "
-                               "Skipping value..." % val)
-            else:
-                self._morphs += [val]
-
-    def filterPDB(self, missing_residues="middle", chains="all", waters="site", ligands="chain", cofactors="chain",
-                  simple_anions="chain", complex_anions="chain", simple_cations="chain", complex_cations="chain",
-                  include_mols=None, exclude_mols=None):
-        """
-        :type missing_residues: "all" or "middle"
-        :param missing_residues: which missing residues to keep
-        :type chains: "all" OR a list of characters for chains to keep
-        :type everything inbetween: "all" OR "chain" (only molecules belonging to a chain) OR "site" OR None;
-                                    other molecules can be added via include_mols
-        :param include_mols: include residue name; overrides previous filters
-        :type include_mols: list of strings
-        :param exclude_mols: exclude residue name; overrides previous filters
-        :type exclude_mols: list of strings
-        :return: nothing; rewrites PDB file
-        :rtype: void
-        """
-        if include_mols is None: include_mols = []
-        if exclude_mols is None: exclude_mols = []
-
-        with self._workdir:
-            # filter ligands
-            ligand_files = []
-            for filename in self._ligand_files_pdb:
-                _, resname, chainID, resSeq = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", filename).groups()
-                if _PC.RESIDUETYPE(resname) != "ligand":
-                    continue
-                if ligands == "all" or (ligands == "chain" and chains == "all"):
-                    ligand_files += [filename]
-                    continue
-                elif ligands == "chain" and chainID in chains:
-                    ligand_files += [filename]
-                    continue
-                elif resSeq in include_mols:
-                    ligand_files += [filename]
-                    continue
-                elif resSeq in exclude_mols:
-                    continue
-                elif ligands == "site":
-                    resSeq, iCode = Ensemble._residTransform(resSeq)
-                    for residue in self._protein_obj._site_residues:
-                        if residue._resSeq == resSeq and residue._iCode == iCode:
-                            ligand_files += [filename]
-            self._ligand_files_pdb = ligand_files
-
-            # filter residues / molecules in protein
-
-            # filter by chain
-            filter = []
-            mask = "_type=='amino_acid'"
-            if chains != "all":
-                mask += "&_chainID in %s" % str(chains)
-            filter += self._protein_obj.filter(mask)
-
-            # filter missing residues
-            if missing_residues == "middle":
-                missing_residue_list = self._protein_obj.totalResidueList()
-                for i in range(2):
-                    missing_residue_list.reverse()
-                    current_chain = None
-                    for j in reversed(range(0, len(missing_residue_list))):
-                        res = missing_residue_list[j]
-                        if type(res) == _IO.PDB.MissingResidue and current_chain != res._chainID:
-                            del missing_residue_list[j]
-                        else:
-                            current_chain = res._chainID
-                missing_residue_list = [x for x in missing_residue_list if type(x) == _IO.PDB.MissingResidue]
-            filter += missing_residue_list
-
-            # filter by waters / anions / cations
-            for param, name in zip([waters, simple_anions, complex_anions, simple_cations, complex_cations, cofactors],
-                ["water", "simple_anion", "complex_anion", "simple_cation", "complex_cation", "cofactor"]):
-                if param == "all" or (param == "chain" and chains == "all"):
-                    filter += self._protein_obj.filter("_type=='%s'" % name)
-                elif param == "chain":
-                    filter += self._protein_obj.filter("_type=='%s'|_chainID in %s" % (name, str(chains)))
-                elif param == "site":
-                    if chains == "all":
-                        filter_temp = self._protein_obj.filter("_type=='%s'" % name)
-                    else:
-                        filter_temp = self._protein_obj.filter("_type=='%s'|_chainID in %s" % (name, str(chains)))
-                    filter += [res for res in filter_temp if res in self._protein_obj._site_residues]
-
-            # include extra molecules / residues
-            for include_mol in include_mols:
-                residue = self._protein_obj.filter(include_mol + "&_type!='ligand'")
-                filter += [residue]
-
-            # exclude extra molecules / residues
-            excl_filter = []
-            for exclude_mol in exclude_mols:
-                residue = self._protein_obj.filter(exclude_mol + "&_type!='ligand'")
-                excl_filter += [residue]
-
-            filter = list(set(filter) - set(excl_filter))
-            self._protein_obj.purgeResidues(filter)
-            self._protein_obj.writePDB(self._protein_file)
-
-    def preparePDB(self, add_missing_residues="modeller", add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
-                   protonate_ligands="babel"):
-        with self._workdir:
-            add_missing_residues = add_missing_residues.strip().lower() if add_missing_residues is not None else ""
-            add_missing_atoms = add_missing_atoms.strip().lower() if add_missing_atoms is not None else ""
-            protonate_proteins = protonate_proteins.strip().lower() if protonate_proteins is not None else ""
-            protonate_ligands = protonate_ligands.strip().lower() if protonate_ligands is not None else ""
-
-            if protonate_proteins != "protoss" and protonate_ligands == "protoss":
-                _warnings.warn("Warning: Protoss cannot be individually called on a ligand. Changing protein protonation "
-                               "method to Protoss...")
-                protonate_proteins = "protoss"
-            if add_missing_atoms == "pdb2pqr" and protonate_proteins != "pdb2pqr":
-                print("Warning: Cannot run PDB2PQR without protonation. This will be fixed in a later version. "
-                      "Changing protein protonation method to PDB2PQR...")
-
-            if len(self._protein_obj._missing_residues) and not add_missing_atoms == "modeller":
-                if add_missing_residues == "modeller":
-                    atoms = True if add_missing_atoms == "modeller" else False
-                    filename_fasta = self._downloader.downloadFASTA()
-                    self._protein_file = _modeller.modellerTransform(self._protein_file, filename_fasta, atoms)
-                    self._protein_obj = _IO.PDB.PDB(self._protein_file)
-
-            if add_missing_atoms == "pdb2pqr":
-                self._protein_file = _PDB2PQR.PDB2PQRtransform(self._protein_file)
-                self._protein_obj = _IO.PDB.PDB(self._protein_file)
-
-            if protonate_proteins == "protoss":
-                #TODO: fix
-                raise ValueError("Protoss support is not yet fully functional")
-                if protonate_ligands != "protoss":
-                    ligand_file = None
+        # checks
+        if key == "engine":
+            value = value.upper()
+            if value not in _PC.ENGINES:
+                raise ValueError("Value %s not supported. Supported values: " % value, _PC.ENGINES)
+        elif key in ["box_length_complex", "box_length_morph", "ion_conc", "shell"]:
+            value = float(value)
+        elif key == "morphs":
+            value = PerturbationList(value) if not isinstance(value, PerturbationList) else value
+        elif key == "protein":
+            if value is not None:
+                value = Protein(value) if not isinstance(value, Protein) else value
+            self.systems_prep = {}
+        elif key == "ligand_ref":
+            if value is not None:
+                if self.protein is None:
+                    raise ValueError("Cannot assign ligand_id without a protein")
                 else:
-                    ligand_file = _IO.SDF.mergeSDFs(self._ligand_files_pdb)
-                self._protein_file, ligand_file, _ = _protoss.protossTransform(self._protein_file, ligand_file)
-                if protonate_ligands == "protoss":
-                    self._ligand_files_pdb = _IO.SDF.splitSDFs([ligand_file])
+                    self.protein.ligand_ref = value
 
-            if protonate_ligands == "babel":
-                for morph in self.morphs:
-                    for ligand in morph:
-                        if not ligand.protonated:
-                            ligand.protonate()
-
-    def parametrisePDB(self):
-        with self._workdir:
-            print("Parametrising original crystal system...")
-            #extract non-protein residues from pdb file and save them as separate pdb files
-            hetatm_files, hetatm_types = self._protein_obj.writeHetatms()
-            non_protein_residues = self._protein_obj.filter("_type not in ['water', 'simple_cation', 'simple_anion']")
-            self._protein_obj.purgeResidues(non_protein_residues)
-            self._protein_obj.writePDB()
-
-            # create a merged parmed object with all parametrised molecules and save to top/gro which is then read by
-            # BioSimSpace
-            # we can't use a direct BioSimSpace object because it throws an error if the file contains single ions
-            system = _parametrise.parametriseAndLoadPmd(params=self.params, filename=self._protein_file,
-                molecule_type="protein", disulfide_bonds=self._protein_obj._disulfide_bonds)
-
-            self._ligand_id = _babel.babelTransform(self._ligand_id, "mol2")
-            self._ligand_ref = _rdkit.openAsRdkit(self._ligand_id, removeHs=False)
-
-            for filename, type in zip(self._ligand_files_pdb + hetatm_files,
-                                      ["ligand"] * len(self._ligand_files_pdb) + hetatm_types):
-                system += _parametrise.parametriseAndLoadPmd(params=self.params, filename=filename,
-                                                             molecule_type=type)
-
-            if self.centre:
-                system, self.box_length, translation_vec = _pmdwrap.centre(system, self.box_length)
-                _rdkit.translateMolecule(self._ligand_ref, translation_vec)
-                _rdkit.saveFromRdkit(self._ligand_ref, self._ligand_id)
-
-            _IO.GROMACS.saveAsGromacs("complex_template", system)
-            if _PC.BIOSIMSPACE:
-                self._complex_template = _BSS.IO.readMolecules(["complex_template.top", "complex_template.gro"])
-            else:
-                self._complex_template = system
-
-    def parametriseLigands(self):
-        with self._workdir:
-            for morph in self.morphs:
-                for ligand in morph:
-                    if not ligand.parametrised:
-                        ligand.parametrise(self.params)
+        # setter
+        super(Ensemble, self).__setattr__("_" + key, value)
 
     def prepareComplexes(self, replica_temps=None, intermediate_files=False, store_complexes=False, output_files=True):
-        self.parametriseLigands()
-        if replica_temps is None or len(replica_temps) == 1:
-            scales = [1]
-        else:
-            sorted_list = sorted(replica_temps)
-            if sorted_list != replica_temps:
-                _warnings.warn("Input replica temperatures were not in ascending order. Sorting...")
-                replica_temps = sorted_list
-            scales = [replica_temps[0] / elem for elem in replica_temps]
+        # make sure the proteins / ligands are parametrised before proceeding
+        with self.workdir:
+            _stdio.stdout_stderr()(self.protein.parametrise)(params=self.params, reparametrise=False)
+            for morph in self.morphs:
+                _stdio.stdout_stderr()(morph.ligand1.parametrise)(params=self.params, reparametrise=False)
+                _stdio.stdout_stderr()(morph.ligand2.parametrise)(params=self.params, reparametrise=False)
 
-        with self._workdir:
-            for i, (ligand1, ligand2) in enumerate(self.morphs):
+            # take care of the replicas if there are any
+            if replica_temps is None or len(replica_temps) == 1:
+                scales = [1]
+            else:
+                sorted_list = sorted(replica_temps)
+                if sorted_list != replica_temps:
+                    _warnings.warn("Input replica temperatures were not in ascending order. Sorting...")
+                    replica_temps = sorted_list
+                scales = [replica_temps[0] / elem for elem in replica_temps]
+
+            for i, morph in enumerate(self.morphs):
                 if intermediate_files:
-                    curdir =_fileio.Dir("%s~%s" % (ligand1.name, ligand2.name), overwrite=True)
+                    curdir = _fileio.Dir(morph.name, overwrite=True)
                 else:
                     name = _os.path.basename(_tempfile.TemporaryDirectory().name)
                     curdir = _fileio.Dir(name, overwrite=True, temp=True)
+
                 with curdir:
-                    print("Creating morph %d..." % (i + 1))
-                    #getting parametrised ligand filenames
-                    ligand1_prep = ligand1.parametrised_files
-                    ligand2_prep = ligand2.parametrised_files
+                    print("Creating morph %s..." % morph.name)
+                    _stdio.stdout_stderr()(morph.alignAndCreateMorph)(self.protein.ligand_ref)
 
-                    #aligning the ligands
-                    ligand1_aligned, _ = _rdkit.alignTwoMolecules(self._ligand_ref, ligand1.molecule)
-                    ligand2_aligned, mcs = _rdkit.alignTwoMolecules(ligand1_aligned, ligand2.molecule)
+                    complexes = [self.protein.complex_template + morph.get_morph(self.protein.ligand_ref)]
 
-                    #replacing coordinates of parametrised ligands with new coordinates while keeping the topology
-                    filenames = ["morph%d_1.inpcrd" % (i + 1), "morph%d_2.inpcrd" % (i + 1)]
-                    ligand1_prep[1] = _os.path.abspath(_rdkit.saveFromRdkit(ligand1_aligned, filenames[0]))
-                    ligand2_prep[1] = _os.path.abspath(_rdkit.saveFromRdkit(ligand2_aligned, filenames[1]))
-
-                    #loading the shifted ligands into BioSimSpace
-                    ligand1_BSS = _BSS.IO.readMolecules(ligand1_prep).getMolecules()[0]
-                    ligand2_BSS = _BSS.IO.readMolecules(ligand2_prep).getMolecules()[0]
-
-                    #translating RDKit mapping into BioSimSpace mapping
-                    mapping = {}
-                    indices_1 = [atom.index() for atom in ligand1_BSS._sire_molecule.edit().atoms()]
-                    indices_2 = [atom.index() for atom in ligand2_BSS._sire_molecule.edit().atoms()]
-                    for idx1, idx2 in mcs:
-                        mapping[indices_1[idx1]] = indices_2[idx2]
-
-                    #merging the two ligands into a morph and adding it to the protein template
-                    morph = _BSS.Align.merge(ligand1_BSS, ligand2_BSS, mapping=mapping)
-                    complexes = [self._complex_template + morph]
-
-                    #solvating and saving the prepared complex and morph with the appropriate box size
+                    # solvate and save the prepared complex and morph with the appropriate box size
                     print("Solvating...")
-                    complexes = [_solvate.solvate(complexes[0], self.params, box_length=self.box_length,
+                    complexes = [_solvate.solvate(complexes[0], self.params, box_length=self.box_length_complex,
                                                   shell=self.shell, neutralise=self.neutralise, ion_conc=self.ion_conc,
                                                   centre=self.centre, work_dir=curdir.path, filebase="complex")]
-                    morph = _solvate.solvate(morph, self.params, box_length=4, shell=self.shell,
-                                             neutralise=self.neutralise, ion_conc=self.ion_conc, centre=self.centre,
-                                             work_dir=curdir.path, filebase="morph")
+                    morph_sol = _solvate.solvate(morph.get_morph(self.protein.ligand_ref), self.params,
+                                                 box_length=self.box_length_morph, shell=self.shell,
+                                                 neutralise=self.neutralise, ion_conc=self.ion_conc, centre=self.centre,
+                                                 work_dir=curdir.path, filebase="morph")
 
-                    #rescaling complexes for replica exchange
+                    # rescale complexes for replica exchange if needed
                     if len(scales) != 1:
                         print("Creating replicas...")
                         complexes = [_BSSwrap.rescaleSystemParams(complexes[0], scale, includelist=["Merged_Molecule"])
                                      for scale in scales]
 
                     if store_complexes:
-                        self.systems_prep["%s~%s" % (ligand1.name, ligand2.name)] = (morph, complexes)
+                        self.systems_prep[morph.name] = (morph_sol, complexes)
 
                 if output_files:
-                    self.saveSystems({"%s~%s" % (ligand1.name, ligand2.name) : (morph, complexes)})
+                    self.saveSystems({morph.name: (morph_sol, complexes)})
 
     def saveSystems(self, systems=None):
         if systems is None: systems = self.systems_prep
-        #TODO support other engines
+        # TODO support other engines
         print("Saving solvated complexes as GROMACS...")
-        with self._workdir:
+        with self.workdir:
             for name, (morph, complexes) in systems.items():
                 with _fileio.Dir(name):
                     _IO.GROMACS.saveAsGromacs("morph", morph)
@@ -387,21 +148,3 @@ class Ensemble:
                     else:
                         for j, complex in enumerate(complexes):
                             _IO.GROMACS.saveAsGromacs("complex_final%d" % j, complex)
-
-    @staticmethod
-    def _checkProtein(val):
-        val = val.strip().upper()
-        if not val.isalnum():
-            raise ValueError("Value %s not a valid PDB code. Skipping value..." % val)
-        return val
-
-    @staticmethod
-    def _residTransform(id):
-        id = id.strip()
-        if id[-1].isalpha():
-            iCode = id[-1]
-            resSeq = int(float(id[:-1]))
-        else:
-            iCode = " "
-            resSeq = int(float(id))
-        return resSeq, iCode
