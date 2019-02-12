@@ -6,7 +6,7 @@ import ProtoCaller as _PC
 if _PC.BIOSIMSPACE:
     import BioSimSpace as _BSS
 
-import ProtoCaller.Ensemble.Ligand as _ligand
+from ProtoCaller.Ensemble import Ligand
 import ProtoCaller.IO.PDB as _PDB
 import ProtoCaller.IO.SDF as _SDF
 import ProtoCaller.IO.GROMACS as _GROMACS
@@ -21,15 +21,15 @@ import ProtoCaller.Wrappers.PDB2PQRwrapper as _PDB2PQR
 class Protein:
     def __init__(self, code, pdb_file=None, ligand_ref=None, fasta_file=None, complex_template=None, name=None,
                  workdir=None):
-        self._workdir = _fileio.Dir(workdir) if workdir else _fileio.Dir(code)
-        with self._workdir:
+        self.workdir = _fileio.Dir(workdir) if workdir else _fileio.Dir(code)
+        with self.workdir:
             self.name = name if name is not None else code
             self._downloader = _pdbconnect.PDBDownloader(code)
             self.pdb = pdb_file
             self.fasta = fasta_file
             self.complex_template = complex_template
             ligands_original = _SDF.splitSDFs(self._downloader.getLigands())
-            self.ligands = [_ligand.Ligand(x, name=x) for x in ligands_original]
+            self.ligands = [Ligand(x, name=x, workdir=".") for x in ligands_original]
             self.cofactors = []
             # remove ligands from PDB file and non-ligands from SDF files
             self.filter(chains="all", waters="all", simple_anions="all", complex_anions="all", simple_cations="all",
@@ -45,29 +45,29 @@ class Protein:
         if hasattr(self, "_ligand_ref") and self._ligand_ref is not None:
             raise ValueError("Cannot reassign an already assigned reference ligand. Please create a new class instance")
         elif input is None and len(self.ligands) == 1:
-            self._ligand_ref = self.ligands[0].molecule
+            self._ligand_ref = self.ligands[0]
             self.ligands = []
         elif input is False:
             self._ligand_ref = None
-        elif isinstance(input, _ligand.Ligand):
+        elif isinstance(input, Ligand):
             self._ligand_ref = input
         elif isinstance(input, str):
             for i, ligand in enumerate(self.ligands):
                 _, _, _, resSeq = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", ligand.name).groups()
                 if resSeq == input:
-                    self._ligand_ref = ligand.molecule
+                    self._ligand_ref = ligand
                     del self.ligands[i]
                     return
             raise ValueError("Molecule ID not found: %s" % input)
         else:
             try:
-                self._ligand_ref = _ligand.Ligand(input, name=self.name + "_ref")
+                self._ligand_ref = Ligand(input, name=self.name + "_ref", workdir=".")
             except:
                 raise TypeError("Unrecognised type of input. Need either a Ligand or a PDB ID")
 
     @property
     def pdb(self):
-        with self._workdir:
+        with self.workdir:
             if self._pdb is None:
                 return self._downloader.getPDB()
             return self._pdb
@@ -81,7 +81,7 @@ class Protein:
 
     @property
     def fasta(self):
-        with self._workdir:
+        with self.workdir:
             if self._fasta is None:
                 return self._downloader.getFASTA()
             return self._fasta
@@ -111,7 +111,7 @@ class Protein:
         if include_mols is None: include_mols = []
         if exclude_mols is None: exclude_mols = []
 
-        with self._workdir:
+        with self.workdir:
             # filter ligands / cofactors
             temp_dict = {"ligand": [], "cofactor": []}
             for ligand in self.ligands:
@@ -128,8 +128,8 @@ class Protein:
                         for residue in self._protein_obj._site_residues:
                             if residue.resSeq == resSeq and residue.iCode == iCode:
                                 temp_dict[name] += [filename]
-            self.ligands = [_ligand.Ligand(x, name=x) for x in temp_dict["ligand"]]
-            self.cofactors = [_ligand.Ligand(x, name=x) for x in temp_dict["cofactor"]]
+            self.ligands = [Ligand(x, name=x, workdir=".") for x in temp_dict["ligand"]]
+            self.cofactors = [Ligand(x, name=x, workdir=".") for x in temp_dict["cofactor"]]
 
             # filter residues / molecules in protein
 
@@ -186,7 +186,7 @@ class Protein:
 
     def prepare(self, add_missing_residues="modeller", add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
                 protonate_ligands="babel"):
-        with self._workdir:
+        with self.workdir:
             add_missing_residues = add_missing_residues.strip().lower() if add_missing_residues is not None else ""
             add_missing_atoms = add_missing_atoms.strip().lower() if add_missing_atoms is not None else ""
             protonate_proteins = protonate_proteins.strip().lower() if protonate_proteins is not None else ""
@@ -235,7 +235,7 @@ class Protein:
             print("Protein complex template %s is already parametrised." % self.name)
             return
 
-        with self._workdir:
+        with self.workdir:
             print("Parametrising original crystal system...")
             # extract non-protein residues from pdb file and save them as separate pdb files
             hetatm_files, hetatm_types = self._protein_obj.writeHetatms()

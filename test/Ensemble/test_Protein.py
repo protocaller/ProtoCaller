@@ -1,12 +1,11 @@
 import ProtoCaller as PC
-from ProtoCaller.Ensemble.Protein import Protein
+from ProtoCaller.Ensemble import Protein, Ligand
 from ProtoCaller.Parametrise import Params
 from ProtoCaller.Utils.fileio import Dir
 
 if PC.BIOSIMSPACE:
     import BioSimSpace as BSS
 
-from rdkit.Chem.rdchem import Mol
 import pytest
 
 
@@ -14,13 +13,13 @@ def test_prepare_1bji():
     with Dir(PC.TESTDIR + "/Ensemble"):
         with Dir("temp", temp=True):
             protein = Protein("1bji", ligand_ref="479G")
-            assert isinstance(protein.ligand_ref, Mol)
+            assert isinstance(protein.ligand_ref, Ligand)
             assert len(protein.ligands) == 9
             assert protein._protein_obj.numberOfAtoms == 3259
 
             protein.filter(waters=None, include_mols=["resSeq==480"], exclude_mols=["type=='simple_cation'"],
                            ligands=None)
-            assert isinstance(protein.ligand_ref, Mol)
+            assert isinstance(protein.ligand_ref, Ligand)
             assert len(protein.ligands) == 0
             assert protein._protein_obj.numberOfAtoms == 3068
 
