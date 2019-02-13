@@ -22,5 +22,7 @@ with Dir("T4-lysozyme", overwrite=True):
                                workdir=protein.workdir.path)
     # only keep the reference ligand and keep all crystallographic waters
     system.protein.filter(ligands=None, waters="all")
+    # protonate the protein using PDB2PQR and add missing atoms / residues if needed
+    system.protein.prepare()
     # prepare the complex and solvated leg starting structures and save them as GROMACS input
     system.prepareComplexes()
