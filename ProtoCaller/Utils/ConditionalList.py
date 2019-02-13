@@ -15,8 +15,10 @@ class ConditionalList(list):
         self._checkfuncs = list(checkfuncs)
         self._transformfunc = transformfunc
 
-        for item in ["__add__", "__iadd__", "append", "extend", "insert", "remove"]:
-            setattr(self, item, self._check(getattr(self, item)))
+    def __getattribute__(self, item):
+        if item in ["__add__", "__iadd__", "append", "extend", "insert", "remove"]:
+            return self._check(super().__getattribute__(item))
+        return super().__getattribute__(item)
 
     def _check(self, listfunc):
         def decorated(*args):
