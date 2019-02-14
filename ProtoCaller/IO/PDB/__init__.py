@@ -55,11 +55,11 @@ class PDB(Chain, _CondList.ConditionalList):
                 if is_atom:
                     curr_res.append(curr_atom)
 
-        self._disulfide_bonds = []
-        self._site_residues = []
-        self._modified_residues = []
-        self._missing_residues = []
-        self._missing_atoms = []
+        self.disulfide_bonds = []
+        self.site_residues = []
+        self.modified_residues = []
+        self.missing_residues = []
+        self.missing_atoms = []
 
         # then re-read and create links to other parts of the PDB
         for line in pdb_string:
@@ -71,43 +71,43 @@ class PDB(Chain, _CondList.ConditionalList):
                 for chainID, resSeq, iCode in zip(chainIDs, resSeqs, iCodes):
                     masks += ["chainID=='{}'&resSeq=={}&iCode=='{}'".format(chainID, resSeq, iCode)]
                 mask = "|".join(masks)
-                self._disulfide_bonds += [self.filter(mask)]
+                self.disulfide_bonds += [self.filter(mask)]
             elif line[:4] == "SITE":
                 for i in range(22, len(line.strip()), 11):
                     chainID, resSeq, iCode = line[i], int(float(line[i + 1:i + 5])), line[i + 5]
                     mask = "chainID=='{}'&resSeq=={}&iCode=='{}'".format(chainID, resSeq, iCode)
-                    self._site_residues += self.filter(mask)
+                    self.site_residues += self.filter(mask)
             elif line[:6] == "MODRES":
                 chainID, resSeq, iCode = line[16], int(float(line[18:22])), line[22]
                 mask = "chainID=='{}'&resSeq=={}&iCode=='{}'".format(chainID, resSeq, iCode)
-                self._modified_residues += self.filter(mask)
+                self.modified_residues += self.filter(mask)
             else:
                 match = _re.findall(r"^REMARK 465\s*([\w]{3})\s*([\w])\s*([\d]+)([\D|\S]?)\s*$", line)
                 if len(match) != 0:
-                    self._missing_residues += [MissingResidue(*match[0])]
+                    self.missing_residues += [MissingResidue(*match[0])]
                     continue
 
                 match = _re.findall(r"^REMARK 470\s*([\w]{3})\s*([\w])\s*([\d]+)([\D|\S]?)\s*", line)
                 if len(match) != 0:
                     args = match[0]
                     arr = line[21:].split()
-                    self._missing_atoms += [MissingAtoms(*args, atoms=arr)]
+                    self.missing_atoms += [MissingAtoms(*args, atoms=arr)]
 
     def writePDB(self, filename=None):
         if filename is None: filename = self.filename
         with open(filename, "w") as file:
-            for residue in self._missing_residues + self._missing_atoms:
+            for residue in self.missing_residues + self.missing_atoms:
                 file.write(residue.__str__())
-            for i, residue in enumerate(self._modified_residues):
+            for i, residue in enumerate(self.modified_residues):
                 file.write("MODRES {:>4d} {:>3.3} {:1.1} {:>4d}{:1.1}\n".format(i + 1, residue.resName, residue.chainID,
                                                                                 residue.resSeq, residue.iCode))
-            for i, pair in enumerate(self._disulfide_bonds):
+            for i, pair in enumerate(self.disulfide_bonds):
                 template = "SSBOND{:>4d} CYS {:1.1} {:>4d}{:1.1}   CYS {:>1.1} {:>4d}{:1.1}\n"
                 file.write(template.format(i + 1, pair[0].chainID, pair[0].resSeq, pair[0].iCode,
                                            pair[1].chainID, pair[1].resSeq, pair[1].iCode))
-            for i in range(0, len(self._site_residues), 4):
+            for i in range(0, len(self.site_residues), 4):
                 str_list = ["SITE              "]
-                for residue in self._site_residues[i:min(i + 4, len(self._site_residues))]:
+                for residue in self.site_residues[i:min(i + 4, len(self.site_residues))]:
                     str_list += "{:>3.3} {:1.1}{:>4d}{:1.1} ".format(residue.resName, residue.chainID, residue.resSeq,
                                                                      residue.iCode)
                 file.write("".join(str_list) + "\n")
@@ -198,26 +198,26 @@ class PDB(Chain, _CondList.ConditionalList):
 
     def purgeResidues(self, residues, mode):
         assert mode in ["keep", "discard"]
-        for name in ["_missing_residues", "_modified_residues", "_site_residues"]:
+        for name in ["missing_residues", "modified_residues", "site_residues"]:
             if mode == "keep":
                 setattr(self, name, [item for item in getattr(self, name) if item in residues])
             else:
                 setattr(self, name, [item for item in getattr(self, name) if item not in residues])
 
-        for i in reversed(range(len(self._disulfide_bonds))):
+        for i in reversed(range(len(self.disulfide_bonds))):
             if mode == "keep":
-                if self._disulfide_bonds[i][0] not in residues or self._disulfide_bonds[i][1] not in residues:
-                    del self._disulfide_bonds[i]
+                if self.disulfide_bonds[i][0] not in residues or self.disulfide_bonds[i][1] not in residues:
+                    del self.disulfide_bonds[i]
             else:
-                if self._disulfide_bonds[i][0] in residues or self._disulfide_bonds[i][1] in residues:
-                    del self._disulfide_bonds[i]
+                if self.disulfide_bonds[i][0] in residues or self.disulfide_bonds[i][1] in residues:
+                    del self.disulfide_bonds[i]
 
         for chain in self:
             chain.purgeResidues([residue for residue in residues if residue in chain], mode=mode)
         self.purgeEmpty()
 
     def totalResidueList(self, sort=True):
-        total_res = self._missing_residues + self.filter("type=='amino_acid'")
+        total_res = self.missing_residues + self.filter("type in ['amino_acid', 'amino_acid_modified']")
         if sort:
             PDB.sortResidueList(total_res)
         return total_res

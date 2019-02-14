@@ -49,7 +49,7 @@ def fixPDB2PQRPQR(pdb_obj, pqr_file, filebase=None):
 
     pqr_obj = _PDB.PDB(pqr_file)
 
-    pdb_obj._missing_atoms = []
+    pdb_obj.missing_atoms = []
     for i, chain in enumerate(pdb_obj):
         if chain.type == "chain":
             for j, residue in enumerate(chain):

@@ -2,7 +2,7 @@ from . import _Helper_Mixin
 
 
 class Atom(_Helper_Mixin.HelperMixin):
-    _common_properties = ["type", "serial", "name", "altloc", "resName", "chainID", "resSeq", "iCode", "x", "y", "z",
+    _common_properties = ["type", "serial", "name", "altLoc", "resName", "chainID", "resSeq", "iCode", "x", "y", "z",
                           "occupancy", "tempFactor", "element", "charge"]
 
     def __init__(self, pdb_line):
@@ -10,7 +10,7 @@ class Atom(_Helper_Mixin.HelperMixin):
         self.type = pdb_line[:6]
         self.serial = pdb_line[6:11]
         self.name = pdb_line[12:16]
-        self.altloc = pdb_line[16]
+        self.altLoc = pdb_line[16]
         self.resName = pdb_line[17:20]
         self.chainID = pdb_line[21]
         self.resSeq = pdb_line[22:26]
@@ -25,13 +25,13 @@ class Atom(_Helper_Mixin.HelperMixin):
 
     def __getattr__(self, item):
         if item not in self._common_properties:
-            return super().__getattribute__(item)
+            return self.__getattribute__(item)
         else:
-            return super().__getattribute__("_" + item)
+            return self.__getattribute__("_" + item)
 
     def __str__(self):
         string = "{:<6.6}{:5d} {:<4.4}{:>1.1}{:<3.3} {:>1.1}{:4d}{:>1.1}   {:>8.3f}{:>8.3f}{:>8.3f}{:>6.6}{:>6.6}" \
-                 "          {:>2.2}{:>2.2}".format(self.type, self.serial, self.name, self.altloc, self.resName,
+                 "          {:>2.2}{:>2.2}".format(self.type, self.serial, self.name, self.altLoc, self.resName,
                                                    self.chainID, self.resSeq, self.iCode, self.x, self.y, self.z,
                                                    self.occupancy, self.tempFactor, self.element, self.charge)
         return string.strip() + "\n"

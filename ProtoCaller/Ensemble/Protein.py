@@ -77,7 +77,11 @@ class Protein:
         if value is not None:
             value = _fileio.checkFileExists(value)
         self._pdb = value
-        self._protein_obj = _PDB.PDB(self.pdb)
+        self._pdb_obj = _PDB.PDB(self.pdb)
+
+    @property
+    def pdb_obj(self):
+        return self._pdb_obj
 
     @property
     def fasta(self):
@@ -125,7 +129,7 @@ class Protein:
                         temp_dict[name] += [filename]
                     elif param == "site":
                         resSeq, iCode = self._residTransform(resSeq)
-                        for residue in self._protein_obj._site_residues:
+                        for residue in self._pdb_obj.site_residues:
                             if residue.resSeq == resSeq and residue.iCode == iCode:
                                 temp_dict[name] += [filename]
             self.ligands = [Ligand(x, name=x, workdir=".") for x in temp_dict["ligand"]]
@@ -138,11 +142,11 @@ class Protein:
             mask = "type=='amino_acid'"
             if chains != "all":
                 mask += "&chainID in %s" % str(chains)
-            filter += self._protein_obj.filter(mask)
+            filter += self._pdb_obj.filter(mask)
 
             # filter missing residues
             if missing_residues == "middle":
-                missing_residue_list = self._protein_obj.totalResidueList()
+                missing_residue_list = self._pdb_obj.totalResidueList()
                 for i in range(2):
                     missing_residue_list.reverse()
                     current_chain = None
@@ -159,30 +163,30 @@ class Protein:
             for param, name in zip([waters, simple_anions, complex_anions, simple_cations, complex_cations],
                                    ["water", "simple_anion", "complex_anion", "simple_cation", "complex_cation"]):
                 if param == "all" or (param == "chain" and chains == "all"):
-                    filter += self._protein_obj.filter("type=='%s'" % name)
+                    filter += self._pdb_obj.filter("type=='%s'" % name)
                 elif param == "chain":
-                    filter += self._protein_obj.filter("type=='%s'|chainID in %s" % (name, str(chains)))
+                    filter += self._pdb_obj.filter("type=='%s'|chainID in %s" % (name, str(chains)))
                 elif param == "site":
                     if chains == "all":
-                        filter_temp = self._protein_obj.filter("type=='%s'" % name)
+                        filter_temp = self._pdb_obj.filter("type=='%s'" % name)
                     else:
-                        filter_temp = self._protein_obj.filter("type=='%s'|chainID in %s" % (name, str(chains)))
-                    filter += [res for res in filter_temp if res in self._protein_obj._site_residues]
+                        filter_temp = self._pdb_obj.filter("type=='%s'|chainID in %s" % (name, str(chains)))
+                    filter += [res for res in filter_temp if res in self._pdb_obj.site_residues]
 
             # include extra molecules / residues
             for include_mol in include_mols:
-                residue = self._protein_obj.filter(include_mol + "&type!='ligand'")
+                residue = self._pdb_obj.filter(include_mol + "&type!='ligand'")
                 filter += residue
 
             # exclude extra molecules / residues
             excl_filter = []
             for exclude_mol in exclude_mols:
-                residue = self._protein_obj.filter(exclude_mol + "&type!='ligand'")
+                residue = self._pdb_obj.filter(exclude_mol + "&type!='ligand'")
                 excl_filter += residue
 
             filter = list(set(filter) - set(excl_filter))
-            self._protein_obj.purgeResidues(filter, "keep")
-            self._protein_obj.writePDB(self.pdb)
+            self._pdb_obj.purgeResidues(filter, "keep")
+            self._pdb_obj.writePDB(self.pdb)
 
     def prepare(self, add_missing_residues="modeller", add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
                 protonate_ligands="babel"):
@@ -201,7 +205,7 @@ class Protein:
                                "This will be fixed in a later version. "
                                "Changing protein protonation method to PDB2PQR...")
 
-            if len(self._protein_obj._missing_residues):
+            if len(self._pdb_obj.missing_residues):
                 if add_missing_residues == "modeller":
                     atoms = True if add_missing_atoms == "modeller" else False
                     filename_fasta = self._downloader.getFASTA()
@@ -238,16 +242,16 @@ class Protein:
         with self.workdir:
             print("Parametrising original crystal system...")
             # extract non-protein residues from pdb file and save them as separate pdb files
-            hetatm_files, hetatm_types = self._protein_obj.writeHetatms()
-            non_protein_residues = self._protein_obj.filter("type not in ['water', 'simple_cation', 'simple_anion']")
-            self._protein_obj.purgeResidues(non_protein_residues, "keep")
-            self._protein_obj.writePDB(self.pdb)
+            hetatm_files, hetatm_types = self._pdb_obj.writeHetatms()
+            non_protein_residues = self._pdb_obj.filter("type not in ['water', 'simple_cation', 'simple_anion']")
+            self._pdb_obj.purgeResidues(non_protein_residues, "keep")
+            self._pdb_obj.writePDB(self.pdb)
 
             # create a merged parmed object with all parametrised molecules and save to top/gro which is then read by
             # BioSimSpace
             # we can't use a direct BioSimSpace object because it throws an error if the file contains single ions
             system = _parametrise.parametriseAndLoadPmd(params=params, filename=self.pdb, molecule_type="protein",
-                                                        disulfide_bonds=self._protein_obj._disulfide_bonds)
+                                                        disulfide_bonds=self._pdb_obj.disulfide_bonds)
 
             # add ligands to the system
             for ligand in self.ligands:

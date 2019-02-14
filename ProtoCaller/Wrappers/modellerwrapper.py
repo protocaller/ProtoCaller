@@ -117,7 +117,7 @@ def fixModellerPDB(model, add_missing_atoms, filename_output=None):
         return -1
 
     pdb_modified = _IO.PDB.PDB(filename_modified)
-    for missing_residue in model.pdb._missing_residues:
+    for missing_residue in model.pdb.missing_residues:
         index = 1
         breakloops = False
         for i, chain in enumerate(model.pdb):
@@ -138,10 +138,10 @@ def fixModellerPDB(model, add_missing_atoms, filename_output=None):
                         break
             if breakloops:
                 break
-    model.pdb._missing_residues = []
+    model.pdb.missing_residues = []
 
     if add_missing_atoms:
-        for missing_atom in model.pdb._missing_atoms:
+        for missing_atom in model.pdb.missing_atoms:
             index = 1
             breakloops = False
             for i, chain in enumerate(model.pdb):
@@ -157,7 +157,7 @@ def fixModellerPDB(model, add_missing_atoms, filename_output=None):
                             break
                 if breakloops:
                     break
-        model.pdb._missing_atoms = []
+        model.pdb.missing_atoms = []
 
     model.pdb.reNumberAtoms()
     if filename_output is None:

@@ -41,10 +41,10 @@ def test_protonate_1bji():
             file_pdb2pqr = PDB2PQRtransform("../1bji.pdb", filename_output="1bji_pdb2pqr.pdb")
             obj_protonated = PDB.PDB(file_pdb2pqr)
 
-            assert len(obj_protonated._missing_atoms) == 0
-            assert len(obj_protonated._missing_residues) == 0
-            assert len(obj_protonated._disulfide_bonds) == 9
-            assert len(obj_protonated._site_residues) == 74
+            assert len(obj_protonated.missing_atoms) == 0
+            assert len(obj_protonated.missing_residues) == 0
+            assert len(obj_protonated.disulfide_bonds) == 9
+            assert len(obj_protonated.site_residues) == 74
             assert len(obj_protonated[0]) == 388
             assert len(obj_protonated[1]) == 202
 
