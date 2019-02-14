@@ -50,7 +50,7 @@ class MyLoop(_modellerautomodel.loopmodel):
 
 def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms):
     env = _modeller.environ()
-    pdb_code = filename_pdb[:4]
+    pdb_code = _os.path.splitext(_os.path.basename(filename_pdb))[0]
 
     # convert FASTA to PIR
     filename_pir = FASTA2PIR(filename_fasta)
@@ -132,7 +132,7 @@ def fixModellerPDB(model, add_missing_atoms, filename_output=None):
                     elif 0 < j < len(chain) and chain[j - 1] < missing_residue < chain[j]:
                         chain.insert(j, getAndFixResidue(index, missing_residue))
                         breakloops = True
-                    if residue.type == "amino acid":
+                    if residue.type == "amino_acid":
                         index += 1
                     if breakloops:
                         break
