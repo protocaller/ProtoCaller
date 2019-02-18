@@ -231,7 +231,7 @@ def alignTwoMolecules(ref, mol, n_min=-1, mcs=None, **kwargs):
     ref_conf = ref.GetConformer(-1)
     mol_conf = mol.GetConformer(-1)
 
-    ff = _FF.MMFFGetMoleculeForceField(mol, _FF.MMFFGetMoleculeProperties(mol), confId=0)
+    ff = _FF.UFFGetMoleculeForceField(mol)
     for i_ref, i_mol in mcs:
         mol_conf.SetAtomPosition(i_mol, ref_conf.GetAtomPosition(i_ref))
         ff.AddFixedPoint(i_mol)
