@@ -39,7 +39,7 @@ with Dir("Sialyltransferase", overwrite=True):
                       workdir=protein.workdir.path)
     # only keep the reference ligand and keep all crystallographic waters
     system.protein.filter(ligands=None, waters="all")
-    # add missing residues with Modeller and add missing atoms and protoante with PDB2PQR
+    # add missing residues with Modeller and add missing atoms and protonate with PDB2PQR
     protein.prepare(add_missing_residues="modeller", add_missing_atoms="pdb2pqr")
     # prepare the complex and solvated leg starting structures and save them as GROMACS input
     # parametrisation here will be very slow. Be patient
