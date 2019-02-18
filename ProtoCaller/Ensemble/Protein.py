@@ -29,7 +29,7 @@ class Protein:
             self.fasta = fasta_file
             self.complex_template = complex_template
             ligands_original = _SDF.splitSDFs(self._downloader.getLigands())
-            self.ligands = [Ligand(x, name=x, workdir=".") for x in ligands_original]
+            self.ligands = [Ligand(x, name=x, workdir=".", minimise=False) for x in ligands_original]
             self.cofactors = []
             # remove ligands from PDB file and non-ligands from SDF files
             self.filter(chains="all", waters="all", simple_anions="all", complex_anions="all", simple_cations="all",
@@ -61,7 +61,7 @@ class Protein:
             raise ValueError("Molecule ID not found: %s" % input)
         else:
             try:
-                self._ligand_ref = Ligand(input, name=self.name + "_ref", workdir=".")
+                self._ligand_ref = Ligand(input, name=self.name + "_ref", workdir=".", minimise=False)
             except:
                 raise TypeError("Unrecognised type of input. Need either a Ligand or a PDB ID")
 
@@ -132,8 +132,8 @@ class Protein:
                         for residue in self._pdb_obj.site_residues:
                             if residue.resSeq == resSeq and residue.iCode == iCode:
                                 temp_dict[name] += [filename]
-            self.ligands = [Ligand(x, name=x, workdir=".") for x in temp_dict["ligand"]]
-            self.cofactors = [Ligand(x, name=x, workdir=".") for x in temp_dict["cofactor"]]
+            self.ligands = [Ligand(x, name=x, workdir=".", minimise=False) for x in temp_dict["ligand"]]
+            self.cofactors = [Ligand(x, name=x, workdir=".", minimise=False) for x in temp_dict["cofactor"]]
 
             # filter residues / molecules in protein
 

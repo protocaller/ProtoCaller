@@ -12,8 +12,9 @@ import ProtoCaller.Wrappers.babelwrapper as _babel
 class Ligand:
     _counter = 1
 
-    def __init__(self, input, parametrised_files=None, name=None, protonated=False, workdir="."):
+    def __init__(self, input, parametrised_files=None, name=None, protonated=False, minimise=True, workdir="."):
         self.name = name
+        self.minimise = minimise
         self.workdir = _fileio.Dir(workdir)
 
         with self.workdir:
@@ -22,7 +23,7 @@ class Ligand:
                     if protonated:
                         self.protonated_filename = input
                     else:
-                        self.molecule = _rdkit.openAsRdkit(input)
+                        self.molecule = _rdkit.openAsRdkit(input, minimise=self.minimise)
                 else:
                     protonated = False
                     self.string = input
@@ -55,7 +56,7 @@ class Ligand:
     @string.setter
     def string(self, val):
         if not _os.path.exists(val):
-            self._molecule = _rdkit.openAsRdkit(val)
+            self._molecule = _rdkit.openAsRdkit(val, minimise=self.minimise)
             self._string = _rdmolfiles.MolToSmiles(self._molecule)
         else:
             raise ValueError("Need a SMILES or InChI string instead of a filename")
@@ -84,7 +85,7 @@ class Ligand:
                 self._protonated_filename = None
             else:
                 self._protonated_filename = _fileio.checkFileExists(val)
-                self._molecule = _rdkit.openAsRdkit(self._protonated_filename, removeHs=False)
+                self._molecule = _rdkit.openAsRdkit(self._protonated_filename, removeHs=False, minimise=self.minimise)
                 self._string = _rdmolfiles.MolToSmiles(self.molecule)
 
     @property

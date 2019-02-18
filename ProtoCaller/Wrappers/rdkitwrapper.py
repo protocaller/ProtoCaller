@@ -10,6 +10,8 @@ from rdkit.Chem import rdmolops as _rdmolops
 from rdkit.Geometry import rdGeometry as _Geom
 import parmed as _pmd
 
+import ProtoCaller.Utils.fileio as _fileio
+import ProtoCaller.Utils.runexternal as _runexternal
 import ProtoCaller.Utils.stdio as _stdio
 from . import babelwrapper as _babel
 
@@ -51,13 +53,13 @@ def openSmilesAsRdkit(smiles_str, **kwargs):
     return mol
 
 
-def openAsRdkit(val, **kwargs):
+def openAsRdkit(val, minimise=False, **kwargs):
     if isinstance(val, str) and len(val.split(".")) == 1:
         flist = [openSmilesAsRdkit, openInChIAsRdkit]
         for i, f in enumerate(flist):
             try:
                 mol = f(val, **kwargs)
-                _AllChem.EmbedMolecule(mol, _AllChem.ETKDG())
+                _AllChem.EmbedMolecule(mol, useRandomCoords=True)
                 break
             except:
                 if i == len(flist) - 1:
@@ -67,6 +69,13 @@ def openAsRdkit(val, **kwargs):
             mol = openFileAsRdkit(val, **kwargs)
         except:
             raise ValueError("File is not in a valid format")
+
+    # minimise the molecule using obminimize / GAFF
+    if minimise:
+        with _fileio.Dir("Temp", temp=True):
+            saveFromRdkit(mol, "molecule.sdf")
+            _runexternal.runExternal("obminimize -sd -c 1e-6 -n 10000 -ff GAFF -osdf molecule.sdf > molecule_obmin.sdf")
+            mol = openFileAsRdkit("molecule_obmin.sdf")
 
     return mol
 
