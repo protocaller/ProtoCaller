@@ -2,7 +2,8 @@ import os as _os
 
 from ProtoCaller.Utils import runexternal as _runexternal
 
-def babelTransform(input_filename, output_extension="mol2", pH=7.0):
+
+def babelTransform(input_filename, output_extension="mol2", pH=None):
     if input_filename is None:
         return None
 
