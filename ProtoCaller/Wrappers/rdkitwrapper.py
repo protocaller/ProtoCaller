@@ -163,7 +163,7 @@ def getMCSMap(ref, mol, match="any", always_maximum=True, matchChiralTag=True, *
                 for index_to_delete in reversed(indices_to_delete):
                     mcs_edit.RemoveAtom(index_to_delete)
                 # the new fragments resulting from the fragment have new indices that need to be translated back
-                fragment_new = {frozenset(sorted(list(fragment))[i] for i in transformIndices(x, [index]) + [index])
+                fragment_new = {frozenset(i for i in transformIndices(x, indices_to_delete) + [index])
                                 for x in _rdmolops.GetMolFrags(mcs_edit.GetMol(), asMols=False, sanitizeFrags=False)}
                 fragments_new |= fragment_new
             fragments = fragments_new
