@@ -5,7 +5,7 @@ sys.path.append(os.path.expanduser("~/ProtoCaller"))
 # os.environ["GROMACSHOME"] = os.path.expanduser("~/gromacs-2018.4")
 
 from ProtoCaller.Utils.fileio import Dir
-from ProtoCaller.Ensemble import Ligand, Protein, Ensemble, Perturbation
+from ProtoCaller.Ensemble import Ligand, Protein, Ensemble
 
 with Dir("Sialyltransferase", overwrite=True):
     # create a protein from its PDB code and the residue number of the ligand we are going to use for mapping
