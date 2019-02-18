@@ -139,7 +139,7 @@ class Protein:
 
             # filter by chain
             filter = []
-            mask = "type=='amino_acid'"
+            mask = "type in ['amino_acid', 'amino_acid_modified']"
             if chains != "all":
                 mask += "&chainID in %s" % str(chains)
             filter += self._pdb_obj.filter(mask)

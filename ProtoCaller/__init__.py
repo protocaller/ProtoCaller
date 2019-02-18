@@ -57,28 +57,37 @@ if not PDB2PQREXE:
 _os.environ["SIRE_SILENT_PHONEHOME"] = "1"
 #AMBERHOME = _os.environ["AMBERHOME"]
 
-#identifiers for different chemical groups
-ENGINES = ["AMBER", "GROMACS"]
 
+ENGINES = ["GROMACS"]
+
+#identifiers for different chemical groups
 def RESIDUETYPE(res):
+    namesdict = {
+        "water": WATERNAMES,
+        "simple_anion": SIMPLEANIONNAMES,
+        "complex_anion": COMPLEXANIONNAMES,
+        "simple_cation": SIMPLECATIONNAMES,
+        "complex_cation": COMPLEXCATIONNAMES,
+        "amino_acid": AMINOACIDNAMES,
+        "amino_acid_modified": MODIFIEDAMINOACIDNAMES,
+        "cofactor": COFACTORNAMES,
+    }
+
     res = res.upper().strip()
-    if res in ["HOH", "WAT", "H2O", "SOL"]:
-        return "water"
-    elif res in ["CL", "BR", "F", "I"]:
-        return "simple_anion"
-    elif res in ["SO4", "PO4", "CO3"]:
-        return "complex_anion"
-    elif res in ["MG", "NA", "CA", "K"]:
-        return "simple_cation"
-    elif res in ["FE", "CU", "NI", "CO", "MN", "CD"]:
-        return "complex_cation"
-    elif res in ["ALA", "ARG", "ASH", "ASN", "ASP", "CYM", "CYS", "CYX", "GLH", "GLN", "GLU", "GLY", "HID", "HIE",
-                 "HIS", "HIP", "ILE", "LEU", "LYN", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL"]:
-        return "amino_acid"
-    elif res in ["ATP", "ADP", "GTP", "GDP", "FMN", "FAD", "HEM", "HEME", "NAD", "NAI", "NAP", "NDP"]:
-        return "cofactor"
-    else:
-        return "ligand"
+    for key, value in namesdict.items():
+        if res in value:
+            return key
+    return "ligand"
+
+WATERNAMES = ["HOH", "WAT", "H2O", "SOL"]
+SIMPLEANIONNAMES = ["CL", "BR", "F", "I"]
+COMPLEXANIONNAMES = ["SO4", "PO4", "CO3"]
+SIMPLECATIONNAMES = ["MG", "NA", "CA", "K"]
+COMPLEXCATIONNAMES = ["FE", "CU", "NI", "CO", "MN", "CD"]
+AMINOACIDNAMES = ["ALA", "ARG", "ASH", "ASN", "ASP", "CYM", "CYS", "CYX", "GLH", "GLN", "GLU", "GLY", "HID", "HIE",
+                 "HIS", "HIP", "ILE", "LEU", "LYN", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL"]
+MODIFIEDAMINOACIDNAMES = ["MSE"]
+COFACTORNAMES = ["ATP", "ADP", "GTP", "GDP", "FMN", "FAD", "HEM", "HEME", "NAD", "NAI", "NAP", "NDP"]
 
 AMBERPROTEINFFS = ["ff14SB", "ff99SB", " ff15ipq", "fb15", "ff03.r1", "ff03ua"]
 AMBERLIGANDFFS = ["gaff2", "gaff"]
