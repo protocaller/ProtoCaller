@@ -3,9 +3,11 @@ import os as _os
 import warnings as _warnings
 
 import ProtoCaller as _PC
+import ProtoCaller.Wrappers.babelwrapper as _babel
 import ProtoCaller.Utils.runexternal as _runexternal
 
-def amberWrapper(params, filename, molecule_type, id=None, *args, **kwargs):
+
+def amberWrapper(params, filename, molecule_type, id=None, charge=None, *args, **kwargs):
     if id is None: id = molecule_type
     force_fields, files, param_files = [], [filename], []
 
@@ -24,19 +26,26 @@ def amberWrapper(params, filename, molecule_type, id=None, *args, **kwargs):
         param_files = _glob.glob("%s/shared/amber-parameters/cofactors/GDP.*" % _PC.HOMEDIR)
     elif molecule_type == "ligand":
         force_fields = [params.ligand_ff]
-        files = [runAntechamber(params.ligand_ff, filename)]
+        files = [runAntechamber(params.ligand_ff, filename, charge=charge)]
         param_files = [runParmchk(params.ligand_ff, files[0])]
     else:
         raise ValueError("Value %s for molecule_type not supported " % molecule_type)
 
     return runTleap(force_fields=force_fields, files=files, param_files=param_files, id=id, *args, **kwargs)
 
-def runAntechamber(force_field, file, output_ext="mol2"):
+def runAntechamber(force_field, file, output_ext="mol2", charge=None):
     input_base, input_ext = _os.path.splitext(file)[0], file.split(".")[-1]
+    if input_ext.lower() in ["mol", "sdf"]:
+        _babel.babelTransform(file, output_extension="mol2", pH=None)
+        input_ext = "mol2"
+
     output_name = "%s_antechamber.%s" % (input_base, output_ext)
 
     commandstr = "antechamber -i '%s' -fi %s -o '%s' -fo %s -c bcc -at %s -s 2" % (
         file, input_ext, output_name, output_ext, force_field)
+    if charge is not None:
+        commandstr += " -nc {}".format(charge)
+
     _runexternal.runExternal(commandstr, procname="antechamber")
 
     return _os.path.abspath(output_name)
@@ -85,7 +94,7 @@ def runTleap(force_fields=None, files=None, param_files=None, id=None, disulfide
     return [_os.path.abspath(f) for f in filenames]
 
 def returnFFPath(name):
-    if(name in _PC.AMBEROLDFFS):
+    if name in _PC.AMBEROLDFFS:
         return "oldff/leaprc." + name
     elif name in _PC.AMBERPROTEINFFS:
         return "leaprc.protein.%s" % name

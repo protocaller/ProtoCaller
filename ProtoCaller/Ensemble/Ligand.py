@@ -1,7 +1,8 @@
 import os as _os
 
-import rdkit.Chem.rdmolfiles as _rdmolfiles
 import rdkit.Chem.rdchem as _rdchem
+import rdkit.Chem.rdmolfiles as _rdmolfiles
+import rdkit.Chem.rdmolops as _rdmolops
 
 import ProtoCaller.Parametrise as _parametrise
 import ProtoCaller.Utils.fileio as _fileio
@@ -111,13 +112,15 @@ class Ligand:
     def protonate(self, reprotonate=False, babel_parameters=None, rdkit_parameters=None):
         with self.workdir:
             if babel_parameters is None: babel_parameters = {}
+            babel_parameters = {"pH": 7.0, **babel_parameters}
             if rdkit_parameters is None: rdkit_parameters = {}
 
             if self.protonated and not reprotonate:
                 print("Ligand %s is already protonated." % self.name)
             else:
                 filename_temp = _rdkit.saveFromRdkit(self.molecule, filename="%s.mol" % self.name)
-                self.protonated_filename = _babel.babelTransform(filename_temp, "mol2", **babel_parameters)
+                # here we use PDB because of parser differences between OpenBabel and RDKit concering mol and mol2 files
+                self.protonated_filename = _babel.babelTransform(filename_temp, "pdb", **babel_parameters)
                 _os.remove(filename_temp)
                 self.molecule = _rdkit.openFileAsRdkit(self.protonated_filename, removeHs=False, **rdkit_parameters)
                 self.protonated = True
@@ -137,6 +140,7 @@ class Ligand:
             if filename is None: filename = self.protonated_filename
             if id is None: id = self.name
 
+            charge = _rdmolops.GetFormalCharge(self.molecule)
             self.parametrised_files = _parametrise.parametriseFile(params=params, filename=filename,
-                                                                   molecule_type=molecule_type, id=id)
+                                                                   molecule_type=molecule_type, id=id, charge=charge)
             self._parametrised = True
