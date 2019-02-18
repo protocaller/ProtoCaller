@@ -15,8 +15,8 @@ class Ligand:
 
     def __init__(self, input, parametrised_files=None, name=None, protonated=False, minimise=True, workdir="."):
         self.name = name
-        self.minimise = minimise
         self.workdir = _fileio.Dir(workdir)
+        self.minimise = minimise
 
         with self.workdir:
             if isinstance(input, str):
@@ -24,7 +24,7 @@ class Ligand:
                     if protonated:
                         self.protonated_filename = input
                     else:
-                        self.molecule = _rdkit.openAsRdkit(input, minimise=self.minimise)
+                        self.molecule = _rdkit.openAsRdkit(input, minimise=minimise)
                 else:
                     protonated = False
                     self.string = input
@@ -34,6 +34,7 @@ class Ligand:
                 raise TypeError("Need a SMILES, InChI string, filename or an RDKit object as an input")
             self.parametrised_files = parametrised_files
             self.protonated = protonated
+            self.minimise = False
 
     def __hash__(self):
         return hash(self.name)

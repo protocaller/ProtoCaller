@@ -53,8 +53,9 @@ def openSmilesAsRdkit(smiles_str, **kwargs):
     return mol
 
 
-def openAsRdkit(val, minimise=False, **kwargs):
+def openAsRdkit(val, minimise=None, **kwargs):
     if isinstance(val, str) and len(val.split(".")) == 1:
+        if minimise is None: minimise = True
         flist = [openSmilesAsRdkit, openInChIAsRdkit]
         for i, f in enumerate(flist):
             try:
@@ -64,18 +65,27 @@ def openAsRdkit(val, minimise=False, **kwargs):
             except:
                 if i == len(flist) - 1:
                     raise ValueError("String not recognised as a valid SMILES or InChI input")
+        if minimise:
+            # make sure we preserve the chirality of the input string and minimise with obminimize / GAFF
+            with _fileio.Dir("Temp", temp=True):
+                smiles = _Chem.MolToSmiles(mol)
+                with open("molecule.smi", "w") as f:
+                    f.write(smiles)
+                _babel.babelTransform("molecule.smi", output_extension="sdf", generate_3D_coords=True)
+                _runexternal.runExternal("obminimize -sd -c 1e-6 -n 10000 -ff GAFF -osdf molecule.sdf > minimised.sdf")
+                mol = openFileAsRdkit("minimised.sdf")
     else:
+        if minimise is None: minimise = False
         try:
             mol = openFileAsRdkit(val, **kwargs)
         except:
             raise ValueError("File is not in a valid format")
-
-    # minimise the molecule using obminimize / GAFF
-    if minimise:
-        with _fileio.Dir("Temp", temp=True):
-            saveFromRdkit(mol, "molecule.sdf")
-            _runexternal.runExternal("obminimize -sd -c 1e-6 -n 10000 -ff GAFF -osdf molecule.sdf > molecule_obmin.sdf")
-            mol = openFileAsRdkit("molecule_obmin.sdf")
+        # minimise the molecule using obminimize / GAFF
+        if minimise:
+            with _fileio.Dir("Temp", temp=True):
+                saveFromRdkit(mol, "molecule.sdf")
+                _runexternal.runExternal("obminimize -sd -c 1e-6 -n 10000 -ff GAFF -osdf molecule.sdf > minimised.sdf")
+                mol = openFileAsRdkit("minimised.sdf")
 
     return mol
 

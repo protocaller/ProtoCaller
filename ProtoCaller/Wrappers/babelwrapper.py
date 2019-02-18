@@ -3,7 +3,7 @@ import os as _os
 from ProtoCaller.Utils import runexternal as _runexternal
 
 
-def babelTransform(input_filename, output_extension="mol2", pH=None):
+def babelTransform(input_filename, output_extension="mol2", pH=None, generate_3D_coords=False):
     if input_filename is None:
         return None
 
@@ -12,6 +12,7 @@ def babelTransform(input_filename, output_extension="mol2", pH=None):
     command = "obabel -i {0} \"{1}.{0}\" -o \"{2}\" -O {3}".format(input_extension, input_filebase, output_extension,
                                                                    output_filename)
     if pH is not None: command += " -p {}".format(pH)
+    if generate_3D_coords: command += " --gen3d"
     _runexternal.runExternal(command, procname="OpenBabel")
 
     return _os.path.abspath(output_filename)
