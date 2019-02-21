@@ -2,7 +2,7 @@ import os as _os
 import re as _re
 import urllib as _urllib
 
-import pypdb as _pypdb
+from ProtoCaller.shared import pypdb as _pypdb
 
 
 class PDBDownloader:

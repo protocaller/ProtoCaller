@@ -1,0 +1,36 @@
+package:
+  name: protocaller-dev
+  version: 0.1.0
+
+source:
+  git_url: https://github.com/miroslav351/ProtoCaller.git
+
+build:
+  noarch: python
+  script:
+    - mkdir -p $PREFIX/site-packages
+    - cp -r $RECIPE_DIR/../ProtoCaller $PREFIX/site-packages/ProtoCaller
+
+requirements:
+  build:
+    - python >=3.5
+    - numpy >=1.15
+  run:
+    - python >=3.5
+    - numpy >=1.15
+    - rdkit >=2018.03.4.0
+    - parmed >=3.1.0
+    - openbabel >=2.4.1
+    - ambertools >=17.6
+    - pymbar >=3
+    - mdanalysis
+    - modeller
+    - beautifulsoup4
+    - xmltodict
+    - requests
+    - tldextract
+    - selenium
+
+test:
+  requires:
+    - pytest

@@ -1,6 +1,9 @@
 # TODO:
 # 1. See how modified protein residues are affected
 # 2. Renumber residues - sometimes PDB files provide negative numbers - might crash other pieces of software
+import ProtoCaller as _PC
+if not _PC.MODELLER:
+    raise ImportError("BioSimSpace module cannot be imported")
 
 import copy as _copy
 import os as _os

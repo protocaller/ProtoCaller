@@ -6,7 +6,8 @@ from selenium.webdriver.firefox import options as _options
 from selenium.webdriver.common import by as _by
 from selenium.webdriver.support import expected_conditions as _EC
 from selenium.webdriver.support import wait as _wait
-import seleniumrequests as _seleniumrequests
+from ProtoCaller.shared import seleniumrequests as _seleniumrequests
+
 
 def protossTransform(filename_pdb, filename_sdf=None, timeout=60, relative=True):
     if relative == True:

@@ -13,7 +13,8 @@ import ProtoCaller.IO.GROMACS as _GROMACS
 import ProtoCaller.Parametrise as _parametrise
 import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Utils.pdbconnect as _pdbconnect
-import ProtoCaller.Wrappers.modellerwrapper as _modeller
+if _PC.MODELLER:
+    import ProtoCaller.Wrappers.modellerwrapper as _modeller
 import ProtoCaller.Wrappers.parmedwrapper as _pmdwrap
 import ProtoCaller.Wrappers.PDB2PQRwrapper as _PDB2PQR
 
@@ -206,7 +207,7 @@ class Protein:
                                "Changing protein protonation method to PDB2PQR...")
 
             if len(self._pdb_obj.missing_residues):
-                if add_missing_residues == "modeller":
+                if add_missing_residues == "modeller" and _PC.MODELLER:
                     atoms = True if add_missing_atoms == "modeller" else False
                     filename_fasta = self._downloader.getFASTA()
                     self.pdb = _modeller.modellerTransform(self.pdb, filename_fasta, atoms)

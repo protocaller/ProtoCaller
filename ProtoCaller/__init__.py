@@ -1,4 +1,3 @@
-import glob as _glob
 import os as _os
 import platform as _platform
 import re as _re
@@ -8,7 +7,9 @@ import warnings as _warnings
 
 HOMEDIR = _os.path.dirname(_os.path.abspath(__file__))
 TESTDIR = _os.path.abspath(_os.path.dirname(HOMEDIR) + "/test")
-_sys.path.append("%s/shared" % HOMEDIR)
+SHAREDDIR = _os.path.abspath(HOMEDIR + "/shared")
+
+_sys.path.append(SHAREDDIR)
 OS = _platform.system()
 
 def searchForPath(exe_name=None, var_name=None):
@@ -50,7 +51,7 @@ else:
         GROMACSEXE = GROMACSEXE if _os.path.isfile(GROMACSEXE) else GROMACSMPIEXE
 
 #setting PDB2PQR path variable
-PDB2PQREXE = searchForPath("%s/shared/pdb2pqr-%s/pdb2pqr" % (HOMEDIR, OS), "PDB2PQREXE")
+PDB2PQREXE = searchForPath("%s/pdb2pqr-%s/pdb2pqr" % (SHAREDDIR, OS), "PDB2PQREXE")
 if not PDB2PQREXE:
     _warnings.warn("Cannot find PDB2PQR binary for the current operating system.")
 
@@ -113,6 +114,13 @@ try:
     SIRE = True
 except:
     SIRE = False
+
+try:
+    import modeller as modeller
+    MODELLER = True
+except:
+    MODELLER = False
+    _warnings.warn("Modeller cannot be started. Some functionality will be limited")
 
 with _warnings.catch_warnings():
     _warnings.filterwarnings("ignore")
