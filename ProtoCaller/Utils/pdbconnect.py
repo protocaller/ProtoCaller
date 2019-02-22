@@ -1,6 +1,6 @@
 import os as _os
 import re as _re
-import urllib as _urllib
+import requests as _requests
 
 from ProtoCaller.shared import pypdb as _pypdb
 
@@ -28,7 +28,7 @@ class PDBDownloader:
     def _download_html(self):
         if self._html: return
         print("Attempting to access Protein Data Bank... ", end="")
-        self._html = _urllib.request.urlopen("https://www.rcsb.org/structure/" + self.code).read().decode('utf-8')
+        self._html = _requests.get("https://www.rcsb.org/structure/" + self.code).text
         print("OK") if self._html else "FAILED"
 
     def getFASTA(self):
@@ -39,7 +39,9 @@ class PDBDownloader:
 
         try:
             fasta_url = "https://www.rcsb.org" + fasta_url[1:-1].replace("&amp;", "&")
-            _urllib.request.urlretrieve(fasta_url, fasta_filename)
+            r = _requests.get(fasta_url)
+            with open(fasta_filename, "wb") as f:
+                f.write(r.content)
             self._fasta = _os.path.abspath(fasta_filename)
         except:
             print("Could not download file: %s from %s" % (fasta_filename, fasta_url))
@@ -60,7 +62,9 @@ class PDBDownloader:
             ligname = _re.search(r'ligandIdList=([\w\d]*)', raw_file_url).group(1)
             file_url = "https://www.rcsb.org" + raw_file_url[1:-1].replace("&amp;", "&")
             try:
-                _urllib.request.urlretrieve(file_url, ligname + ".sdf")
+                r = _requests.get(file_url)
+                with open(ligname + ".sdf", "wb") as f:
+                    f.write(r.content)
                 filename_list += [_os.path.abspath(ligname + ".sdf")]
             except:
                 print("Could not download file: %s.sdf from %s" % (ligname, file_url))

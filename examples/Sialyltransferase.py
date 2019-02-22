@@ -1,6 +1,4 @@
-import os, sys
-# TODO: need to append the folder where ProtoCaller is installed. This is going to be fixed in a later version
-sys.path.append(os.path.expanduser("~/ProtoCaller"))
+# import os
 # add an alternative default version for GROMACS. Otherwise, use bash default
 # os.environ["GROMACSHOME"] = os.path.expanduser("~/gromacs-2018.4")
 
