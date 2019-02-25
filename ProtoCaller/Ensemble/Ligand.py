@@ -17,6 +17,8 @@ class Ligand:
         self.name = name
         self.workdir = _fileio.Dir(workdir)
         self.minimise = minimise
+        # always set protonated to False and if a valid protonated file is given it is automatically set to True
+        self._protonated = False
 
         with self.workdir:
             if isinstance(input, str):
@@ -26,14 +28,12 @@ class Ligand:
                     else:
                         self.molecule = _rdkit.openAsRdkit(input, minimise=minimise)
                 else:
-                    protonated = False
                     self.string = input
             elif isinstance(input, _rdchem.Mol):
                 self.molecule = input
             else:
                 raise TypeError("Need a SMILES, InChI string, filename or an RDKit object as an input")
             self.parametrised_files = parametrised_files
-            self.protonated = protonated
             self.minimise = False
 
     def __hash__(self):
@@ -76,6 +76,10 @@ class Ligand:
             raise TypeError("Need an object of type RDKit Mol")
 
     @property
+    def protonated(self):
+        return self._protonated
+
+    @property
     def protonated_filename(self):
         return self._protonated_filename
 
@@ -83,12 +87,13 @@ class Ligand:
     def protonated_filename(self, val):
         with self.workdir:
             if val is None:
-                self.protonated = None
                 self._protonated_filename = None
+                self._protonated = False
             else:
                 self._protonated_filename = _fileio.checkFileExists(val)
                 self._molecule = _rdkit.openAsRdkit(self._protonated_filename, removeHs=False, minimise=self.minimise)
                 self._string = _rdmolfiles.MolToSmiles(self.molecule)
+                self._protonated = True
 
     @property
     def parametrised(self):
@@ -120,13 +125,12 @@ class Ligand:
                 print("Ligand %s is already protonated." % self.name)
             else:
                 filename_temp = _rdkit.saveFromRdkit(self.molecule, filename="%s.mol" % self.name)
-                # here we use PDB because of parser differences between OpenBabel and RDKit concering mol and mol2 files
-                self.protonated_filename = _babel.babelTransform(filename_temp, "pdb", **babel_parameters)
+                # here we use SDF because of parser differences between OpenBabel and RDKit concerning mol and mol2 files
+                self.protonated_filename = _babel.babelTransform(filename_temp, "sdf", **babel_parameters)
                 _os.remove(filename_temp)
                 self.molecule = _rdkit.openFileAsRdkit(self.protonated_filename, removeHs=False, **rdkit_parameters)
-                self.protonated = True
 
-    def parametrise(self, params=None, filename=None, molecule_type="ligand", id=None, reparametrise=False):
+    def parametrise(self, params=None, molecule_type="ligand", id=None, reparametrise=False):
         with self.workdir:
             print("Parametrising ligand %s..." % self.name)
             if self._parametrised and not reparametrise:
@@ -138,10 +142,10 @@ class Ligand:
                 self.protonate()
 
             if params is None: params = _parametrise.Params()
-            if filename is None: filename = self.protonated_filename
+            # we convert the protonated file into a pdb so that antechamber can read it
+            filename = _babel.babelTransform(self.protonated_filename, "pdb")
             if id is None: id = self.name
 
             charge = _rdmolops.GetFormalCharge(self.molecule)
             self.parametrised_files = _parametrise.parametriseFile(params=params, filename=filename,
                                                                    molecule_type=molecule_type, id=id, charge=charge)
-            self._parametrised = True
