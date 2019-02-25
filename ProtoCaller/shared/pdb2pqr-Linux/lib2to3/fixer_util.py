@@ -1,6 +1,8 @@
 """Utility functions, node construction macros, etc."""
 # Author: Collin Winter
 
+from itertools import islice
+
 # Local imports
 from .pgen2 import token
 from .pytree import Leaf, Node
@@ -104,9 +106,9 @@ def ListComp(xp, fp, it, test=None):
         inner_args.append(Node(syms.comp_if, [if_leaf, test]))
     inner = Node(syms.listmaker, [xp, Node(syms.comp_for, inner_args)])
     return Node(syms.atom,
-                [Leaf(token.LBRACE, u"["),
-                 inner,
-                 Leaf(token.RBRACE, u"]")])
+                       [Leaf(token.LBRACE, u"["),
+                        inner,
+                        Leaf(token.RBRACE, u"]")])
 
 def FromImport(package_name, name_leafs):
     """ Return an import statement in the form:
@@ -238,8 +240,8 @@ def is_probably_builtin(node):
         return False
     if parent.type == syms.parameters or \
             (parent.type == syms.typedargslist and (
-                    (prev is not None and prev.type == token.COMMA) or
-                    parent.children[0] is node
+            (prev is not None and prev.type == token.COMMA) or
+            parent.children[0] is node
             )):
         # The name of an argument.
         return False

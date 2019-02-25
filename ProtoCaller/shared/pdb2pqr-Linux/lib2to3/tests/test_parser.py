@@ -10,7 +10,7 @@ from __future__ import with_statement
 
 # Testing imports
 from . import support
-from .support import driver
+from .support import driver, test_dir
 
 # Python imports
 import os
