@@ -13,23 +13,25 @@ build:
 
 requirements:
   build:
-    - python >=3.5
-    - numpy >=1.15
+    - python >=3.7
+    - numpy >=1.15.4
   run:
-    - python >=3.5
-    - numpy >=1.15
-    - rdkit >=2018.03.4.0
-    - parmed >=3.1.0
-    - openbabel >=2.4.1
-    - ambertools >=17.6
-    - pymbar >=3
+    - python>=3.7
+    - ambertools>=17.6
+    - beautifulsoup4
     - mdanalysis
     - modeller
-    - beautifulsoup4
-    - xmltodict
+    - numpy==1.15.4
+    - openbabel>=2.4.1
+    - parmed>=3.1.0
+    - pymbar
+    - pytest
+    - qt>=5.9.7
+    - rdkit>=2018.03.4
     - requests
-    - tldextract
     - selenium
+    - tldextract
+    - xmltodict
 
 test:
   requires:
