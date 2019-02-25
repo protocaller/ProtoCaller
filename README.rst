@@ -14,7 +14,7 @@ Installation
 ------------
 
 This code is dependent on the BioSimSpace package. If you don't yet have it, you can install it from the git repository:
-<https://github.com/michellab/BioSimSpace>.
+https://github.com/michellab/BioSimSpace.
 
 Alternatively, you can run:
 
