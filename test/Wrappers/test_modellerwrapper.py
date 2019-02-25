@@ -6,7 +6,7 @@ from ProtoCaller.Wrappers.modellerwrapper import modellerTransform
 from shutil import copyfile
 
 
-def test_protonate_3zg0():
+def test_model_3zg0():
     with Dir(PC.TESTDIR + "/shared"):
         with Dir("temp", temp=True):
             copyfile("../3ZG0.pdb", "3ZG0.pdb")
