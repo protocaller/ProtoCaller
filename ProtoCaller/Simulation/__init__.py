@@ -131,7 +131,13 @@ class GMX_REST_FEP_Runs():
         self.protocols = []
         self.mbar_data = []
 
-    def runSimulation(self, name, parallel, use_preset=None, replex=500, n_cores=None, **protocol_params):
+    def runSimulation(self, name, parallel=True, use_mpi=False, use_preset=None, replex=None, n_cores=None, n_nodes=1,
+                      **protocol_params):
+        if n_cores is None: n_cores = self.lambda_size
+        ppn = n_cores // n_nodes
+        if n_nodes > 1: use_mpi = True
+        if replex is not None: parallel=True
+
         protocol = _Protocol.Protocol(use_preset=use_preset, **protocol_params, **self.lambda_dict)
         self.protocols += [protocol]
 
@@ -156,7 +162,13 @@ class GMX_REST_FEP_Runs():
                     _runexternal.runExternal(grompp_command, procname="gmx grompp")
 
                     if not parallel:
-                        mdrun_command = "{0} mdrun -s {1}.tpr -deffnm {1}".format(_PC.GROMACSEXE, filebase)
+                        if not use_mpi:
+                            mdrun_command = "{0} mdrun -s {1}.tpr -deffnm {1}".format(_PC.GROMACSEXE, filebase)
+                        else:
+                            # disable dynamic load balancing due to GROMACS bug
+                            mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} " \
+                                            "mdrun -dlb no -s {4}.tpr -deffnm {4}".format( _PC.MPIEXE, n_cores, ppn,
+                                                                                           _PC.GROMACSMPIEXE, filebase)
                         _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
                         self.files[i] = {"top" : self.files[i]["top"],}
@@ -169,11 +181,12 @@ class GMX_REST_FEP_Runs():
                 if parallel:
                     open("plumed.dat", "a").close()
                     filebase = name + "_"
-                    n_cores = self.lambda_size if not n_cores else n_cores
                     # disable dynamic load balancing due to GROMACS bug
-                    mdrun_command = "{0} -np {1} {2} mdrun -dlb no -plumed plumed.dat -multi {3} -s {4}.tpr -deffnm {4} " \
-                                    "-replex {5} -hrex".format(_PC.MPIEXE, n_cores, _PC.GROMACSMPIEXE, self.lambda_size,
-                                                               filebase, replex)
+                    mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} mdrun -dlb no -multi {4} -s {5}.tpr " \
+                                    "-deffnm {5} ".format(_PC.MPIEXE, n_cores, ppn, _PC.GROMACSMPIEXE, self.lambda_size,
+                                                          filebase)
+                    if replex is not None:
+                        mdrun_command += " -plumed plumed.dat -replex {} -hrex".format(replex)
 
                     _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
@@ -186,7 +199,7 @@ class GMX_REST_FEP_Runs():
                             if ext == "tpr": continue
                             self.files[i][ext] = _os.path.abspath(output_file)
 
-    def generateMBARData(self, cont=False):
+    def generateMBARData(self, n_cores=None, n_nodes=1, cont=True):
         # GROMACS might generate a bunch of warnings when we apply a non-dummy Hamiltonian to a trajectory with dummies
         # due to clashes and backup too many structures. Here we suppress this backing up
         gmx_suppress_dump = _os.environ["GMX_SUPPRESS_DUMP"] if "GMX_SUPPRESS_DUMP" in _os.environ.keys() else None
@@ -205,7 +218,7 @@ class GMX_REST_FEP_Runs():
                         filebase = "Energy_%d_%d" % (i, j)
                         # we only overwrite the last generated energies, because they might be incomplete
                         if cont:
-                            filebase_next = "Energy_%d_%d" % ((i + 1) % len(self.files), (j + 1) % len(self.files))
+                            filebase_next = "Energy_%d_%d" % (i + (j + 1) // len(self.files) , (j + 1) % len(self.files))
                             files_current = _glob.glob("%s/%s.xvg" % (_os.getcwd(), filebase))
                             files_next = _glob.glob("%s/%s.xvg" % (_os.getcwd(), filebase_next))
                             if len(files_current) and len(files_next):
@@ -221,6 +234,7 @@ class GMX_REST_FEP_Runs():
                             protocol.skip_velocities = 0
                             protocol.skip_forces = 0
                             protocol.write_derivatives = False
+                            protocol.random_velocities = False
                             protocol.constraint = "no"
                             protocol.__setattr__("continuation", "yes")
                             protocol.__setattr__("dhdl-print-energy", "potential")
@@ -234,8 +248,16 @@ class GMX_REST_FEP_Runs():
                                 _PC.GROMACSEXE, mdp, gro, top, tpr)
                             _runexternal.runExternal(grompp_command, procname="gmx grompp")
 
-                            mdrun_command = "%s mdrun -s '%s' -rerun '%s' -deffnm '%s'" % (_PC.GROMACSEXE, tpr, trr,
-                                                                                           filebase)
+                            if n_cores is None:
+                                mdrun_command = "%s mdrun -s '%s' -rerun '%s' -deffnm '%s'" % (_PC.GROMACSEXE, tpr, trr,
+                                                                                               filebase)
+                            else:
+                                ppn = n_cores // n_nodes
+                                mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} mdrun s '{4}' -rerun {5} " \
+                                                "-deffnm {6}".format(_PC.MPIEXE, n_cores, ppn, _PC.GROMACSMPIEXE, tpr,
+                                                                     trr, filebase)
+
+
                             _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
                         self.mbar_data[i] += list(_MDAnalysis.auxiliary.XVG.XVGReader(filebase + ".xvg").
