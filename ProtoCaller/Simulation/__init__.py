@@ -11,7 +11,35 @@ import ProtoCaller.Protocol as _Protocol
 import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Utils.runexternal as _runexternal
 
+
 class GMXSingleRun:
+    """
+    A wrapper for a single GROMACS run.
+
+    Parameters
+    ----------
+    name : str
+        The name of the run.
+    gro_file : str
+        Path to the input GRO file.
+    top_file : str
+        Path to the input TOP file.
+    lambda_index : int
+        Initialises lambda_index.
+    work_dir : str, optional
+        Initialises the run in a custom directory.
+    replica_top_files : [str], optional
+        Initialises replica_tops.
+
+    Attributes
+    ----------
+    files : dict
+        A dictionary with extensions as keys and absolute paths to files as values.
+    lambda_index : int
+        The index of the current lambda value.
+    replica_tops : [str]
+        A list of absolute paths to additional replica topology files for REST(2).
+    """
     def __init__(self, name, gro_file, top_file, lambda_index, work_dir=None, replica_top_files=None):
         if work_dir is None:
             work_dir = _os.getcwd()
@@ -25,6 +53,22 @@ class GMXSingleRun:
             self.replica_tops = ["%s/%s" % (_os.getcwd(), file) for file in replica_top_files]
 
     def runSimulation(self, name, protocol, replex=None, n_cores=None, **replica_params):
+        """
+        Runs a single GROMACS simulation.
+
+        Parameters
+        ----------
+        name : str
+            The name of this simulation.
+        protocol : Protocaller.Protocol.Protocol
+            The input MD protocol.
+        replex : int or None, optional
+            Attempts replica exchange after replex number of steps. None means no replica exchange.
+        n_cores : int or None, optional
+            Number of cores used. Default: the same as the number of replicas.
+        replica_params
+            Keyword arguments specifying parameters which are to be set for each replica.
+        """
         print("Running %s..." % name)
         with self._workdir:
             with _fileio.Dir(name, overwrite=True):
@@ -85,7 +129,35 @@ class GMXSingleRun:
                     if ext == "tpr": continue
                     self.files[ext] = output_file
 
+
 class GMXSerialRuns:
+    """
+    A wrapper for a several consecutive GROMACS runs.
+
+    Parameters
+    ----------
+    name : str
+        The name of the run.
+    gro_file : str
+        Path to the input GRO file.
+    top_file : str
+        Path to the input TOP file.
+    work_dir : str, optional
+        Initialises the run in a custom directory.
+    replica_top_files : [str], optional
+        Initialises replica_tops.
+    lambda_dict
+        Initialises lambda_dict
+
+    Attributes
+    ----------
+    lambda_dict : dict
+        A dictionary of lists of lambda values. All of them must be of the same length.
+    gmx_run_list : [ProtoCaller.Simulation.GMXSingleRun]
+        Contains an instance of GMXSingleRun for every lambda value.
+    protocols : [(str, ProtoCaller.Protocol.Protocol, dict)]
+        A list of tuples corresponding to the protocol name, the Protocol object itself and any extra run options.
+    """
     def __init__(self, name, gro_file, top_file, work_dir=None, replica_top_files=None, **lambda_dict):
         for key, arr in lambda_dict.items():
             if len(arr):
@@ -99,12 +171,28 @@ class GMXSerialRuns:
         self.protocols = []
 
     def addProtocol(self, name, use_preset=None, run_options=None, **kwargs):
+        """
+        Adds a protocol for execution.
+
+        Parameters
+        ----------
+        name : str
+            Protocol name.
+        use_preset : str, None
+            Which default preset to use. One of: "minimisation", "equilibration_nvt", "equilibration_npt", "production"
+            "vacuum".
+        run_options : dict, optional
+            Any extra run options to be forwarded to GMXSingleRun.
+        kwargs
+            Keyword arguments to be passed on to Protocol.__init__.
+        """
         run_options = run_options if run_options is not None else {}
         self.protocols += [(name,
                             _Protocol.Protocol(use_preset=use_preset, **kwargs, **self.lambda_dict),
                             run_options)]
 
     def runSimulations(self):
+        """Runs all protocols consecutively for each lambda value."""
         for i, gmx_run in enumerate(self.gmx_run_list):
             print("Running simulation %d..." % (i + 1))
             for name, protocol, kwargs in self.protocols:
@@ -113,7 +201,35 @@ class GMXSerialRuns:
                 except:
                     "An error occurred. Check the log. Continuing..."
 
-class GMX_REST_FEP_Runs():
+
+class GMX_REST_FEP_Runs:
+    """
+    A wrapper for performing a REST2 run in GROMACS.
+
+    Parameters
+    ----------
+    name : str
+        The name of the run.
+    gro_file : str
+        Path to the input GRO file.
+    top_filse : [str]
+        Paths to the input scaled TOP files.
+    work_dir : str, optional
+        Initialises the run in a custom directory.
+    lambda_dict
+        Initialises lambda_dict
+
+    Attributes
+    ----------
+    files : dict
+        A dictionary with extensions as keys and absolute paths to files as values.
+    lambda_dict : dict
+        A dictionary of lists of lambda values. All of them must be of the same length.
+    protocols : [ProtoCaller.Protocol.Protocol]
+        A list of Protocol objects corresponding to the already run protocols.
+    mbar_data : numpy.ndarray
+        Data which is to be passed to pymbar.
+    """
     def __init__(self, name, gro_file, top_files, work_dir=None, **lambda_dict):
         for key, arr in lambda_dict.items():
             if len(arr) and len(arr) != len(top_files):
@@ -133,6 +249,29 @@ class GMX_REST_FEP_Runs():
 
     def runSimulation(self, name, parallel=True, use_mpi=False, use_preset=None, replex=None, n_cores=None, n_nodes=1,
                       **protocol_params):
+        """
+        Runs a REST2 simulation in GROMACS.
+
+        Parameters
+        ----------
+        name : str
+            The name of the simulation.
+        parallel : bool, optional
+            Whether to run the simulations in parallel, using -multi.
+        use_mpi : bool, optional
+            Whether to use ProtoCaller.GROMACSEXE or GROMACSMPIEXE.
+        use_preset : str, None
+            Which default preset to use. One of: "minimisation", "equilibration_nvt", "equilibration_npt", "production"
+            "vacuum".
+        replex : int or None, optional
+            Attempts replica exchange after replex number of steps. None means no replica exchange.
+        n_cores : int or None, optional
+            Number of cores used. Default: the same as the number of replicas.
+        n_nodes : int, optional
+            Number of nodes used.
+        protocol_params
+            Keyword arguments passed to ProtoCaller.Protocol.Protocol
+        """
         if n_cores is None: n_cores = self.lambda_size
         ppn = n_cores // n_nodes
         if n_nodes > 1: use_mpi = True
@@ -200,6 +339,23 @@ class GMX_REST_FEP_Runs():
                             self.files[i][ext] = _os.path.abspath(output_file)
 
     def generateMBARData(self, n_cores=None, n_nodes=1, cont=True):
+        """
+        Generates input data for MBAR using gmx mdrun -rerun
+
+        Parameters
+        ----------
+         n_cores : int or None, optional
+            Number of cores used. Default: the same as the number of replicas.
+        n_nodes : int, optional
+            Number of nodes used.
+        cont : bool, optional
+            Whether to overwrite existing files or to continue from the last one.
+
+        Returns
+        -------
+        mbar_data : numpy.ndarray
+            Data which is to be passed to pymbar.
+        """
         # GROMACS might generate a bunch of warnings when we apply a non-dummy Hamiltonian to a trajectory with dummies
         # due to clashes and backup too many structures. Here we suppress this backing up
         gmx_suppress_dump = _os.environ["GMX_SUPPRESS_DUMP"] if "GMX_SUPPRESS_DUMP" in _os.environ.keys() else None
@@ -270,6 +426,14 @@ class GMX_REST_FEP_Runs():
         return self.mbar_data
 
     def runMBAR(self, n_points_to_ignore=1):
+        """
+        Runs pymbar and outputs to stdout.
+
+        Parameters
+        ----------
+        n_points_to_ignore : int, optional
+            Number of initial points which are to be excluded in the calculation.
+        """
         if not self.mbar_data:
             raise ValueError("No MBAR data to analyse")
 

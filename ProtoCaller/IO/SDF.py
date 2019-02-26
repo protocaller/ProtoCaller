@@ -1,7 +1,21 @@
-def mergeSDFs(input_files, output_filename=None):
+def mergeSDFs(input_files, output_filename="ligands_merged.sdf"):
+    """
+    Merges all input SDF files into a single one.
+
+    Parameters
+    ----------
+    input_files : [str]
+        Names of the input SDF files.
+    output_filename: str
+        Name of the output file.
+
+    Returns
+    -------
+    output_filename: str
+        Absolute path to the output file.
+    """
     if input_files in [None, []]:
         return None
-    if output_filename is None: output_filename = "ligands_merged.sdf"
 
     with open(output_filename, "w") as output:
         for file in input_files:
@@ -12,6 +26,19 @@ def mergeSDFs(input_files, output_filename=None):
     return output_filename
 
 def splitSDFs(input_files):
+    """
+    Splits each of the input SDF files into many SDF files, each containing only one molecule.
+
+    Parameters
+    ----------
+    input_files : [str]
+        Names of the input SDF files.
+
+    Returns
+    -------
+    output_files: [str]
+        Absolute paths to the output files.
+    """
     if input_files in [[], None, [None]]:
         return []
     output_files = []

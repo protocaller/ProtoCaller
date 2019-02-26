@@ -11,6 +11,21 @@ import parmed as _pmd
 import ProtoCaller.Utils.fileio as _fileio
 
 def saveAsGromacs(filebase, system):
+    """
+    Saves the input object to a GRO and a TOP file.
+
+    Parameters
+    ----------
+    filebase : str
+        Base of the output filenames.
+    system : BioSimSpace.System or parmed.structure.Structure
+        Input object to be saved.
+
+    Returns
+    -------
+    files : [str, str]
+        A list containing the absolute paths of the TOP and GRO files.
+    """
     name = _os.path.basename(_tempfile.TemporaryDirectory().name)
     with _fileio.Dir(dirname=name, temp=True) as dir:
         if "BioSimSpace" in str(type(system)):
