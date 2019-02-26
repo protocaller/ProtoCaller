@@ -8,10 +8,30 @@ import ProtoCaller.Utils.runexternal as _runexternal
 
 import os as _os
 
+__all__ = ["PDB2PQRtransform"]
+
 
 # all options can be found here:
 # https://apbs-pdb2pqr.readthedocs.io/en/latest/pdb2pqr/invoking.html
 def PDB2PQRtransform(filename_input, filename_output=None, **kwargs):
+    """
+    A thin wrapper around PDB2PQR which protonates an input PDB file.
+
+    Parameters
+    ----------
+    filename_input : str
+        Name of input file.
+    filename_output : str
+        Name of output file. Default: 'inputfile_pdb2pqr.pdb'.
+    kwargs:
+        Keyword arguments to be passed on to PDB2PQR. All options can be found here:
+        https://apbs-pdb2pqr.readthedocs.io/en/latest/pdb2pqr/invoking.html
+
+    Returns
+    -------
+    filename : str
+        Absolute path to the protonated file.
+    """
     if not _PC.PDB2PQREXE:
         raise OSError("Cannot find PDB2PQR binary for the current operating system.")
     if filename_output is None:
@@ -33,6 +53,25 @@ def PDB2PQRtransform(filename_input, filename_output=None, **kwargs):
 
 
 def fixPDB2PQRPQR(pdb_obj, pqr_file, filebase=None):
+    """
+    Used to regenerate some PDB data lost by PDB2PQR.
+
+    Parameters
+    ----------
+    pdb_obj : ProtoCaller.IO.PDB.PDB
+        An object of the original unmodified PDB file.
+    pqr_file : str
+        The path to the PDB2PQR output PDB file.
+    filebase: str
+        The base name of the fixed output PDB file.
+
+
+    Returns
+    -------
+    filename : str
+        The absolute path to the fixed output PDB file.
+
+    """
     if filebase is None:
         filebase = _os.path.splitext(pdb_obj.filename)[0] + "_pdb2pqr"
     filename = filebase + ".pdb"

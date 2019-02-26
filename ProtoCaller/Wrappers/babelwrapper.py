@@ -4,6 +4,25 @@ from ProtoCaller.Utils import runexternal as _runexternal
 
 
 def babelTransform(input_filename, output_extension="mol2", pH=None, generate_3D_coords=False):
+    """
+    A light wrapper of some of OpenBabel's file conversion capabilities.
+
+    Parameters
+    ----------
+    input_filename : str
+        Name of the input file.
+    output_extension : str
+        Type of output extension.
+    pH : float
+        Hydrogenate the molecule for a certain pH. None means no hydrogenation.
+    generate_3D_coords : bool
+        Whether to generate 3D coordinates for the molecule.
+
+    Returns
+    -------
+    filename : str
+        The absolute path to the output file.
+    """
     if input_filename is None:
         return None
 

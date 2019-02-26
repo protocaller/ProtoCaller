@@ -14,6 +14,8 @@ import modeller.automodel as _modellerautomodel
 
 import ProtoCaller.IO as _IO
 
+__all__ = ["modellerTransform", "FASTA2PIR"]
+
 
 # taken from https://salilab.org/modeller/manual/node36.html
 class MyLoop(_modellerautomodel.loopmodel):
@@ -52,6 +54,23 @@ class MyLoop(_modellerautomodel.loopmodel):
 
 
 def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms):
+    """
+    Adds missing residues and (optionally) missing atoms to a PDB file.
+
+    Parameters
+    ----------
+    filename_pdb : str
+        Name of the input PDB file.
+    filename_fasta : str
+        Name of the input sequence FASTA file.
+    add_missing_atoms : bool
+        Whether to add missing atoms.
+
+    Returns
+    -------
+    filename_output : str
+        Absolute path to the modified file.
+    """
     env = _modeller.environ()
     pdb_code = _os.path.splitext(_os.path.basename(filename_pdb))[0]
 
@@ -72,6 +91,19 @@ def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms):
 
 
 def FASTA2PIR(filename_input):
+    """
+    Converts a FASTA file into a PIR file.
+
+    Parameters
+    ----------
+    filename_input : str
+        Name of the input FASTA file.
+
+    Returns
+    -------
+    filename_output : str
+        Name of the output PIR file.
+    """
     file = open(filename_input).readlines()
     pdb_code = ""
     new_file = []
@@ -102,6 +134,23 @@ def FASTA2PIR(filename_input):
 
 
 def fixModellerPDB(model, add_missing_atoms, filename_output=None):
+    """
+    Used to regenerate some data lost by Modeller.
+
+    Parameters
+    ----------
+    model : modeller.automodel.loopmodel
+        Input model.
+    add_missing_atoms : bool
+        Whether missing atoms have been added.
+    filename_output : str
+        Name of the fixed output PDB file.
+
+    Returns
+    -------
+    filename_output : str
+        The absolute path to the fixed output PDB file.
+    """
     def getAndFixResidue(idx, missing_residue):
         nonlocal pdb_modified
         modified_residue = _copy.deepcopy(pdb_modified.filter("resSeq==%d" % idx)[0])

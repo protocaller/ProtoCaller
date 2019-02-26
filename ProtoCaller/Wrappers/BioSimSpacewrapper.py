@@ -8,7 +8,27 @@ import Sire.Maths as _SireMaths
 import Sire.Mol as _SireMol
 import Sire.Vol as _SireVol
 
+
 def centre(system, box_length):
+    """
+    Centres the system given a box length (cubic shape is assumed).
+
+    Parameters
+    ----------
+    system : BioSimSpace.System
+        The input system to be centred.
+    box_length : float
+        Length of the cubic box.
+
+    Returns
+    -------
+    system : BioSimspace.System
+        The centred BioSimSpace system.
+    box_length : float
+        The new box length. Only different from the input value if the box is too small for the system.
+    translation_vec: Sire.Maths.vector
+        The centering translation vector.
+    """
     box = system._getAABox()
     min_coords, max_coords = box.minCoords(), box.maxCoords()
     centre = (min_coords + max_coords) / 2
@@ -22,11 +42,49 @@ def centre(system, box_length):
 
     return system, box_length, translation_vec
 
+
 def resize(system, box_length):
+    """
+    Changes the box size of the system or adds one if there is no box. Only valid for cubic boxes.
+
+    Parameters
+    ----------
+    system : BioSimSpace.System
+        The input system to be resized.
+    box_length : float
+        Length of the cubic box.
+
+    Returns
+    -------
+    system : BioSimSpace.System
+        The resized system.
+    """
     system._sire_system.setProperty("space", _SireVol.PeriodicBox(_SireMaths.Vector(3 * (box_length * 10,))))
     return system
 
+
 def rescaleSystemParams(system, scale, includelist=None, excludelist=None, neutralise=True):
+    """
+    Rescales charge, Lennard-Jones and dihedral parameters for REST(2).
+
+    Parameters
+    ----------
+    system : BioSimSpace.System
+        Input system to be rescaled.
+    scale : float
+        Multiplication factor for the charge, Lennard-Jones and dihedral parameters. 0 < scale < 1.
+    includelist : [str]
+        Molecule names to be included in the rescaling. Default: None.
+    excludelist : [str]
+        Molecule names to be excluded in the rescaling. Default: ["WAT"].
+    neutralise : bool
+        Whether to rescale a minimum number of Na+ or Cl- ions so that the rescaled part of the system is neutralised.
+
+    Returns
+    -------
+    system_new : BioSimSpace.System
+        The rescaled system.
+    """
     if excludelist is None and includelist is None:
         excludelist = ["WAT"]
     elif excludelist is not None and includelist is not None:

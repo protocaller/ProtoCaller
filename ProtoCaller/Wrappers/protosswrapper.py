@@ -8,11 +8,30 @@ from selenium.webdriver.support import expected_conditions as _EC
 from selenium.webdriver.support import wait as _wait
 from ProtoCaller.shared import seleniumrequests as _seleniumrequests
 
+__all__ = ["protossTransform"]
 
-def protossTransform(filename_pdb, filename_sdf=None, timeout=60, relative=True):
-    if relative == True:
-        filename_pdb = _os.getcwd() + "/" + filename_pdb
-        if filename_sdf is not None: filename_sdf = _os.getcwd() + "/" + filename_sdf
+
+def protossTransform(filename_pdb, filename_sdf=None, timeout=60):
+    """
+    Protonates a protein complex from a PDB and an SDF files using ProToss.
+
+    Parameters
+    ----------
+    filename_pdb : str
+        Name of input PDB file.
+    filename_sdf : str
+        Name of input SDf file.
+    timeout : float
+        Timeout in seconds.
+
+    Returns
+    -------
+    filenames: [str]
+        Names of the protonated files.
+    """
+    # TODO: refactor the whole function
+    filename_pdb = _os.path.abspath(filename_pdb)
+    if filename_sdf is not None: filename_sdf = _os.path.abspath(filename_sdf)
 
     options = _options.Options()
     options.set_headless(headless=True)
@@ -75,7 +94,23 @@ def protossTransform(filename_pdb, filename_sdf=None, timeout=60, relative=True)
     filenames[0] = fixProtossPDB(filenames[0], filenames[0])
     return filenames
 
+
 def fixProtossPDB(filename_input, filename_output=None):
+    """
+    Used to regenerate some data lost by ProToss.
+
+    Parameters
+    ----------
+    filename_input : str
+        Name of input file.
+    filename_output : str
+        Name of output file.
+
+    Returns
+    -------
+    filename_output : str
+        Absolute path to the output file.
+    """
     if filename_output is None:
         filename_output = filename_input[:-4] + "_modified.pdb"
 
@@ -86,4 +121,4 @@ def fixProtossPDB(filename_input, filename_output=None):
                 line = line[:22] + " " + line[22:26] + line[27:]
             file_output.write(line)
 
-    return filename_output
+    return _os.path.abspath(filename_output)

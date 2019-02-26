@@ -17,6 +17,21 @@ from . import babelwrapper as _babel
 
 
 def openFileAsRdkit(filename, **kwargs):
+    """
+    Opens an input file and returns an RDKit molecule.
+
+    Parameters
+    ----------
+    filename:
+        The name of the input file.
+    kwargs
+        Keyword arguments to be supplied to the more specialised RDKit functions.
+
+    Returns
+    -------
+    mol : rdkit.Chem.rdchem.Mol
+        The file loaded as an RDKit Mol object.
+    """
     extension = filename.split(".")[-1].lower()
 
     func_dict = {
@@ -39,6 +54,23 @@ def openFileAsRdkit(filename, **kwargs):
 
 @_stdio.stdout_stderr()
 def openInChIAsRdkit(inchi_str, removeHs=True, **kwargs):
+    """
+    Converts an InChI string into an RDKit Mol object. This function is a simple wrapper of rdkit.Chem.MolFromInchi.
+
+    Parameters
+    ----------
+    inchi_str : str
+        Input InChI string.
+    removeHs : bool
+        Whether to remove hydrogens from the created molecule.
+    kwargs
+        Keyword arguments to be passed to rdkit.Chem.MolFromInchi.
+
+    Returns
+    -------
+    mol : rdkit.Chem.rdchem.Mol
+        The InChI loaded as an RDKit Mol object.
+    """
     mol = _Chem.MolFromInchi(inchi_str, removeHs=removeHs, **kwargs)
     if mol is None:
         raise ValueError("InChI string not recognised: %s" % inchi_str)
@@ -47,6 +79,21 @@ def openInChIAsRdkit(inchi_str, removeHs=True, **kwargs):
 
 @_stdio.stdout_stderr()
 def openSmilesAsRdkit(smiles_str, **kwargs):
+    """
+    Converts a SMILES string into an RDKit Mol object. This function is a simple wrapper of rdkit.Chem.MolFromSmiles.
+
+    Parameters
+    ----------
+    smiles_str : str
+        Input SMILES string.
+    kwargs
+        Keyword arguments to be passed to rdkit.Chem.MolFromSmiles.
+
+    Returns
+    -------
+    mol : rdkit.Chem.rdchem.Mol
+        The SMILES loaded as an RDKit Mol object.
+    """
     mol = _Chem.MolFromSmiles(smiles_str, **kwargs)
     if mol is None:
         raise ValueError("SMILES string not recognised: %s" % smiles_str)
@@ -54,6 +101,23 @@ def openSmilesAsRdkit(smiles_str, **kwargs):
 
 
 def openAsRdkit(val, minimise=None, **kwargs):
+    """
+    A general wrapper which can convert a variety of representations for a molecule into an rdkit.Chem.rdchem.Mol object.
+
+    Parameters
+    ----------
+    val : str
+        Input value - SMILES, InChI strings or a filename.
+    minimise:
+        Whether to perform a GAFF minimisation using OpenBabel. None means no minimisation.
+    kwargs
+        Keyword arguments to be passed to the more specialsied RDKit functions.
+
+    Returns
+    -------
+    mol : rdkit.Chem.rdchem.Mol
+        The input string opened as an RDKit Mol object.
+    """
     if isinstance(val, str) and len(val.split(".")) == 1:
         if minimise is None: minimise = True
         flist = [openSmilesAsRdkit, openInChIAsRdkit]
@@ -91,6 +155,23 @@ def openAsRdkit(val, minimise=None, **kwargs):
 
 
 def saveFromRdkit(mol, filename, **kwargs):
+    """
+    Saves an RDKit Mol object to a file.
+
+    Parameters
+    ----------
+    mol : rdkit.Chem.rdchem.Mol
+        The input molecule.
+    filename : str
+        The name of the output file.
+    kwargs
+        Keyword arguments to be passed to more specialised RDKit functions.
+
+    Returns
+    -------
+    filename : str
+        The absolute path to the written file.
+    """
     if _os.path.exists(filename):
         _os.remove(filename)
     extension = filename.split(".")[-1]
@@ -112,6 +193,21 @@ def saveFromRdkit(mol, filename, **kwargs):
 
 
 def translateMolecule(mol, vector):
+    """
+    Translates an input molecule.
+
+    Parameters
+    ----------
+    mol : rdkit.Chem.rdchem.Mol
+        The molecule to be translated.
+    vector : (float, float, float)
+        A 3D vector.
+
+    Returns
+    -------
+    mol : rdkit.Chem.rdchem.Mol
+        The translated molecule.
+    """
     mol_conf = mol.GetConformer(-1)
     for i in range(mol.GetNumAtoms()):
         new_atom_position = mol_conf.GetAtomPosition(i) + _Geom.Point3D(*vector)
@@ -121,22 +217,37 @@ def translateMolecule(mol, vector):
 
 def getMCSMap(ref, mol, match="any", always_maximum=True, matchChiralTag=True, **kwargs):
     """
-    :param mol: molecule to be aligned
-    :param ref: reference molecule
-    :param always_maximum: always give the substructure that has the maximum common number of atoms - good for single
-                           topology mapping. False is good for overall structure alignment. Note that in some more
-                           complex molecules there might be an MCS that satisfies our criteria and is bigger. Here we
-                           rely on there being one obvious MCS - something that should be the case in free energy
-                           calculations anyway. Note that this option does not apply to chiral symmetric molecules
-    :param matchChiralTag: take care of stereochemistry. Here we don't use rdkit's default behaviour because it is not
-                           good for our purposes. We instead opt for a maximum common substructure and then pruning all
-                           atoms that will not obey the stereochemistry. While this option does not work perfectly for
-                           symmetric chiral molecules, it should work rather well in the general case. Again, the
-                           results are best when the two molecules are similar in structure which should be the case
-                           in FE calculations
-    :param match: "any" matches any pairs of atoms - useful for single-topology;
-                  "elements" matches only the same atoms - useful for dual-topology
-    :return: the aligned molecule
+    Generates the Maximum Common Substructure (MCS) mapping between two molecules.
+
+    Parameters
+    ----------
+    ref : rdkit.Chem.rdchem.Mol
+        The reference molecule.
+    mol : rdkit.Chem.rdchem.Mol
+        The molecule to be aligned.
+    match : str
+        One of "any" (matches any pairs of atoms) and "elements" (matches only the same atoms).
+    always_maximum : bool
+        Always give the substructure that has the maximum common number of atoms - good for single
+       topology mapping. False is good for overall structure alignment. Note that in some more
+       complex molecules there might be an MCS that satisfies our criteria and is bigger. Here we
+       rely on there being one obvious MCS - something that should be the case in free energy
+       calculations anyway. Note that this option does not apply to chiral symmetric molecules.
+    matchChiralTag : bool
+        Take care of stereochemistry. Here we don't use rdkit's default behaviour because it is not
+       good for our purposes. We instead opt for a maximum common substructure and then pruning all
+       atoms that will not obey the stereochemistry. While this option does not work perfectly for
+       symmetric chiral molecules, it should work rather well in the general case. Again, the
+       results are best when the two molecules are similar in structure which should be the case
+       in FE calculations.
+    kwargs
+        Keyword arguments passed on to rdkit.Chem.rdFMCS.FindMCS.
+
+    Returns
+    -------
+
+    mcs : [tuple]
+        A list of tuples corresponding to the atom index matches between the reference and the other molecule.
     """
     def matchAndReturnMatches(*args, **kwargs):
         mcs_string = _FMCS.FindMCS(*args, **kwargs).smartsString
@@ -235,6 +346,29 @@ def getMCSMap(ref, mol, match="any", always_maximum=True, matchChiralTag=True, *
 
 
 def alignTwoMolecules(ref, mol, n_min=-1, mcs=None, **kwargs):
+    """
+    Aligns two molecules based on an input MCS.
+
+    Parameters
+    ----------
+    ref : rdkit.Chem.rdchem.Mol
+        The reference molecule.
+    mol : rdkit.Chem.rdchem.Mol
+        The molecule to be aligned.
+    n_min : int
+        Minimum number of force field minimisation iterations. -1 is no limit.
+    mcs : [tuple]
+        The maximum common substucture. None means the one generated from getMCSMap.
+    kwargs
+        Keyword arguments passed onto getMCSMap if mcs is None.
+
+    Returns
+    -------
+        mol : rdkit.Chem.rdchem.Mol
+            The aligned molecule.
+        mcs : [tuple]
+            The maximum common substructure.
+    """
     if mcs is None:
         mcs = getMCSMap(ref, mol, **kwargs)
 
@@ -258,13 +392,42 @@ def alignTwoMolecules(ref, mol, n_min=-1, mcs=None, **kwargs):
     return mol, mcs
 
 
-# returns an array with the sorted ring sizes of all rings the target atom is contained in
 def getRings(atom_idx, molecule):
+    """
+    Returns an array with the sorted ring sizes of all rings the target atom is contained in.
+
+    Parameters
+    ----------
+    atom_idx : int
+        Index of the target atom.
+    molecule : rdkit.Chem.rdchem.Mol
+        The input molecule.
+
+    Returns
+    -------
+    rings : list
+        A sorted list of all rings the atom is a part of.
+    """
     rings = molecule.GetRingInfo().AtomRings()
     return sorted([len(ring) for ring in rings if atom_idx in ring])
 
 
 def isSublist(l1, l2):
+    """
+    Returns whether a list is a sublist of another, accounting for repeated elements.
+
+    Parameters
+    ----------
+    l1 : list
+        The sublist.
+    l2 : list
+        The main list.
+
+    Returns
+    -------
+    value : bool:
+        Whether l1 is contained in l2.
+    """
     c1, c2 = _Counter(l1), _Counter(l2)
     for k, n in c1.items():
         if n > c2[k]:
