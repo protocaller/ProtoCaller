@@ -16,6 +16,68 @@ import ProtoCaller.Utils.stdio as _stdio
 
 
 class Ensemble:
+    """
+    The main class responsible for handling batches of complexes in ProtoCaller.
+
+    Parameters
+    ----------
+    engine : str
+        Initialises the engine.
+    box_length_complex : float
+        Initialises box_length_complex.
+    box_length_morph : float
+        Initialises box_length_morph.
+    ion_conc : float
+        Initialises ion_conc.
+    shell : float
+        Initialises shell.
+    neutralise : bool
+        Initialises neutralise.
+    centre : bool
+        Initialises centre.
+    protein_ff : str
+        The protein force field. Used to initialise params.
+    ligand_ff : str
+        The ligand force field. Used to initialise params.
+    water_ff : str
+        The water / simple ion force field. Used to initialise params.
+    protein : ProtoCaller.Ensemble.Protein.Protein
+        Initialises protein.
+    ligand_ref : str or ProtoCaller.Ensemble.Ligand.Ligand or None or False
+        Initialises protein.ligand_ref.
+    morphs : ProtoCaller.Ensemble.PerturbationList.PerturbationList or [ProtoCaller.Ensemble.Perturbation.Perturbation] \
+             or [[ProtoCaller.Ensemble.Ligand.Ligand, ProtoCaller.Ensemble.Ligand.Ligand]]
+        Initialises morphs.
+    workdir : str
+        Initialises workdir.
+
+    Attributes
+    ----------
+    workdir : ProtoCaller.Utils.fileio.Dir
+        The working directory of the ensemble.
+    engine : str
+        The engine for which the input files are created. One of: "GROMACS".
+    box_length_complex : float
+        Size of the solvated complex box in nm. Cubic shape is assumed.
+    box_length_morph : float
+        Size of the solvated morph box in nm. Cubic shape is assumed.
+    shell : float
+        Places a layer of water of the specified thickness in nm around the solute.
+    neutralise : bool
+        Whether to add counterions to neutralise the system.
+    ion_conc : float
+        Ion concentration of NaCl in mol/L.
+    centre : bool
+        Whether to centre the system.
+    params : ProtoCaller.Parametrise.Params
+        Force field parameters.
+    protein : ProtoCaller.Ensemble.Protein
+        The common protein.
+    morphs : ProtoCaller.Ensemble.PerturbationList.PerturbationList
+         A list of all perturbations.
+    systems_prep : dict
+        The prepared systems.
+    """
     _common_properties = ["engine", "box_length_complex", "box_length_morph", "ion_conc", "shell", "protein",
                           "ligand_ref", "morphs"]
 
@@ -82,6 +144,21 @@ class Ensemble:
         super(Ensemble, self).__setattr__("_" + key, value)
 
     def prepareComplexes(self, replica_temps=None, intermediate_files=False, store_complexes=False, output_files=True):
+        """
+        Batch prepares all complexes with an option to output files for REST(2).
+
+        Parameters
+        ----------
+        replica_temps : [float] or None
+            A list of replica temperatures. Everything is normalised with respect to the lowest temperature. None
+            means only output the normal files.
+        intermediate_files : bool
+            Whether to store all intermediate files.
+        store_complexes : bool
+            Whether to store the final complexes as a dictionary of BioSimSpace System objects.
+        output_files : bool
+            Whether to write output files immediately or later via saveSystems
+        """
         # make sure the proteins / ligands are parametrised before proceeding
         with self.workdir:
             _stdio.stdout_stderr()(self.protein.parametrise)(params=self.params, reparametrise=False)
@@ -135,6 +212,14 @@ class Ensemble:
                     self.saveSystems({morph.name: (morph_sol, complexes)})
 
     def saveSystems(self, systems=None):
+        """
+        Saves all systems.
+
+        Parameters
+        ----------
+        systems : dict or None
+            Input systems to be saved. None means use self.systems_prep.
+        """
         if systems is None: systems = self.systems_prep
         # TODO support other engines
         print("Saving solvated complexes as GROMACS...")

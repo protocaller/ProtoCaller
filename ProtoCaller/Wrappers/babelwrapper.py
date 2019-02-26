@@ -13,7 +13,7 @@ def babelTransform(input_filename, output_extension="mol2", pH=None, generate_3D
         Name of the input file.
     output_extension : str
         Type of output extension.
-    pH : float
+    pH : float or None
         Hydrogenate the molecule for a certain pH. None means no hydrogenation.
     generate_3D_coords : bool
         Whether to generate 3D coordinates for the molecule.

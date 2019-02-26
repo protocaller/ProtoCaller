@@ -10,6 +10,27 @@ import ProtoCaller.Utils.stdio as _stdio
 
 
 class Perturbation:
+    """
+    The main class responsible for single-topology perturbations in ProtoCaller.
+
+    Parameters
+    ----------
+    ligand1 : ProtoCaller.Ensemble.Ligand.Ligand
+        Initialises ligand1.
+    ligand2 : ProtoCaller.Ensemble.Ligand.Ligand
+        Initialises ligand1.
+    name : str or None, optional
+        Initialises name.
+
+    Attributes
+    ----------
+    ligand1 : ProtoCaller.Ensemble.Ligand.Ligand
+        The first ligand.
+    ligand2 : ProtoCaller.Ensemble.Ligand.Ligand
+        The second ligand.
+    current_ref : ProtoCaller.Ensemble.Ligand.Ligand
+        The current reference ligand.
+    """
     _counter = 1
 
     def __init__(self, ligand1, ligand2, name=None):
@@ -28,6 +49,7 @@ class Perturbation:
 
     @property
     def name(self):
+        """The name of the perturbation."""
         return self._name
 
     @name.setter
@@ -41,6 +63,20 @@ class Perturbation:
             self._name = val
 
     def get_parametrised_files1(self, ref):
+        """
+        Returns parametrised files for the first ligand corresponding to a reference ligand.
+
+        Parameters
+        ----------
+        ref : ProtoCaller.Ensemble.Ligand.Ligand
+            The reference ligand.
+
+        Returns
+        -------
+        files : [str, str]
+            The parametrised files for the first ligand aligned to the reference ligand. The first file is a
+            topology file and the second file is a coordinate file.
+        """
         topol = None if not self.ligand1.parametrised else self.ligand1.parametrised_files[0]
         if self._ligand1_coords is not None:
             coords = self._ligand1_coords[ref]
@@ -54,9 +90,24 @@ class Perturbation:
 
     @property
     def parametrised_files1(self):
+        """The parametrised files for the first ligand corresponding to the current reference ligand."""
         return self.get_parametrised_files1(ref=self.current_ref)
 
     def get_parametrised_files2(self, ref):
+        """
+        Returns parametrised files for the second ligand corresponding to a reference ligand.
+
+        Parameters
+        ----------
+        ref : ProtoCaller.Ensemble.Ligand.Ligand
+            The reference ligand.
+
+        Returns
+        -------
+        files : [str, str]
+            The parametrised files for the first second aligned to the reference ligand. The first file is a
+            topology file and the second file is a coordinate file.
+        """
         topol = None if not self.ligand2.parametrised else self.ligand2.parametrised_files[0]
         if self._ligand2_coords is not None:
             coords = self._ligand2_coords[ref]
@@ -70,23 +121,73 @@ class Perturbation:
 
     @property
     def parametrised_files2(self):
+        """The parametrised files for the second ligand corresponding to the current reference ligand."""
         return self.get_parametrised_files2(ref=self.current_ref)
 
     def get_morph(self, ref):
+        """
+        Returns the mixed topology object corresponding to a reference ligand.
+
+        Parameters
+        ----------
+        ref : ProtoCaller.Ensemble.Ligand.Ligand
+            The reference ligand.
+
+
+        Returns
+        -------
+        morph : BioSimSpace.System
+            The mixed topology object aligned to the reference ligand.
+        """
         return self._morph[ref]
 
     @property
     def morph(self):
+        """The mixed topology object corresponding to the current reference ligand."""
         return self._morph[self.current_ref]
 
     def isAlignedTo(self, ref):
+        """
+        Returns whether there is a mixed topology file that has been aligned to the reference ligand.
+
+        Parameters
+        ----------
+        ref : ProtoCaller.Ensemble.Ligand.Ligand
+            The reference ligand.
+
+        Returns
+        -------
+        exists : bool
+            Whether the mixed topology file has already been aligned to the reference ligand.
+        """
         return ref in self._morph.keys()
 
     @property
     def isAligned(self):
+        """Whether there is a mixed topology file that has been aligned to the current reference ligand."""
         return self.isAlignedTo(self.current_ref)
 
     def alignToReference(self, ref, output_filename=None, realign=False, **kwargs):
+        """
+        Aligns the first ligand to a reference ligand.
+
+        Parameters
+        ----------
+        ref : ProtoCaller.Ensemble.Ligand.Ligand
+            The reference ligand.
+        output_filename : str
+            The name of the output file. None uses the default value.
+        realign : bool
+            Whether to realign an already aligned ligand.
+        kwargs
+            Keyword arguments to pass to ProtoCaller.Wrappers.rdkitwrapper.alignTwoMolecules.
+            Default: always_maximum = False.
+
+        Returns
+        -------
+        mcs : [tuple]
+            The maximum common substructure of the two molecules.
+        """
         self.current_ref = ref
         if ref in self._ligand1_molecule.keys() and ref in self._ligand1_coords.keys() and not realign:
             print("Morph %s is already aligned to a reference" % self.name)
@@ -105,6 +206,26 @@ class Perturbation:
         return mcs
 
     def alignToEachOther(self, output_filename=None, realign=False, **kwargs):
+        """
+        Aligns the second ligand to the first ligand.
+
+        Parameters
+        ----------
+        output_filename : str
+            The name of the output file. None uses the default value.
+        realign : bool
+            Whether to realign an already aligned ligand.
+        kwargs
+            Keyword arguments to pass to ProtoCaller.Wrappers.rdkitwrapper.alignTwoMolecules.
+            Default: always_maximum = True.
+
+        Returns
+        -------
+        morph : BioSimSpace.System
+            The mixed topology object.
+        mcs : [tuple]
+            The maximum common substructure of the two molecules.
+        """
         if self.current_ref in self._morph.keys() and not realign:
             print("Morph %s is already aligned to a reference" % self.name)
             return
@@ -142,7 +263,22 @@ class Perturbation:
 
         return self._morph[self.current_ref], mcs
 
-    # default alignment method wrapping the two alignment stages
     def alignAndCreateMorph(self, ref):
+        """
+        Default alignment method wrapping the two alignment stages - aligning ligand1 to a reference and aligning and
+        mixing ligand2 to ligand1.
+
+        Parameters
+        ----------
+        ref : ProtoCaller.Ensemble.Ligand.Ligand
+            The reference ligand.
+
+        Returns
+        -------
+        morph : BioSimSpace.System
+            The mixed topology object object.
+        mcs : [tuple]
+            The maximum common substructure of the two molecules.
+        """
         self.alignToReference(ref)
         return self.alignToEachOther()

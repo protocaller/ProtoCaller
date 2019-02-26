@@ -11,9 +11,37 @@ import ProtoCaller.Wrappers.babelwrapper as _babel
 
 
 class Ligand:
+    """
+    The main class responsible for handling ligands and cofactors in ProtoCaller.
+
+    Parameters
+    ----------
+    input: str or rdkit.Chem.rdChem.Mol
+        Initialises the ligand from a SMILES string, InChI string, file or an RDKit Mol object.
+    parametrised_files: [str]
+        Initialises the parametrised file(s).
+    name: str or None
+        Initialises the ligand name.
+    protonated : bool
+        Whether the input corresponds to the protonated or deprotonated state of the molecule.
+    minimise : bool or None
+        Initialises minimise.
+    workdir : str, optional
+        Initialises workdir.
+
+    Attributes
+    ----------
+    name : str
+        The ligand name. Default: e.g. "ligand1" for the first instantiated Ligand object.
+    workdir : ProtoCaller.Utils.fileio.Dir
+        The working directory of the ligand.
+    minimise : bool
+        Whether to perform a GAFF minimisation using OpenBabel. None means minimisation for molecules initialised from
+        strings and no minimisation for molecules initialised from files.
+    """
     _counter = 1
 
-    def __init__(self, input, parametrised_files=None, name=None, protonated=False, minimise=True, workdir="."):
+    def __init__(self, input, parametrised_files=None, name=None, protonated=False, minimise=None, workdir="."):
         self.name = name
         self.workdir = _fileio.Dir(workdir)
         self.minimise = minimise
@@ -41,6 +69,7 @@ class Ligand:
 
     @property
     def name(self):
+        """The name of the ligand"""
         return self._name
 
     @name.setter
@@ -53,6 +82,7 @@ class Ligand:
 
     @property
     def string(self):
+        """The SMILES string of the ligand."""
         return self._string
 
     @string.setter
@@ -65,6 +95,7 @@ class Ligand:
 
     @property
     def molecule(self):
+        """The rdkit.Chem.rdChem.Mol object of the ligand."""
         return self._molecule
 
     @molecule.setter
@@ -77,10 +108,12 @@ class Ligand:
 
     @property
     def protonated(self):
+        """Whether the ligand has been protonated."""
         return self._protonated
 
     @property
     def protonated_filename(self):
+        """The absolute path to the protonated file."""
         return self._protonated_filename
 
     @protonated_filename.setter
@@ -97,10 +130,12 @@ class Ligand:
 
     @property
     def parametrised(self):
+        """Whether the ligand has been parametrised."""
         return self._parametrised
 
     @property
     def parametrised_files(self):
+        """The absolute path(s) to the parametrised file(s)."""
         return self._parametrised_files
 
     @parametrised_files.setter
@@ -116,6 +151,18 @@ class Ligand:
                 self._parametrised = True
 
     def protonate(self, reprotonate=False, babel_parameters=None, rdkit_parameters=None):
+        """
+        Protonates the ligand using OpenBabel.
+
+        Parameters
+        ----------
+        reprotonate : bool
+            Whether to reprotonate an already protonated ligand.
+        babel_parameters : dict
+            Keyword arguments to be passed to ProtoCaller.Wrappers.babelwrapper
+        rdkit_parameters : dict
+            Keyword arguments to be passed to ProtoCaller.Wrappers.rdkitwrapper
+        """
         with self.workdir:
             if babel_parameters is None: babel_parameters = {}
             babel_parameters = {"pH": 7.0, **babel_parameters}
@@ -131,6 +178,20 @@ class Ligand:
                 self.molecule = _rdkit.openFileAsRdkit(self.protonated_filename, removeHs=False, **rdkit_parameters)
 
     def parametrise(self, params=None, molecule_type="ligand", id=None, reparametrise=False):
+        """
+        Parametrises the ligand using ProtoCaller.Parametrise.
+
+        Parameters
+        ----------
+        params : ProtoCaller.Parametrise.Params
+            Force field parameters.
+        molecule_type : str
+            The type of the molecule. One of: "ligand" and "cofactor".
+        id : str
+            The name of the molecule. Default: equal to the ligand name.
+        reparametrise : bool
+            Whether to reparametrise an already parametrised ligand.
+        """
         with self.workdir:
             print("Parametrising ligand %s..." % self.name)
             if self._parametrised and not reparametrise:

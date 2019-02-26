@@ -9,7 +9,7 @@ from . import amber
 
 class Params:
     """
-    A simple class which contains force field names different molecule types.
+    A simple class which contains force field names for different molecule types.
 
     Parameters
     ----------

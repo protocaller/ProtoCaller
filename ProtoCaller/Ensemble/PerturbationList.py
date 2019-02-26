@@ -4,6 +4,9 @@ from ProtoCaller.Utils.ConditionalList import ConditionalList as _ConditionalLis
 
 
 class PerturbationList(_ConditionalList):
+    """
+    A ProtoCaller.Utils.ConditionalList.ConditionalList of ProtoCaller.Ensemble.Perturbation.Perturbation
+    """
     def __init__(self, perturbations):
         _ConditionalList.__init__(self, perturbations, transformfunc=self._transformMorph)
 

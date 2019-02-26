@@ -20,6 +20,34 @@ import ProtoCaller.Wrappers.PDB2PQRwrapper as _PDB2PQR
 
 
 class Protein:
+    """
+    The main class responsible for handling proteins in ProtoCaller.
+
+    Parameters
+    ----------
+    code : str
+        The PDB code of the protein.
+    pdb_file : str, optional
+        Path to custom PDB file.
+    ligand_ref : str or ProtoCaller.Ensemble.Ligand.Ligand or None or False
+        Initialises ligand_ref from a "resSeq/iCode" (e.g. "400G") or from a Ligand or from a file or automatically
+        (None) or enforces no reference ligand (False)
+    fasta_file : str, optional
+        Path to custom FASTA file.
+    complex_template : BioSimSpace.System
+        Initialises the complex from an already created complex_template
+    name  optional : str
+        Initialises the protein name.
+    workdir : str, optional
+        Initialises workdir.
+
+    Attributes
+    ----------
+    workdir : ProtoCaller.Utils.fileio.Dir
+        The working directory of the protein.
+    name : str
+        The protein name. Default is the PDB code thereof.
+    """
     def __init__(self, code, pdb_file=None, ligand_ref=None, fasta_file=None, complex_template=None, name=None,
                  workdir=None):
         self.workdir = _fileio.Dir(workdir) if workdir else _fileio.Dir(code)
@@ -39,6 +67,7 @@ class Protein:
 
     @property
     def ligand_ref(self):
+        """ProtoCaller.Ensemble.Ligand.Ligand: The reference ligand."""
         return self._ligand_ref
 
     @ligand_ref.setter
@@ -68,6 +97,7 @@ class Protein:
 
     @property
     def pdb(self):
+        """str: The absolute path to the PDB file for the protein."""
         with self.workdir:
             if self._pdb is None:
                 return self._downloader.getPDB()
@@ -82,10 +112,12 @@ class Protein:
 
     @property
     def pdb_obj(self):
+        """ProtoCaller.IO.PDB.PDB: The object corresponding to the PDB file."""
         return self._pdb_obj
 
     @property
     def fasta(self):
+        """str: The absolute path to the FASTA file for the protein."""
         with self.workdir:
             if self._fasta is None:
                 return self._downloader.getFASTA()
@@ -101,17 +133,41 @@ class Protein:
                simple_anions="chain", complex_anions="chain", simple_cations="chain", complex_cations="chain",
                include_mols=None, exclude_mols=None):
         """
-        :type missing_residues: "all" or "middle"
-        :param missing_residues: which missing residues to keep
-        :type chains: "all" OR a list of characters for chains to keep
-        :type everything inbetween: "all" OR "chain" (only molecules belonging to a chain) OR "site" OR None;
-                                    other molecules can be added via include_mols
-        :param include_mols: include residue name; overrides previous filters
-        :type include_mols: list of strings
-        :param exclude_mols: exclude residue name; overrides previous filters
-        :type exclude_mols: list of strings
-        :return: nothing; rewrites PDB file
-        :rtype: void
+        Conditionally removes certain molecules from the PDB object and rewrites the PDB file.
+
+        Parameters
+        ----------
+        missing_residues : str
+            One of "all" or "middle". Determines whether to only add missing residues when they are non-terminal.
+        chains : str
+            One of "all" or an iterable of characters for chains to keep.
+        waters : str or None
+            One of "all", "chain" (only keep molecules belonging to a chain), "site" (only keep if they are mentioned in
+            the PDB SITE directive) or None (no molecules are included).
+        ligands : str or None
+            One of "all", "chain" (only keep molecules belonging to a chain), "site" (only keep if they are mentioned in
+            the PDB SITE directive) or None (no molecules are included).
+        cofactors : str or None
+            One of "all", "chain" (only keep molecules belonging to a chain), "site" (only keep if they are mentioned in
+            the PDB SITE directive) or None (no molecules are included).
+        simple_anions : str or None
+            One of "all", "chain" (only keep molecules belonging to a chain), "site" (only keep if they are mentioned in
+            the PDB SITE directive) or None (no molecules are included).
+        complex_anions : str or None
+            One of "all", "chain" (only keep molecules belonging to a chain), "site" (only keep if they are mentioned in
+            the PDB SITE directive) or None (no molecules are included).
+        simple_cations : str or None
+            One of "all", "chain" (only keep molecules belonging to a chain), "site" (only keep if they are mentioned in
+            the PDB SITE directive) or None (no molecules are included).
+        complex_cations : str or None
+            One of "all", "chain" (only keep molecules belonging to a chain), "site" (only keep if they are mentioned in
+            the PDB SITE directive) or None (no molecules are included).
+        include_mols : [str]
+            A list of strings which specify filtering conditions for molecules that should be included. Overrides
+            previous filters.
+        exclude_mols : [str]
+            A list of strings which specify filtering conditions for molecules that should be excluded. Overrides
+            previous filters.
         """
         if include_mols is None: include_mols = []
         if exclude_mols is None: exclude_mols = []
@@ -191,6 +247,20 @@ class Protein:
 
     def prepare(self, add_missing_residues="modeller", add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
                 protonate_ligands="babel"):
+        """
+        Adds missing residues / atoms to the protein and protonates it and the relevant ligands.
+
+        Parameters
+        ----------
+        add_missing_residues : str or None
+            How to add missing residues. One of "modeller" and None (no addition).
+        add_missing_atoms : str or None
+            How to add missing atoms. One of "modeller", "pdb2pqr" and None (no addition).
+        protonate_proteins : str or None
+            How to protonate the protein. One of "pdb2pqr" and None (no protonation).
+        protonate_ligands : str or None
+            How to protonate the related ligands / cofactors. One of "babel" and None (no protonation).
+        """
         with self.workdir:
             add_missing_residues = add_missing_residues.strip().lower() if add_missing_residues is not None else ""
             add_missing_atoms = add_missing_atoms.strip().lower() if add_missing_atoms is not None else ""
@@ -236,6 +306,16 @@ class Protein:
                     _warnings.warn("Need to protonate all relevant ligands / cofactors before any parametrisation")
 
     def parametrise(self, params, reparametrise=False):
+        """
+        Parametrises the whole protein system.
+
+        Parameters
+        ----------
+        params : ProtoCaller.Parametrise.Params
+            Force field parameters.
+        reparametrise : bool
+            Whether to reparametrise an already parametrised ligand.
+        """
         if self.complex_template is not None and not reparametrise:
             print("Protein complex template %s is already parametrised." % self.name)
             return
@@ -276,6 +356,18 @@ class Protein:
 
     @staticmethod
     def _residTransform(id):
+        """
+        Transforms a string from e.g. "400G" to (400, "G")
+
+        Parameters
+        ----------
+        id : str
+
+        Returns
+        -------
+        resSeq : int
+        iCode : str
+        """
         id = id.strip()
         if id[-1].isalpha():
             iCode = id[-1]

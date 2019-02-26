@@ -4,6 +4,10 @@ import re as _re
 
 import parmed as _pmd
 
+# TODO: make Morph viable
+__all__ = []
+
+
 class Morph():
     def __init__(self, system1, system2):
         for res1, res2 in zip(system1.residues, system2.residues):

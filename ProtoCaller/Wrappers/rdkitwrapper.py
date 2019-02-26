@@ -108,8 +108,9 @@ def openAsRdkit(val, minimise=None, **kwargs):
     ----------
     val : str
         Input value - SMILES, InChI strings or a filename.
-    minimise:
-        Whether to perform a GAFF minimisation using OpenBabel. None means no minimisation.
+    minimise : bool or None
+        Whether to perform a GAFF minimisation using OpenBabel. None means minimisation for molecules initialised from
+        strings and no minimisation for molecules initialised from files.
     kwargs
         Keyword arguments to be passed to the more specialsied RDKit functions.
 
@@ -357,7 +358,7 @@ def alignTwoMolecules(ref, mol, n_min=-1, mcs=None, **kwargs):
         The molecule to be aligned.
     n_min : int
         Minimum number of force field minimisation iterations. -1 is no limit.
-    mcs : [tuple]
+    mcs : [tuple] or None
         The maximum common substucture. None means the one generated from getMCSMap.
     kwargs
         Keyword arguments passed onto getMCSMap if mcs is None.
