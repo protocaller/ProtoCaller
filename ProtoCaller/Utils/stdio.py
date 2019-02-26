@@ -3,6 +3,7 @@ import sys as _sys
 import warnings as _warnings
 
 def stdout_stderr(stdout=_os.devnull, stderr=_os.devnull):
+    """A decorator which redirects the stdout and stderr to a custom stream. Default is suppression of all output."""
     def decorator(f):
         def f_mod(*args, **kwargs):
             _sys.stdout.flush()
@@ -23,6 +24,7 @@ def stdout_stderr(stdout=_os.devnull, stderr=_os.devnull):
     return decorator
 
 def warnings_as_errors(f):
+    """A decorator which casts all warnings as errors."""
     def f_mod(*args, **kwargs):
         with _warnings.catch_warnings():
             _warnings.filterwarnings("error")
@@ -31,6 +33,7 @@ def warnings_as_errors(f):
     return f_mod
 
 def ignore_warnings(f):
+    """A decorator which suppresses all warnings."""
     def f_mod(*args, **kwargs):
         with _warnings.catch_warnings():
             _warnings.filterwarnings("ignore")

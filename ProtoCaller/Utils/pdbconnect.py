@@ -6,6 +6,19 @@ from ProtoCaller.shared import pypdb as _pypdb
 
 
 class PDBDownloader:
+    """
+    A class which acts as a client to Protein Data Bank.
+
+    Parameters
+    ----------
+    code : str
+        Initialises code.
+
+    Attributes
+    ----------
+    code : str
+        The PDB code of the protein.
+    """
     def __init__(self, code):
         self.code = code
 
@@ -32,6 +45,7 @@ class PDBDownloader:
         print("OK") if self._html else "FAILED"
 
     def getFASTA(self):
+        """str: Returns the absolute path to the FASTA file downloaded from the Protein Data Bank."""
         self._download_html()
         if self._fasta: return self._fasta
         fasta_url = _re.search(r'"/pdb/[\S]*downloadFasta[\S]*"', self._html).group(0)
@@ -50,6 +64,19 @@ class PDBDownloader:
         return self._fasta
 
     def getLigands(self, ligands="all"):
+        """
+        Retrieves the ligands as SDF files from the Protein Data Bank.
+
+        Parameters
+        ----------
+        ligands : str, [str]
+            Either a list of Ligand ID's to keep or "all", in which case all ligands are downloaded.
+
+        Returns
+        -------
+        ligands : [str]
+            A list of the absolute paths of all ligands.
+        """
         self._download_html()
         if self._ligands: return self._ligands
         raw_file_url_list = _re.findall(r'"/pdb/download/downloadLigandFiles.do\?ligandIdList=[^"]*"', self._html)
@@ -74,6 +101,7 @@ class PDBDownloader:
         return self._ligands
 
     def getPDB(self):
+        """str: Returns the absolute path to the PDB file downloaded from the Protein Data Bank."""
         if self._pdb: return self._pdb
         try:
             pdb_string = _pypdb.get_pdb_file(self._code, filetype="pdb", compression=False)

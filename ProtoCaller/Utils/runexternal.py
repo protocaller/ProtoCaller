@@ -4,6 +4,18 @@ import sys as _sys
 
 
 def runExternal(*commands, procname=None, output_filebase=None):
+    """
+    A wrapper for subprocess.check_call.
+
+    Parameters
+    ----------
+    commands
+        Positional arguments of type str. These are the shell commands to be executed.
+    procname : str or None, optional
+        The name of the process. None is the first word of the first executed command.
+    output_filebase : str or None, optional
+        The file base of the output logs. None is equal to the procname.
+    """
     try:
         if(procname in ["", None]): procname = _re.search(r"([\w]*)\s", commands[0]).group(1)
     except:

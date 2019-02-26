@@ -4,6 +4,42 @@ import shutil as _shutil
 
 
 class Dir:
+    """
+    A class that handles directory changes in Python in a more intuitive way.
+
+    Parameters
+    ----------
+    dirname : str
+        Initialises dirname.
+    copydirname : str or None
+        Initialises copydirname.
+    overwrite : bool
+        Initialises overwrite.
+    temp : bool
+        Initialises temp.
+    purge_immediately : bool
+        Initialise purge_immediately.
+
+
+    Attributes
+    ----------
+    workdirname : str
+        The absolute path to the parent directory of Dir.
+    dirname : str
+        The directory name.
+    copydirname : str or None
+        If not None, copies the directory in copydirname as a basis for Dir.
+    path : str
+        Full absolute path of the directory.
+    overwrite : bool
+        Whether to overwrite any directories with the same name as Dir.
+    temp : bool
+        If True, the directory is deleted upon __exit__.
+    purge_immediately : bool
+        If True, the directory is only deleted upon program exit. Only valid if temp is True.
+    initialdirnames : [str]
+        Keeps track of different places from which __enter__ has been called in order to avoid mistakes.
+    """
     def __init__(self, dirname, copydirname=None, overwrite=False, temp=False, purge_immediately=True):
         if _os.path.isabs(dirname):
             self.workdirname = _os.path.dirname(dirname)
@@ -49,6 +85,7 @@ class Dir:
 
 
 def checkFileExists(file):
+    """A simple wrapper around os.path.exists which throws an error if False."""
     if not _os.path.exists(file):
         raise ValueError("File %s does not exist. Please provide a valid filename." % file)
     return _os.path.abspath(file)

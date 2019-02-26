@@ -1,5 +1,17 @@
 class ConditionalList(list):
-    # a class that conditionally accepts new elements based on user-defined functions
+    """
+    A class that conditionally accepts new elements based on user-defined functions.
+
+    Parameters
+    ----------
+    input_list : list
+       Name of the input list.
+    checkfuncs
+        Positional arguments which need to be callable. These are the functions which are used to check any added
+        element. These should throw an error if the element should not be a part of the list.
+    transformfunc
+        A callable which optionally transforms the input after the checks and before addition to the list.
+    """
     def __init__(self, input_list, *checkfuncs, transformfunc=None):
         if checkfuncs is None: checkfuncs = []
         if not isinstance(input_list, list):
