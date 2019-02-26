@@ -10,6 +10,17 @@ from .Chain import *
 
 
 class PDB(Chain, _CondList.ConditionalList):
+    """
+    Represents a whole PDB file.
+
+    Parameters
+    ----------
+    input : str
+        Name of the input PDB file.
+
+    Attributes
+    ----------
+    """
     # properties which have to be conserved within the whole PDB
     _common_properties = []
 
@@ -19,10 +30,12 @@ class PDB(Chain, _CondList.ConditionalList):
 
     @property
     def type(self):
+        """str: Returns "protein". A potentially useful placeholder for more functionality in the future."""
         return "protein"
 
     @property
     def filename(self):
+        """str: Name of the file corresponding to the PDB object."""
         return self._filename
 
     @filename.setter
@@ -32,6 +45,7 @@ class PDB(Chain, _CondList.ConditionalList):
             raise ValueError("Input '{}' is not a valid filename or PDB code".format(value))
 
     def readPDB(self, filename):
+        """Reads the input PDB."""
         self.filename = filename
         pdb_string = open(self.filename).readlines()
         if pdb_string[-1][:3] != "END": pdb_string += ["END" + " " * 80]
@@ -94,6 +108,19 @@ class PDB(Chain, _CondList.ConditionalList):
                     self.missing_atoms += [MissingAtoms(*args, atoms=arr)]
 
     def writePDB(self, filename=None):
+        """
+        Writes the object as a PDB file.
+
+        Parameters
+        ----------
+        filename : str or None
+            Name of the output file. Default: original filename.
+
+        Returns
+        -------
+        filename : str
+            The absolute path to the written PDB file.
+        """
         if filename is None: filename = self.filename
         with open(filename, "w") as file:
             for residue in self.missing_residues + self.missing_atoms:
@@ -119,6 +146,21 @@ class PDB(Chain, _CondList.ConditionalList):
         return filename
 
     def writeHetatms(self, filebase=None):
+        """
+        Partitions every type of HETATM molecules into a separate PDB file.
+
+        Parameters
+        ----------
+        filebase : str or None
+            Base name of the output files. Default: the original PDB name.
+
+        Returns
+        -------
+        filenames : [str]
+            The absolute paths of all output files.
+        moltypes : [str]
+            Their corresponding moltypes.
+        """
         if filebase is None: filebase = _os.path.splitext(self.filename)[0]
         filenames = []
         moltypes = []
@@ -134,6 +176,21 @@ class PDB(Chain, _CondList.ConditionalList):
         return filenames, moltypes
 
     def filter(self, mask, type="residues"):
+        """
+        Returns a selection based on a mask. E.g. mask="chainID='A'" returns all elements which belong to chain A.
+
+        Parameters
+        ----------
+        mask : str
+            A conditional expression which is to be evaluated.
+        type : str
+            The type of objects to be returned. One of "chains", "residues" and "atoms".
+
+        Returns
+        -------
+        total_list : list
+            All elements satisfying the given conditions.
+        """
         def add(elem):
             nonlocal i, condition, all_elems, curr_list
             if i == 0:
@@ -171,6 +228,7 @@ class PDB(Chain, _CondList.ConditionalList):
 
     @property
     def numberOfChains(self):
+        """int: Returns the number of chains."""
         return len(self)
 
     def reNumberResidues(self, start=1, custom_resSeqs=None, custom_iCodes=None):
@@ -217,6 +275,19 @@ class PDB(Chain, _CondList.ConditionalList):
         self.purgeEmpty()
 
     def totalResidueList(self, sort=True):
+        """
+        Returns only missing and non-missing residues with no HETATM molecules.
+
+        Parameters
+        ----------
+        sort : bool
+            Whether to sort the residues by number.
+
+        Returns
+        -------
+        total_res : [ProtoCaller.IO.PDB.Residue.Residue]
+            All residues in the PDB file.
+        """
         total_res = self.missing_residues + self.filter("type in ['amino_acid', 'amino_acid_modified']")
         if sort:
             PDB.sortResidueList(total_res)
@@ -224,6 +295,7 @@ class PDB(Chain, _CondList.ConditionalList):
 
     @staticmethod
     def sortResidueList(residuelist):
+        """A helper method which sorts the residues in the list by number."""
         if not isinstance(residuelist, list):
             raise TypeError("Need to input a list of Residues")
 

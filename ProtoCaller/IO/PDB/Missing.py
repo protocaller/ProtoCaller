@@ -4,6 +4,31 @@ from . import _Helper_Mixin
 
 
 class MissingResidue(_Helper_Mixin.HelperMixin):
+    """
+    Represents a missing residue in a PDB file.
+
+    Parameters
+    ----------
+    resName : str
+        Initialises resName.
+    chainID : str
+        Initialises chainID.
+    resSeq : str, int
+        Initialises resSeq.
+    iCode : str
+        Initialises iCode.
+
+    Attributes
+    ----------
+    resName : str
+        Residue name.
+    chainID : str
+        Chain identifier.
+    resSeq : int
+        Residue sequence number.
+    iCode : str
+        Code for insertion of residues.
+    """
     def __init__(self, resName, chainID, resSeq, iCode=" "):
         self.resName = resName
         self.chainID = chainID
@@ -60,10 +85,27 @@ class MissingResidue(_Helper_Mixin.HelperMixin):
 
     @property
     def type(self):
+        """Returns the type of the residue, determined by ProtoCaller.RESIDUETYPE."""
         return _PC.RESIDUETYPE(self.resName)
 
 
 class MissingAtoms(MissingResidue):
+    """
+    Represents all missing atoms corresponding to a single residue in a PDB file.
+
+    Parameters
+    ----------
+    resName : str
+        Initialises resName.
+    chainID : str
+        Initialises chainID.
+    resSeq : str, int
+        Initialises resSeq.
+    iCode : str
+        Initialises iCode.
+    atoms : [ProtoCaller.IO.PDB.Atom.Atom]
+        Initialises the missing atoms.
+    """
     def __init__(self, resName, chainID, resSeq, iCode=" ", atoms=None):
         super().__init__(resName=resName, chainID=chainID, resSeq=resSeq, iCode=iCode)
         self._atomlist = atoms

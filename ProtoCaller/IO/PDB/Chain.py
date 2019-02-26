@@ -3,6 +3,19 @@ from . import Residue as _Residue
 
 
 class Chain(_Residue, _CondList.ConditionalList):
+    """
+    Represents a single Chain in a PDB file.
+
+    Parameters
+    ----------
+    atoms : [ProtoCaller.IO.PDB.Residue.Residue]
+        A list of residues.
+
+    Attributes
+    ----------
+    chainID : str
+        Chain identifier.
+    """
     # properties which have to be conserved within the whole chain
     _common_properties = ["chainID"]
 
@@ -22,6 +35,7 @@ class Chain(_Residue, _CondList.ConditionalList):
 
     @property
     def type(self):
+        """Returns the type of the chain: "chain" if it has amino acid residues and "molecules" otherwise."""
         if not len(self):
             return None
         else:
@@ -36,6 +50,7 @@ class Chain(_Residue, _CondList.ConditionalList):
 
     @property
     def numberOfResidues(self):
+        """int: Returns the number of Residues."""
         return len(self)
 
     def reNumberAtoms(self, start=1, custom_serials=None):
@@ -50,6 +65,18 @@ class Chain(_Residue, _CondList.ConditionalList):
             i += residue.numberOfAtoms
 
     def reNumberResidues(self, start=1, custom_resSeqs=None, custom_iCodes=None):
+        """
+        Renumbers the residues.
+
+        Parameters
+        ----------
+        start : int, optional
+            Initial index.
+        custom_resSeqs : [int] or None, optional
+            A list of custom resSeqs. If None, residues are renumbered sequentially.
+        custom_iCodes : [str] or None, optional
+            A list of custom iCodes. If None, residues are renumbered sequentially.
+        """
         if custom_resSeqs is None:
             custom_resSeqs = [start + i for i in range(len(self))]
         if custom_iCodes is None:
@@ -66,18 +93,29 @@ class Chain(_Residue, _CondList.ConditionalList):
         self.purgeEmpty()
 
     def purgeEmpty(self):
+        """Removes empty elements."""
         empty_residues = [res for res in self if not len(res)]
         for empty_residue in empty_residues:
             self.remove(empty_residue)
 
     def purgeResidues(self, residues, mode):
+        """
+        Removes or keeps the selected residues.
+
+        Parameters
+        ----------
+        atoms : [ProtoCaller.IO.PDB.Atom.Atom]
+            Residues to be removed or kept
+        mode : str
+            One of "keep" and "discard" - either keeps only the selection or discards the latter.
+        """
         assert mode in ["keep", "discard"]
         residues_to_remove = residues if mode == "discard" else [x for x in self if x not in residues]
         for residue in residues_to_remove:
             self.remove(residue)
 
     def _checkResidue(self, residue):
-        # checks whether the residue has the same chainID as the current object
+        """Checks whether the residue has the same chainID as the current object."""
         try:
             for prop in self._common_properties:
                 if getattr(self, prop) is not None:

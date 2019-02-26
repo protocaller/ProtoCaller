@@ -2,6 +2,48 @@ from . import _Helper_Mixin
 
 
 class Atom(_Helper_Mixin.HelperMixin):
+    """
+    Represents a single ATOM or HETATM instance in a PDB file. The attributes in this atom have been taken from:
+    https://swift.cmbi.umcn.nl/gv/whatcheck/HTML/Format.pdf, p. 194.
+
+    Parameters
+    ----------
+    pdb_line : str
+        A line from a PDB file that starts with "ATOM" or "HETATM".
+
+    Attributes
+    ----------
+    type : str
+        "ATOM" or "HETATM".
+    serial : int
+        Atom serial number.
+    name : str
+        Atom name.
+    altLoc : str
+        Alternate location indicator.
+    resName : str
+        Residue name.
+    chainID : str
+        Chain identifier.
+    resSeq : int
+        Residue sequence number.
+    iCode : str
+        Code for insertion of residues.
+    x : float
+        Orthogonal coordinates for X in Angstroms.
+    y : float
+        Orthogonal coordinates for Y in Angstroms.
+    z : float
+        Orthogonal coordinates for Z in Angstroms.
+    occupancy : str
+        Occupancy.
+    tempFactor : str
+        Temperature factor.
+    element : str
+        Element symbol.
+    charge : str
+        Charge on the atom.
+    """
     _common_properties = ["type", "serial", "name", "altLoc", "resName", "chainID", "resSeq", "iCode", "x", "y", "z",
                           "occupancy", "tempFactor", "element", "charge"]
 

@@ -3,6 +3,25 @@ from . import Missing as _Missing
 
 
 class Residue(_Missing.MissingResidue, _CondList.ConditionalList):
+    """
+    Represents a single residue in a PDB file.
+
+    Parameters
+    ----------
+    atoms : [ProtoCaller.IO.PDB.Atom.Atom]
+        A list of atoms.
+
+    Attributes
+    ----------
+    resName : str
+        Residue name.
+    chainID : str
+        Chain identifier.
+    resSeq : int
+        Residue sequence number.
+    iCode : str
+        Code for insertion of residues.
+    """
     # properties which have to be conserved within the whole residue
     _common_properties = ["chainID", "resName", "resSeq", "iCode"]
 
@@ -35,9 +54,20 @@ class Residue(_Missing.MissingResidue, _CondList.ConditionalList):
 
     @property
     def numberOfAtoms(self):
+        """int: Returns the number of atoms."""
         return len(self)
 
     def reNumberAtoms(self, start=1, custom_serials=None):
+        """
+        Renumbers the atoms.
+
+        Parameters
+        ----------
+        start : int, optional
+            Initial index.
+        custom_serials : [int] or None, optional
+            A list of custom indices. If None, atoms are renumbered sequentially.
+        """
         if custom_serials is None:
             serials = [start + i for i in range(start, start + len(self))]
         elif len(custom_serials) == len(self):
@@ -49,13 +79,23 @@ class Residue(_Missing.MissingResidue, _CondList.ConditionalList):
             atom.serial = i
 
     def purgeAtoms(self, atoms, mode):
+        """
+        Removes or keeps the selected atoms.
+
+        Parameters
+        ----------
+        atoms : [ProtoCaller.IO.PDB.Atom.Atom]
+            Atoms to be removed or kept
+        mode : str
+            One of "keep" and "discard" - either keeps only the selection or discards the latter.
+        """
         assert mode in ["keep", "discard"]
         atoms_to_remove = atoms if mode == "discard" else [x for x in self if x not in atoms]
         for atom in atoms_to_remove:
             self.remove(atom)
 
     def _checkAtom(self, atom):
-        # checks whether the atom has the same chainID, resName, resSeq and iCode as the current object
+        """Checks whether the atom has the same chainID, resName, resSeq and iCode as the current object."""
         try:
             for prop in self._common_properties:
                 if getattr(self, prop) is not None:
