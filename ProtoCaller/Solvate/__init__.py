@@ -17,6 +17,36 @@ import ProtoCaller.Wrappers.parmedwrapper as _pmdwrap
 
 def solvate(complex, params, box_length=8, shell=0, neutralise=True, ion_conc=0.154, centre=True, work_dir=None,
             filebase="complex"):
+    """
+    Uses gmx solvate and gmx genion to solvate the system and (optionally) add NaCl ions. This function preserves the
+    crystal water molecules.
+
+    Parameters
+    ----------
+    complex : BioSimSpace.System or parmed.structure.Structure
+        The input unsolvated system.
+    params : ProtoCaller.Parametrise.Params
+        The input force field parameters.
+    box_length : float
+        Size of the box in nm. Cubic shape is assumed.
+    shell : float
+        Places a layer of water of the specified thickness in nm around the solute.
+    neutralise : bool
+        Whether to add counterions to neutralise the system.
+    ion_conc : float
+        Ion concentration of NaCl in mol/L.
+    centre : bool
+        Whether to centre the system.
+    work_dir : str
+        Work directory. Default: current directory.
+    filebase : str
+        Output base name of the file.
+
+    Returns
+    -------
+    complex : BioSimSpace.System or parmed.structure.Structure
+        The solvated system.
+    """
     if isinstance(complex, _pmd.Structure):
         centrefunc = _pmdwrap.centre
         chargefunc = lambda x: round(sum([atom.charge for atom in x.atoms]))
