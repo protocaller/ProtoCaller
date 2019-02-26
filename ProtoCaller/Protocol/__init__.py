@@ -5,6 +5,111 @@ import warnings as _warnings
 import BioSimSpace as _BSS
 
 class Protocol:
+    """
+    A wrapper for different simulation parameters.
+
+    Parameters
+    ----------
+    use_preset : str, None
+        Which default preset to use. One of: "minimisation", "equilibration_nvt", "equilibration_npt", "production"
+        "vacuum".
+    extra_params : dict
+        Used to set custom attributes with illegal Python characters in them.
+    kwargs:
+        Used to set any of the attributes, custom or not.
+
+    Attributes
+    ----------
+
+    integrator : string
+        Which integrator to use.
+    timestep : float
+        What timestep to use in ps.
+    n_steps : int
+        How many timesteps to run the simulation for.
+    skip_positions : int
+        How many timesteps to skip when writing the positions.
+    skip_velocities : int
+        How many timesteps to skip when writing the velocities.
+    skip_forces : int
+        How many timesteps to skip when writing the forces.
+    skip_energies : int
+        How many timesteps to skip when writing the energies.
+    periodic_boundary_conditions : string
+        Whether and how to implement periodic boundary conditions.
+    neighbour_cutoff : float
+        Cutoff in nm for neighbour list.
+    neighbour_frequency : int
+        How often to update the neighbour list in timesteps.
+    coulomb_type : string
+        What type of Coulomb interactions to use.
+    pme_order : int
+        What order of PME to use. Ignored if coulomb_type is not PME.
+    coulomb_cutoff : float
+        Cutoff in nm for electrostatics.
+    vdw_type : string
+        What type of van der Waals interactions to use.
+    vdw_corr : string
+        What type of long-distance correction to apply.
+    vdw_cutoff : float
+        Cutoff in nm for van der Waals interactions.
+    thermostat : string
+        What thermostat to use.
+    temp_frequency : int
+        Thermostat friction coefficient / collision frequency in THz.
+    temp_time_coupling : float
+        Time constant for thermostat coupling in ps. -1 means no coupling.
+    temperature : int
+        Simulation temperature.
+    temp_groups : string
+        Which parts of the system to heat up.
+    barostat : string
+        What barostat to use.
+    pres_frequency : int
+        Barostat friction coefficient / collision frequency in THz.
+    pres_time_coupling : float
+        Time constant for barostat coupling in ps. -1 means no coupling.
+    pressure : float
+        Simulation pressure.
+    compressibility : float
+        System compressibility.
+    random_velocities : bool
+        Whether to generate random velocities.
+    random_velocities_temperature : int
+        Temperature to sample velocities from.
+    random_velocities_seed : int
+        Seed for random velocity sampling. -1 is random seed.
+    constraint : string
+        Which constraints to apply.
+    constraint_type : string
+        Which constraint algorithm to use.
+    free_energy : bool
+        Whether this is a free energy calculation.
+    current_lambda : int
+        The current lambda. Indices start from 0.
+    coulomb_lambdas : [float]
+        Initialises coulomb_lambdas.
+    vdw_lambdas : [float]
+        Initialises vdw_lambdas.
+    bonded_lambdas : [float]
+        Initialises bonded_lambdas.
+    restraint_lambdas : [float]
+        Initialises restraint_lambdas.
+    mass_lambdas : [float]
+        Initialises mass_lambdas.
+    temperature_lambdas : [float]
+        Initialises temperature_lambdas.
+    write_derivatives : bool
+        Whether to write dH/dλ.
+    softcore_vdw : bool
+        Apply soft-core potential to van der Waals interactions.
+    softcore_coulomb : bool
+        Apply soft-core potential to Coulomb interactions.
+    softcore_alpha : float
+        Soft-core alpha parameter, default is 0.5.
+    softcore_lambda_power : int
+        Power for lambda in the soft-core function.
+    """
     def __init__(self, use_preset=None, extra_params=None, **kwargs):
         self._attrs = OrderedDict()
         #integrators
@@ -35,7 +140,7 @@ class Protocol:
         #electrostatics options
         self.coulomb_type = _BSS.Gateway.String(help="What type of Coulomb interactions to use",
                                                 allowed=["cutoff", "ewald", "pme"])
-        self.pme_order = _BSS.Gateway.Integer(help="What order of PME to use. Ignored if coulomb_type is not PME.",
+        self.pme_order = _BSS.Gateway.Integer(help="What order of PME to use. Ignored if coulomb_type is not PME",
                                               allowed=[4, 6, 8, 10])
         self.coulomb_cutoff = _BSS.Gateway.Float(help="Cutoff in nm for electrostatics",
                                                  minimum=0)
@@ -51,7 +156,7 @@ class Protocol:
         #temperature options
         self.thermostat = _BSS.Gateway.String(help="What thermostat to use",
                                               allowed=["no", "berendsen", "nose-hoover", "andersen"])
-        self.temp_frequency = _BSS.Gateway.Integer(help="Thermostat friction coefficient / collision frequency in THz.",
+        self.temp_frequency = _BSS.Gateway.Integer(help="Thermostat friction coefficient / collision frequency in THz",
                                                    minimum=-1)
         self.temp_time_coupling = _BSS.Gateway.Float(
             help="Time constant for thermostat coupling in ps. -1 means no coupling",
@@ -64,7 +169,7 @@ class Protocol:
         #pressure options
         self.barostat = _BSS.Gateway.String(help="What barostat to use",
                                             allowed=["no", "berendsen", "parrinello-rahman", "mttk"])
-        self.pres_frequency = _BSS.Gateway.Integer(help="Barostat friction coefficient / collision frequency in THz.",
+        self.pres_frequency = _BSS.Gateway.Integer(help="Barostat friction coefficient / collision frequency in THz",
                                                    minimum=-1)
         self.pres_time_coupling = _BSS.Gateway.Float(
             help="Time constant for barostat coupling in ps. -1 means no coupling",
@@ -171,6 +276,21 @@ class Protocol:
                 self.__attrs[name].setValue(value, name)
 
     def write(self, engine, filebase="protocol"):
+        """
+        Writes the protocol to a file for a specific MD engine.
+
+        Parameters
+        ----------
+        engine : str
+            Determines the format of the file. One of: "GROMACS".
+        filebase : str, optional
+            The base of the output file.
+
+        Returns
+        -------
+        filename : str
+            The absolute path to the output parameter file.
+        """
         engine = engine.strip().upper()
         if engine == "GROMACS":
             return self._writeToGROMACS(filebase)

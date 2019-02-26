@@ -45,7 +45,14 @@ class PDBDownloader:
         print("OK") if self._html else "FAILED"
 
     def getFASTA(self):
-        """str: Returns the absolute path to the FASTA file downloaded from the Protein Data Bank."""
+        """
+        Downloads the FASTA file from the Protein Data Bank.
+
+        Returns
+        -------
+        pdb : str
+            Returns the absolute path to the FASTA file downloaded from the Protein Data Bank.
+        """
         self._download_html()
         if self._fasta: return self._fasta
         fasta_url = _re.search(r'"/pdb/[\S]*downloadFasta[\S]*"', self._html).group(0)
@@ -101,7 +108,14 @@ class PDBDownloader:
         return self._ligands
 
     def getPDB(self):
-        """str: Returns the absolute path to the PDB file downloaded from the Protein Data Bank."""
+        """
+        Downloads the PDB file from the Protein Data Bank.
+
+        Returns
+        -------
+        pdb : str
+            Returns the absolute path to the PDB file downloaded from the Protein Data Bank.
+        """
         if self._pdb: return self._pdb
         try:
             pdb_string = _pypdb.get_pdb_file(self._code, filetype="pdb", compression=False)
