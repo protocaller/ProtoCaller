@@ -11,6 +11,8 @@ Welcome to ProtoCaller's documentation!
    :caption: Contents:
 
    readme
+   ProtoCaller
+   Examples
 
 Indices and tables
 ==================

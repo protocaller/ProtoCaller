@@ -6,7 +6,8 @@ from ProtoCaller.Utils.fileio import Dir
 from ProtoCaller.Ensemble import Ligand, Protein, Ensemble
 
 with Dir("Sialyltransferase", overwrite=True):
-    # create a protein from its PDB code and the residue number of the ligand we are going to use for mapping
+    # create a protein from its PDB code and the residue number of the ligand
+    # we are going to use for mapping
     protein = Protein("2WNB", ligand_ref="1344")
 
     # change the selenomethionine residues to methionine
@@ -25,20 +26,27 @@ with Dir("Sialyltransferase", overwrite=True):
     protein.pdb_obj.writePDB()
 
     # create two ligands from SMILES strings
-    lig1 = Ligand("O([P@]([O-])(=O)CC[C@@]1(C(=O)N)C[C@@H]([C@H]([C@H]([C@@H]([C@@H](CO)O)O)O1)NC(=O)C)O)C"
-                  "[C@H]1O[C@@H](n2c(=O)nc(N)cc2)[C@H](O)[C@@H]1O", workdir="Ligands")
-    lig2 = Ligand("[P@]([O-])(=O)(OC[C@H]1O[C@@H](n2ccc(nc2=O)N)[C@H](O)[C@@H]1O)CC[C@]1(CO)O[C@H]([C@@H]"
-                  "([C@H](C1)O)NC(=O)C)[C@H](O)[C@H](O)CO", workdir="Ligands")
+    lig1 = Ligand("O([P@]([O-])(=O)CC[C@@]1(C(=O)N)C[C@@H]([C@H]([C@H]([C@@H]"
+                  "([C@@H](CO)O)O)O1)NC(=O)C)O)C[C@H]1O[C@@H](n2c(=O)nc(N)cc2)"
+                  "[C@H](O)[C@@H]1O", workdir="Ligands")
+    lig2 = Ligand("[P@]([O-])(=O)(OC[C@H]1O[C@@H](n2ccc(nc2=O)N)[C@H](O)[C@@H]"
+                  "1O)CC[C@]1(CO)O[C@H]([C@@H]([C@H](C1)O)NC(=O)C)[C@H](O)"
+                  "[C@H](O)CO", workdir="Ligands")
+
     # create the morphs from the ligands
     morphs = [[lig1, lig2], [lig2, lig1]]
 
-    # create a system from the protein and the morphs and set up some default settings regarding system preparation
-    system = Ensemble("GROMACS", protein=protein, morphs=morphs, box_length_complex=7, ligand_ff="gaff2",
+    # create a system from the protein and the morphs and set up some default
+    # settings regarding system preparation
+    system = Ensemble("GROMACS", protein=protein, morphs=morphs,
+                      box_length_complex=7, ligand_ff="gaff2",
                       workdir=protein.workdir.path)
     # only keep the reference ligand and keep all crystallographic waters
     system.protein.filter(ligands=None, waters="all")
-    # add missing residues with Modeller and add missing atoms and protonate with PDB2PQR
-    protein.prepare(add_missing_residues="modeller", add_missing_atoms="pdb2pqr")
-    # prepare the complex and solvated leg starting structures and save them as GROMACS input
-    # parametrisation here will be very slow. Be patient
+    # add missing residues with Modeller and add missing atoms and protonate
+    # with PDB2PQR
+    system.protein.prepare(add_missing_residues="modeller",
+                           add_missing_atoms="pdb2pqr")
+    # prepare the complex and solvated leg starting structures and save them as
+    # GROMACS input. Parametrisation here will be very slow. Be patient
     system.prepareComplexes()

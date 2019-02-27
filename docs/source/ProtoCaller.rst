@@ -1,8 +1,8 @@
-ProtoCaller package
+Documentation
 ===================
 
-Subpackages
------------
+Here you can find all functions and classes in ProtoCaller. For some worked
+examples showing how ProtoCaller works as a whole, look at the "Examples" section.
 
 .. toctree::
 
@@ -14,11 +14,3 @@ Subpackages
     ProtoCaller.Solvate
     ProtoCaller.Utils
     ProtoCaller.Wrappers
-
-Module contents
----------------
-
-.. automodule:: ProtoCaller
-    :members:
-    :undoc-members:
-    :show-inheritance:

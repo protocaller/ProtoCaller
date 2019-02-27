@@ -11,22 +11,10 @@ Subpackages
 Submodules
 ----------
 
-ProtoCaller.IO.GROMACS module
------------------------------
+.. toctree::
 
-.. automodule:: ProtoCaller.IO.GROMACS
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ProtoCaller.IO.SDF module
--------------------------
-
-.. automodule:: ProtoCaller.IO.SDF
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
+   ProtoCaller.IO.GROMACS
+   ProtoCaller.IO.SDF
 
 Module contents
 ---------------

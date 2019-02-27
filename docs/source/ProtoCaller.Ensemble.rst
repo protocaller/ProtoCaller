@@ -4,38 +4,12 @@ ProtoCaller.Ensemble package
 Submodules
 ----------
 
-ProtoCaller.Ensemble.Ligand module
-----------------------------------
+.. toctree::
 
-.. automodule:: ProtoCaller.Ensemble.Ligand
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ProtoCaller.Ensemble.Perturbation module
-----------------------------------------
-
-.. automodule:: ProtoCaller.Ensemble.Perturbation
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ProtoCaller.Ensemble.PerturbationList module
---------------------------------------------
-
-.. automodule:: ProtoCaller.Ensemble.PerturbationList
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ProtoCaller.Ensemble.Protein module
------------------------------------
-
-.. automodule:: ProtoCaller.Ensemble.Protein
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
+   ProtoCaller.Ensemble.Ligand
+   ProtoCaller.Ensemble.Perturbation
+   ProtoCaller.Ensemble.PerturbationList
+   ProtoCaller.Ensemble.Protein
 
 Module contents
 ---------------

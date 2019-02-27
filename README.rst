@@ -37,4 +37,4 @@ Be patient during installation! ProtoCaller will tell you if it has been success
 Getting Started
 ---------------
 
-There are a few examples in the examples/ subfolder which you can run to see how ProtoCaller works. More detailed documentation for the software will be added in the future.
+There are a few examples which you can find either in the examples/ subfolder or in the "Examples" section of the documentation which you can run to see how ProtoCaller works.

@@ -4,14 +4,9 @@ ProtoCaller.Parametrise package
 Submodules
 ----------
 
-ProtoCaller.Parametrise.amber module
-------------------------------------
+.. toctree::
 
-.. automodule:: ProtoCaller.Parametrise.amber
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
+   ProtoCaller.Parametrise.amber
 
 Module contents
 ---------------
