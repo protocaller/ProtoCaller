@@ -6,7 +6,8 @@ from ProtoCaller.Utils.fileio import Dir
 from ProtoCaller.Ensemble import Ligand, Protein, Ensemble
 
 with Dir("Sialyltransferase", overwrite=True):
-    # create a protein from its PDB code and the residue number of the ligand we are going to use for mapping
+    # create a protein from its PDB code
+    # The residue number of the ligand we are going to use for mapping
     protein = Protein("2WNB", ligand_ref="1344")
 
     # change the selenomethionine residues to methionine
@@ -32,7 +33,8 @@ with Dir("Sialyltransferase", overwrite=True):
     # create the morphs from the ligands
     morphs = [[lig1, lig2], [lig2, lig1]]
 
-    # create a system from the protein and the morphs and set up some default settings regarding system preparation
+    # create a system from the protein and the morphs
+    # set up some default settings regarding system preparation
     system = Ensemble("GROMACS", protein=protein, morphs=morphs, box_length_complex=7, ligand_ff="gaff2",
                       workdir=protein.workdir.path)
     # only keep the reference ligand and keep all crystallographic waters
