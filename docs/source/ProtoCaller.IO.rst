@@ -1,6 +1,11 @@
 ProtoCaller.IO package
 ======================
 
+This module is responsible for (most of) ProtoCaller's native file parsing
+abilities. Of course, when it makes sense to do so, ProtoCaller simply uses
+superior external parsers, such as ParmEd or BioSimSpace and as such they are
+not included here.
+
 Subpackages
 -----------
 
