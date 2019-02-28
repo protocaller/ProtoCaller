@@ -41,7 +41,7 @@ def PDB2PQRtransform(filename_input, filename_output=None, **kwargs):
     for key, val in kwargs.items():
         default_kwargs[key] = val
 
-    runstring = " ".join([_PC.PDB2PQREXE, filename_input, filename_output])
+    runstring = "\"{}\" \"{}\" \"{}\"".format(_PC.PDB2PQREXE, filename_input, filename_output)
     for key, val in default_kwargs.items():
         if val is True:
             runstring += " --%s" % key

@@ -44,15 +44,15 @@ def amberWrapper(params, filename, molecule_type, id=None, charge=None, *args, *
         force_fields = [params.protein_ff, params.water_ff]
     elif molecule_type in ["water", "simple_anion", "simple_cation"]:
         force_fields = [params.water_ff]
-    elif molecule_type == "complex anion":
+    elif molecule_type == "complex_anion":
         _warnings.warn("AMBER parametrisation failed: polyatomic anions not supported")
         return
-    elif molecule_type == "complex cation":
+    elif molecule_type == "complex_cation":
         _warnings.warn("AMBER parametrisation failed: transition metals not supported")
         return
     elif molecule_type == "cofactor":
         force_fields = [params.ligand_ff]
-        param_files = _glob.glob("%s/shared/amber-parameters/cofactors/GDP.*" % _PC.HOMEDIR)
+        param_files = _glob.glob("%s/shared/amber-parameters/cofactors/%s.*" % (_PC.HOMEDIR, id))
     elif molecule_type == "ligand":
         force_fields = [params.ligand_ff]
         files = [runAntechamber(params.ligand_ff, filename, charge=charge)]

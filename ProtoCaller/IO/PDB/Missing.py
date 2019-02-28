@@ -89,7 +89,7 @@ class MissingResidue(_Helper_Mixin.HelperMixin):
         return _PC.RESIDUETYPE(self.resName)
 
 
-class MissingAtoms(MissingResidue):
+class MissingAtoms(MissingResidue, list):
     """
     Represents all missing atoms corresponding to a single residue in a PDB file.
 
@@ -107,12 +107,12 @@ class MissingAtoms(MissingResidue):
         Initialises the missing atoms.
     """
     def __init__(self, resName, chainID, resSeq, iCode=" ", atoms=None):
-        super().__init__(resName=resName, chainID=chainID, resSeq=resSeq, iCode=iCode)
-        self._atomlist = atoms
+        MissingResidue.__init__(self, resName=resName, chainID=chainID, resSeq=resSeq, iCode=iCode)
+        list.__init__(self, atoms)
 
     def __str__(self):
         string = "REMARK 470     {:3.3} {:1.1}{:4d}{:1.1}    ".format(self.resName, self.chainID, self.resSeq,
                                                                       self.iCode)
-        for atom in self._atomlist:
+        for atom in self:
             string += "{:<5.5}".format(atom)
         return string + "\n"
