@@ -86,6 +86,7 @@ class Dir:
 
 def checkFileExists(file):
     """A simple wrapper around os.path.exists which throws an error if False."""
+    file = _os.path.abspath(file)
     if not _os.path.exists(file):
         raise ValueError("File %s does not exist. Please provide a valid filename." % file)
-    return _os.path.abspath(file)
+    return file
