@@ -314,7 +314,7 @@ class Protein:
         params : ProtoCaller.Parametrise.Params
             Force field parameters.
         reparametrise : bool
-            Whether to reparametrise an already parametrised ligand.
+            Whether to reparametrise an already parametrised complex.
         """
         if self.complex_template is not None and not reparametrise:
             print("Protein complex template %s is already parametrised." % self.name)
