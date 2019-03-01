@@ -356,7 +356,8 @@ class Protein:
 
             # add cofactors to the system
             for cofactor in self.cofactors:
-                cofactor.parametrise(params, reparametrise=reparametrise, molecule_type="cofactor")
+                id = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", cofactor.name).group(2)
+                cofactor.parametrise(params, reparametrise=reparametrise, molecule_type="cofactor", id=id)
                 system += _pmdwrap.openFilesAsParmed(cofactor.parametrised_files)
 
             # add all other HETATMS to the system

@@ -4,7 +4,10 @@ import warnings as _warnings
 
 import ProtoCaller as _PC
 import ProtoCaller.Wrappers.babelwrapper as _babel
+import ProtoCaller.Wrappers.parmedwrapper as _pmd
+import ProtoCaller.Wrappers.rdkitwrapper as _rdkit
 import ProtoCaller.Utils.runexternal as _runexternal
+import ProtoCaller.Utils.stdio as _stdio
 
 __all__ = ["amberWrapper", "runAntechamber", "runParmchk", "runTleap"]
 
@@ -51,8 +54,41 @@ def amberWrapper(params, filename, molecule_type, id=None, charge=None, *args, *
         _warnings.warn("AMBER parametrisation failed: transition metals not supported")
         return
     elif molecule_type == "cofactor":
+        if params.water_ff != "tip3p":
+            _warnings.warn("All cofactors have been parametrised for use in "
+                           "the TIP3P water model. Be careful when using these"
+                           " parameters with %s" % params.water_ff.upper())
+        files = []
         force_fields = [params.ligand_ff]
         param_files = _glob.glob("%s/shared/amber-parameters/cofactors/%s.*" % (_PC.HOMEDIR, id))
+
+        # here we override the default parametrisation behaviour for cofactors
+        parametrised_files =  runTleap(force_fields=force_fields, files=files,
+                                       param_files=param_files, id=id, *args,
+                                       **kwargs)
+        filebase = _os.path.splitext(filename)[0]
+        topol = "{}.prmtop".format(filebase)
+        _os.rename(parametrised_files[0], topol)
+        parametrised_files[0] = topol
+
+        # convert the parametrised file into PDB and load in RDKit
+        ref = _rdkit.openAsRdkit(filename, removeHs=False)
+        mol = _pmd.openFilesAsParmed(parametrised_files, fix_dihedrals=False)
+        pdb_file = _pmd.saveFilesFromParmed(mol, [filename], overwrite=True)[0]
+        mol = _rdkit.openAsRdkit(pdb_file, removeHs=False)
+
+        # align the parametrised file to the molecule and overwrite
+        # previous coordinates
+        mol, mcs = _stdio.stdout_stderr()(_rdkit.alignTwoMolecules) \
+            (ref, mol, matchChiralTag=False, match="elements")
+        if min(mol.GetNumAtoms(), ref.GetNumAtoms()) != len(mcs):
+            _warnings.warn("The cofactor {} does not perfectly match the "
+                           "AMBER parameter file. Please check your "
+                           "molecule.".format(id))
+        _os.remove(parametrised_files[1])
+        coord = "{}.inpcrd".format(filebase)
+        parametrised_files[1] = _rdkit.saveFromRdkit(mol, coord)
+        return parametrised_files
     elif molecule_type == "ligand":
         force_fields = [params.ligand_ff]
         files = [runAntechamber(params.ligand_ff, filename, charge=charge)]
@@ -174,8 +210,10 @@ def runTleap(force_fields=None, files=None, param_files=None, id=None, disulfide
             out.write("MOL = load%s \"%s\"\n" % (ext, file))
         for disulfide_bond in disulfide_bonds:
             out.write("bond MOL.%d.SG MOL.%d.SG\n" % (disulfide_bond[0].resSeq, disulfide_bond[1].resSeq))
-        out.write("check MOL\n")
-        out.write("saveAmberParm MOL {0} {1}\n".format(*filenames))
+        # add support for cofactors
+        name = "MOL" if files else id
+        out.write("check {}\n".format(name))
+        out.write("saveAmberParm {0} {1} {2}\n".format(name, *filenames))
         out.write("quit\n")
 
     _runexternal.runExternal("tleap -f %s" % filename_tleap, procname="tleap")
