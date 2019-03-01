@@ -54,12 +54,13 @@ def amberWrapper(params, filename, molecule_type, id=None, charge=None, *args, *
         _warnings.warn("AMBER parametrisation failed: transition metals not supported")
         return
     elif molecule_type == "cofactor":
-        if params.water_ff != "tip3p":
-            _warnings.warn("All cofactors have been parametrised for use in "
-                           "the TIP3P water model. Be careful when using these"
-                           " parameters with %s" % params.water_ff.upper())
+        if params.water_ff != "tip3p" or params.protein_ff != "ff99SB":
+            _warnings.warn("All cofactors have been parametrised for use with "
+                           "the ff99SB protein force field and the  TIP3P "
+                           "water model. Be careful when using these "
+                           "parameters with %s" % params.water_ff.upper())
         files = []
-        force_fields = [params.ligand_ff]
+        force_fields = [params.protein_ff, params.ligand_ff]
         param_files = _glob.glob("%s/shared/amber-parameters/cofactors/%s.*" % (_PC.HOMEDIR, id))
 
         # here we override the default parametrisation behaviour for cofactors
