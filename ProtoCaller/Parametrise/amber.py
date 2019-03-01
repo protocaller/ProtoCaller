@@ -56,7 +56,7 @@ def amberWrapper(params, filename, molecule_type, id=None, charge=None, *args, *
     elif molecule_type == "cofactor":
         if params.water_ff != "tip3p" or params.protein_ff != "ff99SB":
             _warnings.warn("All cofactors have been parametrised for use with "
-                           "the ff99SB protein force field and the  TIP3P "
+                           "the ff99SB protein force field and the TIP3P "
                            "water model. Be careful when using these "
                            "parameters with %s" % params.water_ff.upper())
         files = []
