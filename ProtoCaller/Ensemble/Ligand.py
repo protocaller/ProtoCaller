@@ -6,8 +6,8 @@ import rdkit.Chem.rdmolops as _rdmolops
 
 import ProtoCaller.Parametrise as _parametrise
 import ProtoCaller.Utils.fileio as _fileio
-import ProtoCaller.Wrappers.rdkitwrapper as _rdkit
 import ProtoCaller.Wrappers.babelwrapper as _babel
+import ProtoCaller.Wrappers.rdkitwrapper as _rdkit
 
 
 class Ligand:
@@ -46,7 +46,7 @@ class Ligand:
         self.workdir = _fileio.Dir(workdir)
         self.minimise = minimise
         # always set protonated to False and if a valid protonated file is given it is automatically set to True
-        self._protonated = False
+        self.protonated_filename = None
 
         with self.workdir:
             if isinstance(input, str):

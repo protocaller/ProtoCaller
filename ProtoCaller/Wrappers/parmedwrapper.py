@@ -53,8 +53,8 @@ def saveFilesFromParmed(system, filelist, overwrite=True):
     ----------
     system : parmed.structure.Structure
         The input system.
-    filelist : str
-        The name of the output files.
+    filelist : [str]
+        The names of the output files.
     overwrite : bool
         Whether to overwrite existing files.
 

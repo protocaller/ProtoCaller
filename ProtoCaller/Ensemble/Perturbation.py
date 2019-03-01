@@ -201,7 +201,7 @@ class Perturbation:
 
         lig_temp = _copy.deepcopy(self.ligand1.molecule)
         self._ligand1_molecule[ref], mcs = _rdkit.alignTwoMolecules(ref.molecule, lig_temp, **kwargs)
-        self._ligand1_coords[ref] = _os.path.abspath(_rdkit.saveFromRdkit(self._ligand1_molecule[ref], output_filename))
+        self._ligand1_coords[ref] = _rdkit.saveFromRdkit(self._ligand1_molecule[ref], output_filename)
 
         return mcs
 
