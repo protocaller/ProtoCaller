@@ -17,11 +17,10 @@ def test_prepare_1bji():
             assert len(protein.ligands) == 9
             assert protein._pdb_obj.numberOfAtoms == 3259
 
-            protein.filter(waters=None, include_mols=["resSeq==480"], exclude_mols=["type=='simple_cation'"],
-                           ligands=None)
+            protein.filter(waters=None, include_mols=["480"], ligands=None)
             assert isinstance(protein.ligand_ref, Ligand)
             assert len(protein.ligands) == 0
-            assert protein._pdb_obj.numberOfAtoms == 3068
+            assert protein._pdb_obj.numberOfAtoms == 3069
 
             # this time keep only site waters and parametrise with some end state checks
             protein = Protein("1bji", ligand_ref="479G")

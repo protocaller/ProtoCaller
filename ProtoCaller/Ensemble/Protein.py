@@ -163,10 +163,10 @@ class Protein:
             One of "all", "chain" (only keep molecules belonging to a chain), "site" (only keep if they are mentioned in
             the PDB SITE directive) or None (no molecules are included).
         include_mols : [str]
-            A list of strings which specify filtering conditions for molecules that should be included. Overrides
+            A list of strings which specify molecules that should be included. Overrides
             previous filters.
         exclude_mols : [str]
-            A list of strings which specify filtering conditions for molecules that should be excluded. Overrides
+            A list of strings which specify molecules that should be excluded. Overrides
             previous filters.
         """
         if include_mols is None: include_mols = []
@@ -175,22 +175,26 @@ class Protein:
         with self.workdir:
             # filter ligands / cofactors
             temp_dict = {"ligand": [], "cofactor": []}
-            for ligand in self.ligands:
-                filename = ligand.name
+            for molecule in self.ligands + self.cofactors:
+                filename = molecule.name
                 for param, name in zip([ligands, cofactors], ["ligand", "cofactor"]):
-                    _, resname, chainID, resSeq = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", filename).groups()
-                    if _PC.RESIDUETYPE(resname) != name or resSeq in exclude_mols:
-                        continue
-                    if any([param == "all", param == "chain" and chains == "all",
-                            param == "chain" and chainID in chains, resSeq in include_mols]):
-                        temp_dict[name] += [filename]
-                    elif param == "site":
-                        resSeq, iCode = self._residTransform(resSeq)
-                        for residue in self._pdb_obj.site_residues:
-                            if residue.resSeq == resSeq and residue.iCode == iCode:
-                                temp_dict[name] += [filename]
-            self.ligands = [Ligand(x, name=x, workdir=".", minimise=False) for x in temp_dict["ligand"]]
-            self.cofactors = [Ligand(x, name=x, workdir=".", minimise=False) for x in temp_dict["cofactor"]]
+                    # turn the ligand into a pseudo-residue
+                    _, resname, chainID, resSeq_iCode = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", filename).groups()
+                    resSeq, iCode = self._residTransform(resSeq_iCode)
+
+                    # filter
+                    if _PC.RESIDUETYPE(resname) == name and resSeq_iCode not in exclude_mols:
+                        if any([param == "all",
+                                param == "chain" and chains == "all",
+                                param == "chain" and chainID in chains,
+                                resSeq_iCode in include_mols]):
+                            temp_dict[name] += [molecule]
+                        elif param == "site":
+                            for residue in self._pdb_obj.site_residues:
+                                if residue.resSeq == resSeq and residue.iCode == iCode:
+                                    temp_dict[name] += [molecule]
+            self.ligands = temp_dict["ligand"]
+            self.cofactors = temp_dict["cofactor"]
 
             # filter residues / molecules in protein
 
@@ -209,7 +213,7 @@ class Protein:
                     current_chain = None
                     for j in reversed(range(0, len(missing_residue_list))):
                         res = missing_residue_list[j]
-                        if type(res) == _PDB.Missing.MissingResidue and current_chain != res.chainID:
+                        if type(res) is _PDB.Missing.MissingResidue and current_chain != res.chainID:
                             del missing_residue_list[j]
                         else:
                             current_chain = res.chainID
@@ -232,13 +236,24 @@ class Protein:
 
             # include extra molecules / residues
             for include_mol in include_mols:
-                residue = self._pdb_obj.filter(include_mol + "&type!='ligand'")
+                resSeq, iCode = self._residTransform(include_mol)
+                filter_str = "resSeq=={}&iCode=='{}'&type not in ['ligand', " \
+                             "'cofactor']".format(resSeq, iCode)
+                residue = self._pdb_obj.filter(filter_str)
+                if not len(residue):
+                    _warnings.warn("Could not find residue {}.".format(include_mol))
                 filter += residue
 
             # exclude extra molecules / residues
             excl_filter = []
             for exclude_mol in exclude_mols:
-                residue = self._pdb_obj.filter(exclude_mol + "&type!='ligand'")
+                resSeq, iCode = self._residTransform(exclude_mol)
+                filter_str = "resSeq=={}&iCode=='{}'&type not in ['ligand', " \
+                             "'cofactor']".format(resSeq, iCode)
+                residue = self._pdb_obj.filter(filter_str)
+                if not len(residue):
+                    _warnings.warn(
+                        "Could not find residue {}.".format(exclude_mol))
                 excl_filter += residue
 
             filter = list(set(filter) - set(excl_filter))
