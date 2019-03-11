@@ -409,7 +409,7 @@ class GMX_REST_FEP_Runs:
                                                                                                filebase)
                             else:
                                 ppn = n_cores // n_nodes
-                                mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} mdrun -s '{4}' -rerun {5} " \
+                                mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} mdrun -s '{4}' -rerun '{5}' " \
                                                 "-deffnm {6}".format(_PC.MPIEXE, n_cores, ppn, _PC.GROMACSMPIEXE, tpr,
                                                                      trr, filebase)
 
