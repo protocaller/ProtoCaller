@@ -41,4 +41,4 @@ def saveAsGromacs(filebase, system):
         else:
             raise TypeError("Passed object to save as GROMACS not recognised. Please pass BioSimSpace or ParmEd "
                             "objects only.")
-    return [_os.path.abspath(filebase + ".gro"), _os.path.abspath(filebase + ".top")]
+    return [_os.path.abspath(filebase + ".top"), _os.path.abspath(filebase + ".gro")]

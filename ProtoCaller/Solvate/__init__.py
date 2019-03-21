@@ -76,7 +76,7 @@ def solvate(complex, params, box_length=8, shell=0, neutralise=True, ion_conc=0.
         files = _PC.IO.GROMACS.saveAsGromacs(filebase, complex)
         new_gro = filebase + "_solvated.gro"
         command = "{0} solvate -shell {1} -box {2} {2} {2} -cp \"{3}\" -o \"{4}\"".format(
-            _PC.GROMACSEXE, shell, box_length, files[0], new_gro)
+            _PC.GROMACSEXE, shell, box_length, files[1], new_gro)
         _runexternal.runExternal(command, procname="gmx solvate")
         complex_solvated = _pmd.load_file(new_gro)
         waters = complex_solvated[":SOL"]
@@ -92,10 +92,10 @@ def solvate(complex, params, box_length=8, shell=0, neutralise=True, ion_conc=0.
 
         waters.save(filebase + "_waters.pdb")
         waters_prep = _parametrise.parametriseAndLoadPmd(params, filebase + "_waters.pdb", "water")
-        waters_prep.box = _stdio.ignore_warnings(_pmd.load_file)(files[1], xyz=files[0], skip_bonds=True).box
+        waters_prep.box = _stdio.ignore_warnings(_pmd.load_file)(files[0], xyz=files[1], skip_bonds=True).box
         for residue in waters_prep.residues:
             residue.name = "SOL"
-        waters_prep_filenames = [filebase + "_waters.gro", filebase + "_waters.top"]
+        waters_prep_filenames = [filebase + "_waters.top", filebase + "_waters.gro"]
         for filename in waters_prep_filenames:
             waters_prep.save(filename)
 
@@ -123,23 +123,23 @@ def solvate(complex, params, box_length=8, shell=0, neutralise=True, ion_conc=0.
                     n_Cl += charge
 
             # add ions with gmx genion
-            ions_prep_filenames = [filebase + "_ions.gro", filebase + "_ions.top"]
-            command = "{0} grompp -f ions.mdp -c {1} -p {2} -o \"{3}_solvated.tpr\"".format(
+            ions_prep_filenames = [filebase + "_ions.top", filebase + "_ions.gro"]
+            command = "{0} grompp -f ions.mdp -p {1} -c {2} -o \"{3}_solvated.tpr\"".format(
                 _PC.GROMACSEXE, *waters_prep_filenames, filebase)
             _runexternal.runExternal(command, procname="gmx grompp")
 
             command = "{{ echo 2; }} | {0} genion -s \"{1}_solvated.tpr\" -o \"{2}\" -nn {3} -np {4}".format(
-                _PC.GROMACSEXE, filebase, ions_prep_filenames[0], n_Cl, n_Na)
+                _PC.GROMACSEXE, filebase, ions_prep_filenames[1], n_Cl, n_Na)
             _runexternal.runExternal(command, procname="gmx genion")
 
             # prepare waters for tleap and parametrise
-            ions = _pmd.load_file(ions_prep_filenames[0])
+            ions = _pmd.load_file(ions_prep_filenames[1])
             for residue in ions.residues:
                 if residue.name == "SOL":
                     residue.name = "WAT"
 
             ions.save(filebase + "_ions.pdb")
-            _os.remove(ions_prep_filenames[0])
+            _os.remove(ions_prep_filenames[1])
             ions_prep = _parametrise.parametriseAndLoadPmd(params, filebase + "_ions.pdb", "water")
 
             for filename in ions_prep_filenames:
