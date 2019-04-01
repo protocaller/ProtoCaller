@@ -19,6 +19,7 @@ requirements:
     - python>=3.7
     - ambertools>=17.6
     - beautifulsoup4
+    - geckodriver
     - mdanalysis
     - modeller
     - numpy==1.15.4

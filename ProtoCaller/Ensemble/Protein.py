@@ -13,6 +13,7 @@ import ProtoCaller.IO.GROMACS as _GROMACS
 import ProtoCaller.Parametrise as _parametrise
 import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Utils.pdbconnect as _pdbconnect
+import ProtoCaller.Wrappers.charmmguiwrapper as _charmmwrap
 if _PC.MODELLER:
     import ProtoCaller.Wrappers.modellerwrapper as _modeller
 import ProtoCaller.Wrappers.parmedwrapper as _pmdwrap
@@ -260,7 +261,7 @@ class Protein:
             self._pdb_obj.purgeResidues(filter, "keep")
             self._pdb_obj.writePDB(self.pdb)
 
-    def prepare(self, add_missing_residues="modeller", add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
+    def prepare(self, add_missing_residues="charmmm-gui", add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
                 protonate_ligands="babel"):
         """
         Adds missing residues / atoms to the protein and protonates it and the relevant ligands.
@@ -268,7 +269,7 @@ class Protein:
         Parameters
         ----------
         add_missing_residues : str or None
-            How to add missing residues. One of "modeller" and None (no addition).
+            How to add missing residues. One of "modeller", "charmm-gui" and None (no addition).
         add_missing_atoms : str or None
             How to add missing atoms. One of "modeller", "pdb2pqr" and None (no addition).
         protonate_proteins : str or None
@@ -292,10 +293,17 @@ class Protein:
                                "Changing protein protonation method to PDB2PQR...")
 
             if len(self._pdb_obj.missing_residues):
-                if add_missing_residues == "modeller" and _PC.MODELLER:
+                if add_missing_atoms == "modeller" and not _PC.MODELLER:
+                    _warnings.warn("Invalid Modeller license. Switching to "
+                                   "CHARMM-GUI...")
+                    add_missing_atoms = "charmm-gui"
+
+                if add_missing_residues == "modeller":
                     atoms = True if add_missing_atoms == "modeller" else False
                     filename_fasta = self._downloader.getFASTA()
                     self.pdb = _modeller.modellerTransform(self.pdb, filename_fasta, atoms)
+                elif add_missing_residues == "charmm-gui":
+                    self.pdb = _charmmwrap.charmmguiTransform(self.pdb)
                 else:
                     _warnings.warn("Protein has missing residues. Please check your PDB file or choose a valid "
                                    "automatisation protocol")
