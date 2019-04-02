@@ -1,6 +1,4 @@
-# TODO:
-# 1. See how modified protein residues are affected
-# 2. Renumber residues - sometimes PDB files provide negative numbers - might crash other pieces of software
+# TODO: See how modified protein residues are affected
 import ProtoCaller as _PC
 if not _PC.MODELLER:
     raise ImportError("BioSimSpace module cannot be imported")
@@ -8,6 +6,7 @@ if not _PC.MODELLER:
 import copy as _copy
 import os as _os
 import re as _re
+import warnings as _warnings
 
 import modeller as _modeller
 import modeller.automodel as _modellerautomodel
@@ -42,7 +41,8 @@ class MyLoop(_modellerautomodel.loopmodel):
                     self.selection.add(self.residues[residue[:-2]])
                 except KeyError:
                     print("Error while selecting missing residue: %s. "
-                          "Residue either missing from FASTA sequence or there is a problem with Modeller." % residue)
+                          "Residue either missing from FASTA sequence or "
+                          "there is a problem with Modeller." % residue)
         return self.selection
 
     @staticmethod
@@ -87,7 +87,8 @@ def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms):
     m.auto_align()  # get an automatic alignment
     m.make()
 
-    return fixModellerPDB(m, add_missing_atoms=add_missing_atoms, filename_output=pdb_code + "_modeller.pdb")
+    return fixModellerPDB(m, add_missing_atoms,
+                          filename_output=pdb_code + "_modeller.pdb")
 
 
 def FASTA2PIR(filename_input):
@@ -122,7 +123,8 @@ def FASTA2PIR(filename_input):
 
     filename_output = pdb_code + ".pir"
     with open(filename_output, "w") as file:
-        file.write(">P1;PROT\nstructureX:%s:FIRST:@ END::::::\n*\n\n" % pdb_code)
+        file.write(">P1;PROT\nstructureX:%s:FIRST:@ END::::::\n*\n\n" %
+                   pdb_code)
         for i, line in enumerate(new_file):
             if i != len(new_file) - 1:
                 file.write(line)
@@ -151,17 +153,6 @@ def fixModellerPDB(model, add_missing_atoms, filename_output=None):
     filename_output : str
         The absolute path to the fixed output PDB file.
     """
-    def getAndFixResidue(idx, missing_residue):
-        nonlocal pdb_modified
-        modified_residue = _copy.deepcopy(pdb_modified.filter("resSeq==%d" % idx)[0])
-        modified_residue.chainID = missing_residue.chainID
-        modified_residue.resSeq = missing_residue.resSeq
-        modified_residue.iCode = missing_residue.iCode
-        return modified_residue
-
-    def equalChainIDs(res_orig, res_mod):
-        return True if (res_orig.chainID == "A" and res_mod.chainID == " ") or res_orig.sameChain(res_mod) else False
-
     try:
         filename_modified = model.loop.outputs[0]['name']
     except:
@@ -169,51 +160,52 @@ def fixModellerPDB(model, add_missing_atoms, filename_output=None):
         return -1
 
     pdb_modified = _IO.PDB.PDB(filename_modified)
-    for missing_residue in model.pdb.missing_residues:
-        index = 1
-        breakloops = False
-        for i, chain in enumerate(model.pdb):
-            if chain.type == "chain":
-                for j, residue in enumerate(chain):
-                    if j == 0 and equalChainIDs(missing_residue, residue) and missing_residue < residue:
-                        chain.insert(j, getAndFixResidue(index, missing_residue))
-                        breakloops = True
-                    elif j == len(chain) - 1 and equalChainIDs(missing_residue, residue) and residue < missing_residue:
-                        chain.insert(j + 1, getAndFixResidue(index, missing_residue))
-                        breakloops = True
-                    elif 0 < j < len(chain) and chain[j - 1] < missing_residue < chain[j]:
-                        chain.insert(j, getAndFixResidue(index, missing_residue))
-                        breakloops = True
-                    if residue.type == "amino_acid":
-                        index += 1
-                    if breakloops:
-                        break
-            if breakloops:
-                break
+
+    all_res_mod = pdb_modified.totalResidueList()
+    all_res_orig = model.pdb.totalResidueList()
+    if len(all_res_orig) != len(all_res_mod):
+        raise ValueError("Mismatch between original number of residues ({}) "
+                         "and number of residues output by Modeller ({}).".
+                         format(len(all_res_orig), len(all_res_mod)))
+
+    for miss_res in model.pdb.missing_residues:
+        fixed_res = _copy.copy(all_res_mod[all_res_orig.index(miss_res)])
+        fixed_res.chainID = miss_res.chainID
+        fixed_res.resSeq = miss_res.resSeq
+        if fixed_res.resName != miss_res.resName:
+            _warnings.warn("Mismatch between original residue name ({}) "
+                           "and the residue name output by Modeller ({}) in "
+                           "chain {}, residue number {}.".format(
+                           miss_res.resName, fixed_res.resName,
+                           miss_res.chainID, miss_res.resSeq))
+        chain = model.pdb.filter("chainID=='{}'".format(miss_res.chainID),
+                                 type="chains")[0]
+
+        if miss_res > chain[-1]:
+            chain.append(fixed_res)
+        else:
+            for i, res in enumerate(chain):
+                if res > miss_res:
+                    chain.insert(i, fixed_res)
+                    break
     model.pdb.missing_residues = []
 
     if add_missing_atoms:
         for missing_atom in model.pdb.missing_atoms:
-            index = 1
-            breakloops = False
-            for i, chain in enumerate(model.pdb):
-                if chain.type == "chain":
-                    for j, residue in enumerate(chain):
-                        if residue == missing_atom:
-                            residue_new = getAndFixResidue(index, missing_atom)
-                            residue.clear()
-                            residue.__init__(residue_new)
-                        if residue.type == "amino acid":
-                            index += 1
-                        if breakloops:
-                            break
-                if breakloops:
-                    break
+            filter = "chainID=='{}'&resSeq=={}&iCode=='{}'".format(
+                missing_atom.chainID, missing_atom.resSeq, missing_atom.iCode)
+            res = model.pdb.filter(filter)[0]
+            fixed_res = all_res_mod[all_res_orig.index(res)]
+            fixed_res.chainID = missing_atom.chainID
+            fixed_res.resSeq = missing_atom.resSeq
+            res.__init__(fixed_res)
         model.pdb.missing_atoms = []
 
     model.pdb.reNumberAtoms()
+    model.pdb.reNumberResidues()
     if filename_output is None:
-        filename_output = _os.path.splitext(model.pdb.filename)[0] + "_modified.pdb"
+        filename_output = _os.path.splitext(model.pdb.filename)[0] + \
+                          "_modified.pdb"
     model.pdb.writePDB(filename_output)
 
     return _os.path.abspath(filename_output)

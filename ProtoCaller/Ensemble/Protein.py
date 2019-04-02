@@ -1,6 +1,8 @@
 import re as _re
 import warnings as _warnings
 
+from Bio import SeqIO as _SeqIO
+
 import ProtoCaller as _PC
 
 if _PC.BIOSIMSPACE:
@@ -62,8 +64,10 @@ class Protein:
             self.ligands = [Ligand(x, name=x, workdir=".", minimise=False) for x in ligands_original]
             self.cofactors = []
             # remove ligands from PDB file and non-ligands from SDF files
-            self.filter(chains="all", waters="all", simple_anions="all", complex_anions="all", simple_cations="all",
-                        complex_cations="all", ligands="all", cofactors="all")
+            self.filter(missing_residues="all", chains="all", waters="all",
+                        simple_anions="all", complex_anions="all",
+                        simple_cations="all", complex_cations="all",
+                        ligands="all", cofactors="all")
             self.ligand_ref = ligand_ref
 
     @property
@@ -110,6 +114,7 @@ class Protein:
             value = _fileio.checkFileExists(value)
         self._pdb = value
         self._pdb_obj = _PDB.PDB(self.pdb)
+        self._checkfasta()
 
     @property
     def pdb_obj(self):
@@ -129,6 +134,7 @@ class Protein:
         if value is not None:
             value = _fileio.checkFileExists(value)
         self._fasta = value
+        self._checkfasta()
 
     def filter(self, missing_residues="middle", chains="all", waters="site", ligands="chain", cofactors="chain",
                simple_anions="chain", complex_anions="chain", simple_cations="chain", complex_cations="chain",
@@ -208,18 +214,26 @@ class Protein:
 
             # filter missing residues
             if missing_residues == "middle":
+                fasta = next(_SeqIO.parse(open(self.fasta), 'fasta'))
+                seq = fasta.seq.tomutable()
                 missing_residue_list = self._pdb_obj.totalResidueList()
                 for i in range(2):
                     missing_residue_list.reverse()
+                    seq.reverse()
                     current_chain = None
                     for j in reversed(range(0, len(missing_residue_list))):
                         res = missing_residue_list[j]
                         if type(res) is _PDB.Missing.MissingResidue and current_chain != res.chainID:
                             del missing_residue_list[j]
+                            del seq[j]
                         else:
                             current_chain = res.chainID
+                fasta.seq = seq
+                _SeqIO.write(fasta, self.fasta, "fasta")
                 missing_residue_list = [x for x in missing_residue_list if type(x) == _PDB.MissingResidue]
                 filter += missing_residue_list
+            else:
+                filter += self._pdb_obj.missing_residues
 
             # filter by waters / anions / cations
             for param, name in zip([waters, simple_anions, complex_anions, simple_cations, complex_cations],
@@ -261,54 +275,83 @@ class Protein:
             self._pdb_obj.purgeResidues(filter, "keep")
             self._pdb_obj.writePDB(self.pdb)
 
-    def prepare(self, add_missing_residues="charmmm-gui", add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
+    def prepare(self, add_missing_residues="charmmm-gui",
+                add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
                 protonate_ligands="babel"):
         """
-        Adds missing residues / atoms to the protein and protonates it and the relevant ligands.
+        Adds missing residues / atoms to the protein and protonates it and the
+        relevant ligands.
 
         Parameters
         ----------
         add_missing_residues : str or None
-            How to add missing residues. One of "modeller", "charmm-gui" and None (no addition).
+            How to add missing residues. One of "modeller", "charmm-gui" and
+            None (no addition).
         add_missing_atoms : str or None
-            How to add missing atoms. One of "modeller", "pdb2pqr" and None (no addition).
+            How to add missing atoms. One of "modeller", "pdb2pqr" and
+            None (no addition).
         protonate_proteins : str or None
-            How to protonate the protein. One of "pdb2pqr" and None (no protonation).
+            How to protonate the protein. One of "pdb2pqr" and
+            None (no protonation).
         protonate_ligands : str or None
-            How to protonate the related ligands / cofactors. One of "babel" and None (no protonation).
+            How to protonate the related ligands / cofactors. One of "babel"
+            and None (no protonation).
         """
         with self.workdir:
-            add_missing_residues = add_missing_residues.strip().lower() if add_missing_residues is not None else ""
-            add_missing_atoms = add_missing_atoms.strip().lower() if add_missing_atoms is not None else ""
-            protonate_proteins = protonate_proteins.strip().lower() if protonate_proteins is not None else ""
-            protonate_ligands = protonate_ligands.strip().lower() if protonate_ligands is not None else ""
+            add_missing_residues = add_missing_residues.strip().lower() \
+                if add_missing_residues is not None else ""
+            add_missing_atoms = add_missing_atoms.strip().lower() \
+                if add_missing_atoms is not None else ""
+            protonate_proteins = protonate_proteins.strip().lower() \
+                if protonate_proteins is not None else ""
+            protonate_ligands = protonate_ligands.strip().lower() \
+                if protonate_ligands is not None else ""
 
-            if protonate_proteins != "protoss" and protonate_ligands == "protoss":
-                _warnings.warn("Protoss cannot be individually called on a ligand. Changing protein protonation "
-                               "method to Protoss...")
+            if protonate_proteins != "protoss" and \
+                    protonate_ligands == "protoss":
+                _warnings.warn("Protoss cannot be individually called on a "
+                               "ligand. Changing protein protonation method to"
+                               " Protoss...")
                 protonate_proteins = "protoss"
-            if add_missing_atoms == "pdb2pqr" and protonate_proteins != "pdb2pqr":
-                _warnings.warn("Cannot currently run PDB2PQR without protonation. "
-                               "This will be fixed in a later version. "
-                               "Changing protein protonation method to PDB2PQR...")
+            if add_missing_atoms == "pdb2pqr" and \
+                    protonate_proteins != "pdb2pqr":
+                _warnings.warn("Cannot currently run PDB2PQR without "
+                               "protonation. This will be fixed in a later "
+                               "version. Changing protein protonation method "
+                               "to PDB2PQR...")
+            if len(self._pdb_obj.missing_residues) and \
+                    add_missing_residues == "modeller" and not _PC.MODELLER:
+                _warnings.warn("Invalid Modeller license. Switching to CHARMM"
+                               "-GUI for the addition of missing residues...")
+                add_missing_residues = "charmm-gui"
+            if len(self._pdb_obj.missing_atoms) and \
+                    add_missing_atoms == "modeller" and not _PC.MODELLER:
+                _warnings.warn("Invalid Modeller license. Switching to "
+                               "PDB2PQR...")
+                add_missing_atoms = "pdb2pqr"
 
             if len(self._pdb_obj.missing_residues):
-                if add_missing_atoms == "modeller" and not _PC.MODELLER:
-                    _warnings.warn("Invalid Modeller license. Switching to "
-                                   "CHARMM-GUI...")
-                    add_missing_atoms = "charmm-gui"
-
                 if add_missing_residues == "modeller":
                     atoms = True if add_missing_atoms == "modeller" else False
-                    filename_fasta = self._downloader.getFASTA()
-                    self.pdb = _modeller.modellerTransform(self.pdb, filename_fasta, atoms)
+                    fasta = self._downloader.getFASTA()
+                    self.pdb = _modeller.modellerTransform(self.pdb, fasta,
+                                                           atoms)
                 elif add_missing_residues == "charmm-gui":
                     self.pdb = _charmmwrap.charmmguiTransform(self.pdb)
                 else:
-                    _warnings.warn("Protein has missing residues. Please check your PDB file or choose a valid "
-                                   "automatisation protocol")
+                    _warnings.warn("Protein has missing residues. Please check"
+                                   " your PDB file or choose a valid "
+                                   "automation protocol")
 
-            if add_missing_atoms == "pdb2pqr":
+            if add_missing_atoms == "modeller" and \
+                    (not len(self._pdb_obj.missing_atoms) or
+                     add_missing_residues != "modeller"):
+                _warnings.warn("Cannot currently add missing atoms with "
+                               "Modeller when there are no missing residues. "
+                               "Switching to PDB2PQR...")
+                add_missing_atoms = "pdb2pqr"
+
+            if "pdb2pqr" in [add_missing_atoms, protonate_proteins]:
                 self.pdb = _PDB2PQR.PDB2PQRtransform(self.pdb)
 
             if protonate_proteins == "protoss":
@@ -326,7 +369,8 @@ class Protein:
                         if not ligand.protonated:
                             ligand.protonate()
                 else:
-                    _warnings.warn("Need to protonate all relevant ligands / cofactors before any parametrisation")
+                    _warnings.warn("Need to protonate all relevant ligands / "
+                                   "cofactors before any parametrisation")
 
     def parametrise(self, params, reparametrise=False):
         """
@@ -377,6 +421,15 @@ class Protein:
                 self.complex_template = _BSS.IO.readMolecules(["complex_template.top", "complex_template.gro"])
             else:
                 self.complex_template = system
+
+    def _checkfasta(self):
+        if hasattr(self, "_fasta") and hasattr(self, "_pdb_obj"):
+            seqlen = len(next(_SeqIO.parse(open(self.fasta), 'fasta')).seq)
+            reslen = len(self._pdb_obj.totalResidueList())
+            if seqlen != reslen:
+                _warnings.warn("Length of FASTA sequence ({}) does not match "
+                               "the length of PDB sequence ({}). Please check "
+                               "your input files.".format(seqlen, reslen))
 
     @staticmethod
     def _residTransform(id):

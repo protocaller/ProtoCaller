@@ -1,6 +1,8 @@
+import copy as _copy
 import os as _os
 import tarfile as _tarfile
 import time as _time
+import warnings as _warnings
 
 from selenium.common import exceptions as _exceptions
 from selenium.webdriver.firefox import options as _options
@@ -193,7 +195,8 @@ def charmmguiTransform(filename, **kwargs):
     for path in paths[1:]:
         pdb_obj += _PDB(path)
 
-    return fixCharmmguiPDB(pdb_obj, filename)
+    filename_output = _os.path.splitext(filename)[0] + "_charmmgui.pdb"
+    return fixCharmmguiPDB(pdb_obj, filename, filename_output=filename_output)
 
 
 def fixCharmmguiPDB(pdb_modified, filename_original, filename_output=None):
@@ -217,34 +220,32 @@ def fixCharmmguiPDB(pdb_modified, filename_original, filename_output=None):
 
     pdb_original = _PDB(filename_original)
 
-    for missing_residue in pdb_original.missing_residues:
-        modelled_res = pdb_modified.filter("chainID=='{}'&resSeq=={}".format(
-            missing_residue.chainID, missing_residue.resSeq))[0]
+    for miss_res in pdb_original.missing_residues:
+        filter = "chainID=='{}'&resSeq=={}&iCode=='{}'".format(
+            miss_res.chainID, miss_res.resSeq, miss_res.iCode)
+        fixed_res = _copy.copy(pdb_modified.filter(filter)[0])
+        fixed_res.chainID = miss_res.chainID
+        fixed_res.resSeq = miss_res.resSeq
+        if fixed_res.resName != miss_res.resName:
+            _warnings.warn("Mismatch between original residue name ({}) "
+                           "and the residue name output by CHARMM-GUI ({}) in "
+                           "chain {}, residue number {}.".format(
+                miss_res.resName, fixed_res.resName,
+                miss_res.chainID, miss_res.resSeq))
+        chain = pdb_original.filter("chainID=='{}'".format(miss_res.chainID),
+                                    type="chains")[0]
 
-        for i, chain in enumerate(pdb_original):
-            breakloops = False
-            if chain.type == "chain":
-                for j, residue in enumerate(chain):
-                    if all([j == 0, modelled_res.chainID == residue.chainID,
-                            modelled_res < residue]):
-                        chain.insert(j, modelled_res)
-                        breakloops = True
-                    elif all([j == len(chain) - 1,
-                              modelled_res.chainID == residue.chainID,
-                              residue < modelled_res]):
-                        chain.insert(j + 1, modelled_res)
-                        breakloops = True
-                    elif all([0 < j < len(chain),
-                              chain[j - 1] < modelled_res < chain[j]]):
-                        chain.insert(j, modelled_res)
-                        breakloops = True
-                    if breakloops:
-                        break
-            if breakloops:
-                break
+        if miss_res > chain[-1]:
+            chain.append(fixed_res)
+        else:
+            for i, res in enumerate(chain):
+                if res > miss_res:
+                    chain.insert(i, fixed_res)
+                    break
     pdb_original.missing_residues = []
 
     pdb_original.reNumberAtoms()
+    pdb_original.reNumberResidues()
     if filename_output is None:
         filename_output = _os.path.splitext(pdb_original.filename)[0] + \
                           "_modified.pdb"
