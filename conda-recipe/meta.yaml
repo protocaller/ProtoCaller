@@ -26,6 +26,7 @@ requirements:
     - numpy==1.15.4
     - openbabel>=2.4.1
     - parmed>=3.1.0
+    - pdbfixer>=1.5
     - pymbar
     - pytest
     - rdkit>=2018.03.4

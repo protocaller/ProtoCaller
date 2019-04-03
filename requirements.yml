@@ -17,6 +17,7 @@ dependencies:
   - numpy==1.15.4
   - openbabel>=2.4.1
   - parmed>=3.1.0
+  - pdbfixer>=1.5
   - pymbar
   - pytest
   - qt>=5.9.7

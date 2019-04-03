@@ -19,6 +19,7 @@ import ProtoCaller.Wrappers.charmmguiwrapper as _charmmwrap
 if _PC.MODELLER:
     import ProtoCaller.Wrappers.modellerwrapper as _modeller
 import ProtoCaller.Wrappers.parmedwrapper as _pmdwrap
+import ProtoCaller.Wrappers.pdbfixerwrapper as _pdbfix
 import ProtoCaller.Wrappers.PDB2PQRwrapper as _PDB2PQR
 
 
@@ -275,7 +276,7 @@ class Protein:
             self._pdb_obj.purgeResidues(filter, "keep")
             self._pdb_obj.writePDB(self.pdb)
 
-    def prepare(self, add_missing_residues="charmmm-gui",
+    def prepare(self, add_missing_residues="pdbfixer",
                 add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
                 protonate_ligands="babel"):
         """
@@ -285,11 +286,11 @@ class Protein:
         Parameters
         ----------
         add_missing_residues : str or None
-            How to add missing residues. One of "modeller", "charmm-gui" and
-            None (no addition).
+            How to add missing residues. One of "modeller", "charmm-gui",
+            "pdbfixer" and None (no addition).
         add_missing_atoms : str or None
-            How to add missing atoms. One of "modeller", "pdb2pqr" and
-            None (no addition).
+            How to add missing atoms. One of "modeller", "pdb2pqr", "pdbfixer"
+            and None (no addition).
         protonate_proteins : str or None
             How to protonate the protein. One of "pdb2pqr" and
             None (no protonation).
@@ -307,6 +308,7 @@ class Protein:
             protonate_ligands = protonate_ligands.strip().lower() \
                 if protonate_ligands is not None else ""
 
+            # compatibility checks
             if protonate_proteins != "protoss" and \
                     protonate_ligands == "protoss":
                 _warnings.warn("Protoss cannot be individually called on a "
@@ -330,6 +332,7 @@ class Protein:
                                "PDB2PQR...")
                 add_missing_atoms = "pdb2pqr"
 
+            # add missing residues
             if len(self._pdb_obj.missing_residues):
                 if add_missing_residues == "modeller":
                     atoms = True if add_missing_atoms == "modeller" else False
@@ -338,19 +341,28 @@ class Protein:
                                                            atoms)
                 elif add_missing_residues == "charmm-gui":
                     self.pdb = _charmmwrap.charmmguiTransform(self.pdb)
+                elif add_missing_residues == "pdbfixer":
+                    atoms = True if add_missing_atoms == "pdbfixer" else False
+                    self.pdb = _pdbfix.pdbfixerTransform(self.pdb, True, atoms)
                 else:
                     _warnings.warn("Protein has missing residues. Please check"
                                    " your PDB file or choose a valid "
                                    "automation protocol")
 
-            if add_missing_atoms == "modeller" and \
-                    (not len(self._pdb_obj.missing_atoms) or
-                     add_missing_residues != "modeller"):
-                _warnings.warn("Cannot currently add missing atoms with "
-                               "Modeller when there are no missing residues. "
-                               "Switching to PDB2PQR...")
-                add_missing_atoms = "pdb2pqr"
+            # add missing atoms
+            if len(self.pdb_obj.missing_atoms):
+                if add_missing_atoms == "modeller" and \
+                        (not len(self._pdb_obj.missing_residues) or
+                         add_missing_residues != "modeller"):
+                    _warnings.warn("Cannot currently add missing atoms with "
+                                   "Modeller when there are no missing "
+                                   "residues. Switching to PDB2PQR...")
+                    add_missing_atoms = "pdb2pqr"
+                elif add_missing_atoms == "pdbfixer" and \
+                         add_missing_residues != "pdbfixer":
+                    self.pdb = _pdbfix.pdbfixerTransform(self.pdb, False, True)
 
+            # protonate proteins
             if "pdb2pqr" in [add_missing_atoms, protonate_proteins]:
                 self.pdb = _PDB2PQR.PDB2PQRtransform(self.pdb)
 
@@ -363,6 +375,7 @@ class Protein:
                 # if protonate_ligands == "protoss":
                 #     self.ligands = _SDF.splitSDFs([ligand_file])
 
+            # protonate ligands
             if len(self.ligands + self.cofactors):
                 if protonate_ligands == "babel":
                     for ligand in self.ligands + self.cofactors:

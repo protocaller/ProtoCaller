@@ -1,7 +1,7 @@
 import ProtoCaller as PC
 import ProtoCaller.IO.PDB as PDB
 from ProtoCaller.Utils.fileio import Dir
-from ProtoCaller.Wrappers.modellerwrapper import modellerTransform
+from ProtoCaller.Wrappers.pdbfixerwrapper import pdbfixerTransform
 
 from shutil import copyfile
 
@@ -10,10 +10,9 @@ def test_model_3zg0():
     with Dir(PC.TESTDIR + "/shared"):
         with Dir("temp", temp=True):
             copyfile("../3ZG0.pdb", "3ZG0.pdb")
-            copyfile("../3ZG0.fasta", "3ZG0.fasta")
 
             obj = PDB.PDB("3ZG0.pdb")
-            obj_mod = PDB.PDB(modellerTransform("3ZG0.pdb", "3ZG0.fasta", add_missing_atoms=False))
+            obj_mod = PDB.PDB(pdbfixerTransform("3ZG0.pdb", True, True))
 
             assert len(obj.missing_atoms) == len(obj_mod.missing_atoms) == 0
             assert len(obj.missing_residues) == 7

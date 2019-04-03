@@ -9,7 +9,9 @@ it is still possible that the user might find these useful on their own.
 There are two types of wrappers here. The first type is the black box wrapper,
 which calls an external program to modify an object and then returns a modified
 version thereof. Such submodules are :mod:`~ProtoCaller.Wrappers.\
-PDB2PQRwrapper`, :mod:`~ProtoCaller.Wrappers.modellerwrapper`,
+PDB2PQRwrapper`, :mod:`~ProtoCaller.Wrappers.charmmguiwrapper`,
+:mod:`~ProtoCaller.Wrappers.modellerwrapper`,
+:mod:`~ProtoCaller.Wrappers.pdbfixerwrapper`,
 :mod:`~ProtoCaller.Wrappers.babelwrapper` and the not-yet-functional
 :mod:`~ProtoCaller.Wrappers.protosswrapper`. The second type is a wrapper
 that provides additional functionality. E.g. in :mod:`~ProtoCaller.Wrappers.\
@@ -27,8 +29,10 @@ Submodules
    ProtoCaller.Wrappers.BioSimSpacewrapper
    ProtoCaller.Wrappers.PDB2PQRwrapper
    ProtoCaller.Wrappers.babelwrapper
+   ProtoCaller.Wrappers.charmmguiwrapper
    ProtoCaller.Wrappers.modellerwrapper
    ProtoCaller.Wrappers.parmedwrapper
+   ProtoCaller.Wrappers.pdbfixerwrapper
    ProtoCaller.Wrappers.protosswrapper
    ProtoCaller.Wrappers.rdkitwrapper
 
