@@ -1,7 +1,7 @@
-ProtoCaller.Wrappers.PDB2PQRwrapper module
+ProtoCaller.Wrappers.pdb2pqrwrapper module
 ==========================================
 
-.. automodule:: ProtoCaller.Wrappers.PDB2PQRwrapper
+.. automodule:: ProtoCaller.Wrappers.pdb2pqrwrapper
     :members:
     :undoc-members:
     :show-inheritance:

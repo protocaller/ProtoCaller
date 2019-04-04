@@ -1,7 +1,7 @@
-ProtoCaller.Wrappers.BioSimSpacewrapper module
+ProtoCaller.Wrappers.biosimspacewrapper module
 ==============================================
 
-.. automodule:: ProtoCaller.Wrappers.BioSimSpacewrapper
+.. automodule:: ProtoCaller.Wrappers.biosimspacewrapper
     :members:
     :undoc-members:
     :show-inheritance:

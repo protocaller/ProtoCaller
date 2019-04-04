@@ -20,7 +20,7 @@ if _PC.MODELLER:
     import ProtoCaller.Wrappers.modellerwrapper as _modeller
 import ProtoCaller.Wrappers.parmedwrapper as _pmdwrap
 import ProtoCaller.Wrappers.pdbfixerwrapper as _pdbfix
-import ProtoCaller.Wrappers.PDB2PQRwrapper as _PDB2PQR
+import ProtoCaller.Wrappers.pdb2pqrwrapper as _PDB2PQR
 
 
 class Protein:
@@ -364,7 +364,7 @@ class Protein:
 
             # protonate proteins
             if "pdb2pqr" in [add_missing_atoms, protonate_proteins]:
-                self.pdb = _PDB2PQR.PDB2PQRtransform(self.pdb)
+                self.pdb = _PDB2PQR.pdb2pqrTransform(self.pdb)
 
             if protonate_proteins == "protoss":
                 # TODO: fix
@@ -406,6 +406,7 @@ class Protein:
             hetatm_files, hetatm_types = self._pdb_obj.writeHetatms()
             non_protein_residues = self._pdb_obj.filter("type not in ['water', 'simple_cation', 'simple_anion']")
             self._pdb_obj.purgeResidues(non_protein_residues, "keep")
+            self._pdb_obj.reNumberResidues()
             self._pdb_obj.writePDB(self.pdb)
 
             # create a merged parmed object with all parametrised molecules and save to top/gro which is then read by

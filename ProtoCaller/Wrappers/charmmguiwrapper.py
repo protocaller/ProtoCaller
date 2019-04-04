@@ -13,6 +13,8 @@ from ProtoCaller.shared import seleniumrequests as _seleniumrequests
 
 from ProtoCaller.IO.PDB import PDB as _PDB
 
+__all__ = ["PDBReader", "ligandReader", "charmmguiTransform"]
+
 
 def PDBReader(file, timeout=60):
     """
@@ -249,6 +251,5 @@ def fixCharmmguiPDB(pdb_modified, filename_original, filename_output=None):
     if filename_output is None:
         filename_output = _os.path.splitext(pdb_original.filename)[0] + \
                           "_modified.pdb"
-    pdb_original.writePDB(filename_output)
 
-    return _os.path.abspath(filename_output)
+    return pdb_original.writePDB(filename_output)

@@ -15,7 +15,7 @@ PDB2PQRwrapper`, :mod:`~ProtoCaller.Wrappers.charmmguiwrapper`,
 :mod:`~ProtoCaller.Wrappers.babelwrapper` and the not-yet-functional
 :mod:`~ProtoCaller.Wrappers.protosswrapper`. The second type is a wrapper
 that provides additional functionality. E.g. in :mod:`~ProtoCaller.Wrappers.\
-BioSimSpacewrapper`, :mod:`~ProtoCaller.Wrappers.parmedwrapper` and
+biosimspacewrapper`, :mod:`~ProtoCaller.Wrappers.parmedwrapper` and
 :mod:`~ProtoCaller.Wrappers.rdkitwrapper` one can find functions which extend
 the functionalities of the corresponding packages. A more notable such function
 is the :func:`~ProtoCaller.Wrappers.rdkitwrapper.getMCSMap` function, which
@@ -26,12 +26,13 @@ Submodules
 
 .. toctree::
 
-   ProtoCaller.Wrappers.BioSimSpacewrapper
-   ProtoCaller.Wrappers.PDB2PQRwrapper
+
    ProtoCaller.Wrappers.babelwrapper
+   ProtoCaller.Wrappers.biosimspacewrapper
    ProtoCaller.Wrappers.charmmguiwrapper
    ProtoCaller.Wrappers.modellerwrapper
    ProtoCaller.Wrappers.parmedwrapper
+   ProtoCaller.Wrappers.pdb2pqrwrapper
    ProtoCaller.Wrappers.pdbfixerwrapper
    ProtoCaller.Wrappers.protosswrapper
    ProtoCaller.Wrappers.rdkitwrapper

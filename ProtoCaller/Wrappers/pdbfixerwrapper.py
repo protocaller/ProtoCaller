@@ -7,6 +7,8 @@ from simtk.openmm.app import PDBFile as _PDBFile
 
 from ProtoCaller.IO.PDB import PDB as _PDB
 
+__all__ = ["pdbfixerTransform"]
+
 
 def pdbfixerTransform(filename, add_missing_residues, add_missing_atoms):
     """
@@ -123,6 +125,5 @@ def fixPDBFixerPDB(filename_modified, filename_original, add_missing_residues,
     if filename_output is None:
         filename_output = _os.path.splitext(pdb_original.filename)[0] + \
                           "_modified.pdb"
-    pdb_original.writePDB(filename_output)
 
-    return _os.path.abspath(filename_output)
+    return pdb_original.writePDB(filename_output)

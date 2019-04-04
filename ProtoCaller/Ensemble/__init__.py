@@ -11,7 +11,7 @@ import ProtoCaller.IO as _IO
 import ProtoCaller.Parametrise as _parametrise
 import ProtoCaller.Solvate as _solvate
 import ProtoCaller.Utils.fileio as _fileio
-import ProtoCaller.Wrappers.BioSimSpacewrapper as _BSSwrap
+import ProtoCaller.Wrappers.biosimspacewrapper as _BSSwrap
 import ProtoCaller.Utils.stdio as _stdio
 
 

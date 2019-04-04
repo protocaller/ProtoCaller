@@ -1,7 +1,9 @@
 import ProtoCaller as PC
 import ProtoCaller.IO.PDB as PDB
 from ProtoCaller.Utils.fileio import Dir
-from ProtoCaller.Wrappers.PDB2PQRwrapper import PDB2PQRtransform
+from ProtoCaller.Wrappers.pdb2pqrwrapper import pdb2pqrTransform
+
+from shutil import copyfile
 
 # residues with their correct protonated atom length
 size_dict = {
@@ -38,7 +40,8 @@ size_dict = {
 def test_protonate_1bji():
     with Dir(PC.TESTDIR + "/shared"):
         with Dir("temp", temp=True):
-            file_pdb2pqr = PDB2PQRtransform("../1bji.pdb", filename_output="1bji_pdb2pqr.pdb")
+            copyfile("../1bji.pdb", "1bji.pdb")
+            file_pdb2pqr = pdb2pqrTransform("1bji.pdb")
             obj_protonated = PDB.PDB(file_pdb2pqr)
 
             assert len(obj_protonated.missing_atoms) == 0

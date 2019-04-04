@@ -5,7 +5,7 @@ import tempfile as _tempfile
 
 if _PC.BIOSIMSPACE:
     import BioSimSpace as _BSS
-    import ProtoCaller.Wrappers.BioSimSpacewrapper as _BSSwrap
+    import ProtoCaller.Wrappers.biosimspacewrapper as _BSSwrap
 import parmed as _pmd
 
 import ProtoCaller.Parametrise as _parametrise

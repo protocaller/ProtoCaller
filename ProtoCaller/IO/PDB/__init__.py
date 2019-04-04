@@ -143,7 +143,8 @@ class PDB(Chain, _CondList.ConditionalList):
                 if chain.type == "chain":
                     file.write("TER\n")
             file.write("END")
-        return filename
+
+        return _os.path.abspath(filename)
 
     def writeHetatms(self, filebase=None):
         """
@@ -230,6 +231,63 @@ class PDB(Chain, _CondList.ConditionalList):
     def numberOfChains(self):
         """int: Returns the number of chains."""
         return len(self)
+
+    def reNameResidues(self, naming_scheme="amber"):
+        """
+        Renames protonated residues according to a naming scheme.
+
+        Parameters
+        ----------
+        naming_scheme : str
+            Which naming scheme to use. Currently only "amber" is supported.
+        """
+        naming_scheme = naming_scheme.strip().lower()
+
+        for chain in self:
+            for i, res in enumerate(chain):
+                length = len(res)
+
+                # dealing with terminal amino acids
+                if i == 0:
+                    for atom in res:
+                        if atom.name in ["H2", "H3"]:
+                            length -= 1
+                elif i == len(chain) - 1:
+                    for atom in res:
+                        if atom.name in ["OXT", "HO"]:
+                            length -= 1
+
+                if naming_scheme == "amber":
+                    if res.resName == "ASP" and length == 13:
+                        res.resName = "ASH"
+                    elif res.resName == "ARG" and length == 23:
+                        res.resName = "ARN"
+                    elif res.resName ==  "GLU" and length == 16:
+                        res.resName = "GLH"
+                    elif res.resName == "HIS":
+                        if length == 18:
+                            res.resName = "HIP"
+                        elif length == 17:
+                            epsilon_h = 0
+                            delta_h = 0
+
+                            for atom in res:
+                                if atom.name[:2] == "HD":
+                                    delta_h += 1
+                                elif atom.name[:2] == "HE":
+                                    epsilon_h += 1
+
+                            if delta_h == 2:
+                                res.resName = "HID"
+                            if epsilon_h == 2:
+                                res.resName = "HIE"
+                    elif res.resName == "LYS" and length == 21:
+                        res.resName = "LYN"
+
+        if naming_scheme == "amber":
+            for cyx1, cyx2 in self.disulfide_bonds:
+                cyx1.resName = "CYX"
+                cyx2.resName = "CYX"
 
     def reNumberResidues(self, start=1, custom_resSeqs=None, custom_iCodes=None):
         if custom_resSeqs is None:

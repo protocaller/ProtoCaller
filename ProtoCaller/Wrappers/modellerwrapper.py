@@ -156,8 +156,8 @@ def fixModellerPDB(model, add_missing_atoms, filename_output=None):
     try:
         filename_modified = model.loop.outputs[0]['name']
     except:
-        print("Modeller failed to create file. Please see the log.")
-        return -1
+        raise FileNotFoundError("Modeller failed to create file. Please see "
+                                "the log.")
 
     pdb_modified = _IO.PDB.PDB(filename_modified)
 
@@ -206,6 +206,5 @@ def fixModellerPDB(model, add_missing_atoms, filename_output=None):
     if filename_output is None:
         filename_output = _os.path.splitext(model.pdb.filename)[0] + \
                           "_modified.pdb"
-    model.pdb.writePDB(filename_output)
 
-    return _os.path.abspath(filename_output)
+    return model.pdb.writePDB(filename_output)

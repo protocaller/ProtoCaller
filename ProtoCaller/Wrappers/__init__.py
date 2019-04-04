@@ -2,11 +2,11 @@ import ProtoCaller as _PC
 from . import babelwrapper
 from . import charmmguiwrapper
 if _PC.BIOSIMSPACE:
-    from . import BioSimSpacewrapper
+    from . import biosimspacewrapper
 if _PC.MODELLER:
     from . import modellerwrapper
 from . import parmedwrapper
-from . import PDB2PQRwrapper
+from . import pdb2pqrwrapper
 from . import pdbfixerwrapper
 from . import protosswrapper
 from . import rdkitwrapper
