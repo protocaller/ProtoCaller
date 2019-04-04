@@ -11,9 +11,8 @@ which calls an external program to modify an object and then returns a modified
 version thereof. Such submodules are :mod:`~ProtoCaller.Wrappers.\
 PDB2PQRwrapper`, :mod:`~ProtoCaller.Wrappers.charmmguiwrapper`,
 :mod:`~ProtoCaller.Wrappers.modellerwrapper`,
-:mod:`~ProtoCaller.Wrappers.pdbfixerwrapper`,
-:mod:`~ProtoCaller.Wrappers.babelwrapper` and the not-yet-functional
-:mod:`~ProtoCaller.Wrappers.protosswrapper`. The second type is a wrapper
+:mod:`~ProtoCaller.Wrappers.pdbfixerwrapper` and
+:mod:`~ProtoCaller.Wrappers.babelwrapper`. The second type is a wrapper
 that provides additional functionality. E.g. in :mod:`~ProtoCaller.Wrappers.\
 biosimspacewrapper`, :mod:`~ProtoCaller.Wrappers.parmedwrapper` and
 :mod:`~ProtoCaller.Wrappers.rdkitwrapper` one can find functions which extend
@@ -34,7 +33,6 @@ Submodules
    ProtoCaller.Wrappers.parmedwrapper
    ProtoCaller.Wrappers.pdb2pqrwrapper
    ProtoCaller.Wrappers.pdbfixerwrapper
-   ProtoCaller.Wrappers.protosswrapper
    ProtoCaller.Wrappers.rdkitwrapper
 
 Module contents

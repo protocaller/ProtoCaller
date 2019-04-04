@@ -8,5 +8,4 @@ if _PC.MODELLER:
 from . import parmedwrapper
 from . import pdb2pqrwrapper
 from . import pdbfixerwrapper
-from . import protosswrapper
 from . import rdkitwrapper

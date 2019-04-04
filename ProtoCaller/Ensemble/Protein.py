@@ -309,12 +309,6 @@ class Protein:
                 if protonate_ligands is not None else ""
 
             # compatibility checks
-            if protonate_proteins != "protoss" and \
-                    protonate_ligands == "protoss":
-                _warnings.warn("Protoss cannot be individually called on a "
-                               "ligand. Changing protein protonation method to"
-                               " Protoss...")
-                protonate_proteins = "protoss"
             if add_missing_atoms == "pdb2pqr" and \
                     protonate_proteins != "pdb2pqr":
                 _warnings.warn("Cannot currently run PDB2PQR without "
@@ -365,15 +359,6 @@ class Protein:
             # protonate proteins
             if "pdb2pqr" in [add_missing_atoms, protonate_proteins]:
                 self.pdb = _PDB2PQR.pdb2pqrTransform(self.pdb)
-
-            if protonate_proteins == "protoss":
-                # TODO: fix
-                raise ValueError("Protoss support is not yet fully functional")
-                # this code is obsolete and needs to be fixed
-                # ligand_file = _SDF.mergeSDFs(self.ligands) if protonate_ligands == "protoss" else None
-                # self.pdb, ligand_file, _ = _protoss.protossTransform(self.pdb, ligand_file)
-                # if protonate_ligands == "protoss":
-                #     self.ligands = _SDF.splitSDFs([ligand_file])
 
             # protonate ligands
             if len(self.ligands + self.cofactors):
