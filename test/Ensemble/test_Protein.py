@@ -29,8 +29,8 @@ def test_prepare_1bji():
             protein.parametrise(Params())
 
             if PC.BIOSIMSPACE and isinstance(protein.complex_template, BSS._SireWrappers._system.System):
-                assert protein.complex_template.nAtoms() == 6003
-                assert pytest.approx(protein.complex_template.charge().magnitude()) == -1
+                assert protein.complex_template.nAtoms() == 6006
+                assert pytest.approx(protein.complex_template.charge().magnitude()) == 2
             else:
                 # TODO: add support for ParmEd topologies when the Morph class is fully functional
                 pass

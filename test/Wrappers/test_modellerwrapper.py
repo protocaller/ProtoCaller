@@ -1,12 +1,15 @@
 import ProtoCaller as PC
 import ProtoCaller.IO.PDB as PDB
 from ProtoCaller.Utils.fileio import Dir
-from ProtoCaller.Wrappers.modellerwrapper import modellerTransform
 
 from shutil import copyfile
 
 
 def test_model_3zg0():
+    if not PC.MODELLER:
+        return
+
+    from ProtoCaller.Wrappers.modellerwrapper import modellerTransform
     with Dir(PC.TESTDIR + "/shared"):
         with Dir("temp", temp=True):
             copyfile("../3ZG0.pdb", "3ZG0.pdb")

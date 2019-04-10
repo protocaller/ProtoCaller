@@ -7,27 +7,44 @@ from ProtoCaller.Utils.fileio import Dir
 def test_align():
     with Dir(PC.TESTDIR + "/shared"):
         with Dir("temp", temp=True):
-            lig_ref = Ligand("../toluene.sdf", protonated=False, minimise=False)
+            lig_ref = Ligand("../toluene.sdf", protonated=True, minimise=False)
             lig1 = Ligand("c1ccccc1CC", minimise=False)
             lig2 = Ligand("c1ccccc1CCC", minimise=False)
 
             morph = Perturbation(lig1, lig2)
             mol, mcs = morph.alignAndCreateMorph(lig_ref)
+            assert len(mcs) == 18
 
-            positions = [(-33.238, 7.16, 4.565), (-33.992, 6.571, 5.57), (-34.711, 5.417, 5.332),
-                         (-34.638, 4.878, 4.06), (-33.894, 5.447, 3.048), (-33.181, 6.606, 3.301),
-                         (-32.355, 7.263, 2.207), (-33.192, 8.279, 1.437), (-32.691, 8.069, 4.784),
-                         (-34.021, 7.024, 6.553), (-35.304, 4.952, 6.109), (-35.192, 3.972, 3.85),
-                         (-33.876, 4.987, 2.067), (-31.974, 6.493, 1.502), (-31.472, 7.774, 2.648),
-                         (-33.555, 9.075, 2.122), (-34.063, 7.779, 0.962), (-32.573, 8.746, 0.643),
-                         (-32.758, 9.628, 2.683), (-34.361, 8.772, 2.834), (-34.071, 9.887, 1.543)]
+            positions = {
+                (-32.355, 7.263, 2.207),
+                (-33.181, 6.606, 3.301),
+                (-33.238, 7.160, 4.565),
+                (-33.992, 6.571, 5.570),
+                (-34.711, 5.417, 5.332),
+                (-34.638, 4.878, 4.060),
+                (-33.894, 5.447, 3.048),
+                (-31.882, 8.141, 2.595),
+                (-32.993, 7.533, 1.392),
+                (-31.608, 6.578, 1.864),
+                (-32.712, 8.025, 4.765),
+                (-34.016, 7.001, 6.508),
+                (-35.279, 4.975, 6.072),
+                (-35.163, 4.013, 3.860),
+                (-33.869, 5.013, 2.112),
+                (-31.263, 8.640, 1.798),
+                (-32.569, 8.991, 2.866),
+                (-32.809, 9.733, 2.028),
+                (-32.102, 9.717, 3.591),
+                (-31.088, 7.968, 3.375),
+                (-33.677, 8.973, 3.124),
+            }
 
             vec1 = mol._sire_molecule.property("coordinates0").toVector()
+            positions_A = {(x[0], x[1], x[2]) for x in vec1}
             vec2 = mol._sire_molecule.property("coordinates1").toVector()
+            positions_B = {(x[0], x[1], x[2]) for x in vec2}
 
-            # need element by element check because Vector and Tuple are different types but they both support []
-            for item1, item2, item3 in zip(positions, vec1, vec2):
-                for i in range(3):
-                    assert item1[i] == item2[i] == item3[i]
+            assert len(positions.intersection(positions_A)) == 21
+            assert len(positions.intersection(positions_B)) == 21
 
             assert len(vec1) == len(vec2) == len(positions)
