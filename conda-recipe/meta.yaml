@@ -23,7 +23,7 @@ requirements:
     - biopython>=1.73
     - biosimspace
     - geckodriver
-    - htmd-pdb2pqr>=2.1.1
+    - htmd-pdb2pqr
     - mdanalysis
     - modeller
     - numpy==1.15.4
