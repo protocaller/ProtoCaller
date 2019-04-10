@@ -57,5 +57,3 @@ docs/_build/
 
 # PyBuilder
 target/
-
-!ProtoCaller/shared/pdb2pqr*/**
