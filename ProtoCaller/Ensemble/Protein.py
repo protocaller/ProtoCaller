@@ -278,7 +278,9 @@ class Protein:
 
     def prepare(self, add_missing_residues="pdbfixer",
                 add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
-                protonate_ligands="babel"):
+                protonate_ligands="babel", missing_residues_options=None,
+                missing_atom_options=None, protonate_proteins_options=None,
+                protonate_ligands_options=None):
         """
         Adds missing residues / atoms to the protein and protonates it and the
         relevant ligands.
@@ -297,6 +299,18 @@ class Protein:
         protonate_ligands : str or None
             How to protonate the related ligands / cofactors. One of "babel"
             and None (no protonation).
+        missing_residues_options : dict
+            Keyword arguments to pass on to the relevant wrapper responsible
+            for the addition of missing protein residues.
+        missing_atom_options : dict
+            Keyword arguments to pass on to the relevant wrapper responsible
+            for the addition of missing heavy atoms.
+        protonate_proteins_options : dict
+            Keyword arguments to pass on to the relevant wrapper responsible
+            for protein protonation.
+        protonate_ligands_options : dict
+            Keyword arguments to pass on to the relevant wrapper responsible
+            for ligand protonation.
         """
         with self.workdir:
             add_missing_residues = add_missing_residues.strip().lower() \
@@ -307,6 +321,15 @@ class Protein:
                 if protonate_proteins is not None else ""
             protonate_ligands = protonate_ligands.strip().lower() \
                 if protonate_ligands is not None else ""
+
+            if missing_residues_options is None:
+                missing_residues_options = {}
+            if missing_atom_options is None:
+                missing_atom_options = {}
+            if protonate_proteins_options is None:
+                protonate_proteins_options = {}
+            if protonate_ligands_options is None:
+                protonate_ligands_options = {}
 
             # compatibility checks
             if add_missing_atoms == "pdb2pqr" and \
@@ -328,16 +351,23 @@ class Protein:
 
             # add missing residues
             if len(self._pdb_obj.missing_residues):
+                kwargs = missing_residues_options
                 if add_missing_residues == "modeller":
-                    atoms = True if add_missing_atoms == "modeller" else False
+                    if add_missing_atoms == "modeller":
+                        atoms = True
+                        kwargs = {**kwargs, **missing_atom_options}
+                    else:
+                        atoms = False
                     fasta = self._downloader.getFASTA()
                     self.pdb = _modeller.modellerTransform(self.pdb, fasta,
-                                                           atoms)
+                                                           atoms, **kwargs)
                 elif add_missing_residues == "charmm-gui":
-                    self.pdb = _charmmwrap.charmmguiTransform(self.pdb)
+                    self.pdb = _charmmwrap.charmmguiTransform(self.pdb,
+                                                              **kwargs)
                 elif add_missing_residues == "pdbfixer":
                     atoms = True if add_missing_atoms == "pdbfixer" else False
-                    self.pdb = _pdbfix.pdbfixerTransform(self.pdb, True, atoms)
+                    self.pdb = _pdbfix.pdbfixerTransform(self.pdb, True,
+                                                         atoms, **kwargs)
                 else:
                     _warnings.warn("Protein has missing residues. Please check"
                                    " your PDB file or choose a valid "
@@ -345,6 +375,7 @@ class Protein:
 
             # add missing atoms
             if len(self.pdb_obj.missing_atoms):
+                kwargs = missing_atom_options
                 if add_missing_atoms == "modeller" and \
                         (not len(self._pdb_obj.missing_residues) or
                          add_missing_residues != "modeller"):
@@ -354,18 +385,25 @@ class Protein:
                     add_missing_atoms = "pdb2pqr"
                 elif add_missing_atoms == "pdbfixer" and \
                          add_missing_residues != "pdbfixer":
-                    self.pdb = _pdbfix.pdbfixerTransform(self.pdb, False, True)
+                    self.pdb = _pdbfix.pdbfixerTransform(self.pdb, False, True,
+                                                         **kwargs)
 
             # protonate proteins
             if "pdb2pqr" in [add_missing_atoms, protonate_proteins]:
-                self.pdb = _PDB2PQR.pdb2pqrTransform(self.pdb)
+                kwargs = {}
+                if add_missing_atoms == "pdb2pqr":
+                    kwargs = missing_atom_options
+                if protonate_proteins == "pdb2pqr":
+                    kwargs = {**kwargs, **protonate_proteins_options}
+                self.pdb = _PDB2PQR.pdb2pqrTransform(self.pdb, **kwargs)
 
             # protonate ligands
             if len(self.ligands + self.cofactors):
+                kwargs = protonate_ligands_options
                 if protonate_ligands == "babel":
                     for ligand in self.ligands + self.cofactors:
                         if not ligand.protonated:
-                            ligand.protonate()
+                            ligand.protonate(**kwargs)
                 else:
                     _warnings.warn("Need to protonate all relevant ligands / "
                                    "cofactors before any parametrisation")
