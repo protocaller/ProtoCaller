@@ -115,7 +115,6 @@ try:
     MODELLER = True
 except:
     MODELLER = False
-    _warnings.warn("Modeller cannot be started. Some functionality will be limited")
 
 with _warnings.catch_warnings():
     _warnings.filterwarnings("ignore")
