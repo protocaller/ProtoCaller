@@ -50,14 +50,9 @@ else:
         GROMACSMPIEXE = GROMACSMPIEXE if _os.path.isfile(GROMACSMPIEXE) else GROMACSEXE
         GROMACSEXE = GROMACSEXE if _os.path.isfile(GROMACSEXE) else GROMACSMPIEXE
 
-#setting PDB2PQR path variable
-PDB2PQREXE = searchForPath("%s/pdb2pqr-%s/pdb2pqr" % (SHAREDDIR, OS), "PDB2PQREXE")
-if not PDB2PQREXE:
-    _warnings.warn("Cannot find PDB2PQR binary for the current operating system.")
 
 _os.environ["SIRE_SILENT_PHONEHOME"] = "1"
 #AMBERHOME = _os.environ["AMBERHOME"]
-
 
 ENGINES = ["GROMACS"]
 

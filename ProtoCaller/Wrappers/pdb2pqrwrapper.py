@@ -3,9 +3,11 @@
 # 2. check numbering of ignored residues
 import os as _os
 
-import ProtoCaller as _PC
+from pdb2pqr.main import runPDB2PQR as _runPDB2PQR
+from pdb2pqr.src.pdb import readPDB as _readPDB
+import propka.lib as _lib
+
 from ProtoCaller.IO.PDB import PDB as _PDB
-import ProtoCaller.Utils.runexternal as _runexternal
 
 __all__ = ["pdb2pqrTransform"]
 
@@ -29,29 +31,27 @@ def pdb2pqrTransform(filename, **kwargs):
     filename : str
         Absolute path to the protonated file.
     """
-    if not _PC.PDB2PQREXE:
-        raise OSError("Cannot find PDB2PQR binary for the current operating "
-                      "system.")
-    filename_output = _os.path.splitext(filename)[0] + "_pdb2pqr.pdb"
 
     default_kwargs = {
         'chain': True,
         'ff': 'amber',
         'ffout': 'amber',
         'verbose': True,
-        'drop-water': True,
+        'drop_water': True,
+        'ph': 7,
+        'ph_calc_method': 'propka31',
+        'ph_calc_options': _lib.loadOptions('--quiet')[0]
     }
-    for key, val in kwargs.items():
-        default_kwargs[key] = val
 
-    runstring = "\"{}\" \"{}\" \"{}\"".format(_PC.PDB2PQREXE, filename,
-                                              filename_output)
-    for key, val in default_kwargs.items():
-        if val is True:
-            runstring += " --%s" % key
-        elif val is not False:
-            runstring += " --%s=%s" % (key, val)
-    _runexternal.runExternal(runstring, procname="PDB2PQR")
+    default_kwargs = {**default_kwargs, **kwargs}
+
+    pdb = _readPDB(open(filename))[0]
+    pdb = _runPDB2PQR(pdb, **default_kwargs)
+
+    filename_output = _os.path.splitext(filename)[0] + "_pdb2pqr.pdb"
+    with open(filename_output, "w") as f:
+        for line in pdb['lines']:
+            f.write(line)
 
     return fixPdb2pqrPDB(filename_output, filename, filename_output)
 

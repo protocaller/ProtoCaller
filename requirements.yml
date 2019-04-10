@@ -1,4 +1,6 @@
 channels:
+  - michellab/label/dev
+  - accelera
   - rdkit
   - openbabel
   - AmberMD
@@ -11,7 +13,9 @@ dependencies:
   - ambertools>=17.6
   - beautifulsoup4
   - biopython>=1.73
+  - biosimspace
   - geckodriver
+  - htmd-pdb2pqr>=2.1.1
   - mdanalysis
   - modeller
   - numpy==1.15.4
