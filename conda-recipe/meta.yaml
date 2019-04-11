@@ -25,7 +25,6 @@ requirements:
     - geckodriver
     - htmd-pdb2pqr
     - mdanalysis
-    - modeller
     - numpy==1.15.4
     - openbabel>=2.4.1
     - parmed>=3.1.0
