@@ -13,7 +13,14 @@ This tool uses a variety of tools to automate the free energy calculation proces
 Installation
 ------------
 
-This code will soon be released as a conda package. Stay tuned for details soon.
+This package is distributed via Conda. To install it, run the following commands:
+
+.. code-block:: bash
+
+    conda install -c essexlab protocaller -c michellab/label/dev -c rdkit -c openbabel -c conda-forge -c omnia -c acellera
+    pip install fileupload pygtail pypdb
+
+The last line is needed for BioSimSpace functionality. You can ignore it if you already have BioSimSpace installed.
 
 
 Getting Started
