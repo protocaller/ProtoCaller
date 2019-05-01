@@ -24,6 +24,7 @@ requirements:
     - biosimspace
     - geckodriver
     - htmd-pdb2pqr
+    - libcblas
     - mdanalysis
     - numpy==1.15.4
     - openbabel>=2.4.1
