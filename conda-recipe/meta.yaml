@@ -30,7 +30,9 @@ requirements:
     - openbabel>=2.4.1
     - parmed>=3.1.0
     - pdbfixer>=1.5
+    - pygtail
     - pymbar
+    - pypdb
     - pytest
     - rdkit>=2018.03.4
     - requests
