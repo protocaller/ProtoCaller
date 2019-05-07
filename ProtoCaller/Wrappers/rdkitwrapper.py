@@ -216,7 +216,7 @@ def translateMolecule(mol, vector):
     return mol
 
 
-def getMCSMap(ref, mol, match="any", always_maximum=True, matchChiralTag=True, **kwargs):
+def getMCSMap(ref, mol, match="any", always_maximum=False, matchChiralTag=True, **kwargs):
     """
     Generates the Maximum Common Substructure (MCS) mapping between two molecules.
 
@@ -332,16 +332,16 @@ def getMCSMap(ref, mol, match="any", always_maximum=True, matchChiralTag=True, *
 
     # find loose MCS. matchChiralTag is always False because of bad combined functionality of completeRingsOnly False
     # and matchChiralTag True. We try to fix any wrong results later on in the code.
-    mcs, matches = matchAndReturnMatches([ref, mol], completeRingsOnly=False, matchChiralTag=False, **kwargs)
-    matches = fixMCS(mcs, matches)
+    if always_maximum:
+        mcs, matches = matchAndReturnMatches([ref, mol], completeRingsOnly=False, matchChiralTag=False, **kwargs)
+        matches = fixMCS(mcs, matches)
 
     # now get the strict mapping and discard the loose mapping if it doesn't perform better
-    if always_maximum:
-        mcs, matches_strict = matchAndReturnMatches([ref, mol], completeRingsOnly=True, matchChiralTag=False, **kwargs)
-        if matchChiralTag:
-            matches_strict = fixMCS(mcs, matches_strict)
-        if len(matches) < len(matches_strict):
-            return matches_strict
+    mcs_strict, matches_strict = matchAndReturnMatches([ref, mol], completeRingsOnly=True, matchChiralTag=False, **kwargs)
+    if matchChiralTag:
+        matches_strict = fixMCS(mcs_strict, matches_strict)
+    if not always_maximum or len(matches) < len(matches_strict):
+        return matches_strict
 
     return matches
 
