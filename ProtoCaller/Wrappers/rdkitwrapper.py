@@ -1,11 +1,9 @@
-from collections import Counter as _Counter
 import copy as _copy
 import os as _os
 
 from rdkit import Chem as _Chem
 from rdkit.Chem import AllChem as _AllChem
 from rdkit.Chem import rdForceFieldHelpers as _FF
-from rdkit.Chem import rdFMCS as _FMCS
 from rdkit.Chem import rdmolops as _rdmolops
 from rdkit.Geometry import rdGeometry as _Geom
 import parmed as _pmd
@@ -13,6 +11,9 @@ import parmed as _pmd
 import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Utils.runexternal as _runexternal
 import ProtoCaller.Utils.stdio as _stdio
+with _stdio.stdout_stderr_cls():
+    # Here we use the deprecated function because it is more robust TODO: fix
+    from rdkit.Chem import MCS as _MCS
 from . import babelwrapper as _babel
 
 
@@ -216,7 +217,7 @@ def translateMolecule(mol, vector):
     return mol
 
 
-def getMCSMap(ref, mol, match="any", always_maximum=False, matchChiralTag=True, **kwargs):
+def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", **kwargs):
     """
     Generates the Maximum Common Substructure (MCS) mapping between two molecules.
 
@@ -226,23 +227,12 @@ def getMCSMap(ref, mol, match="any", always_maximum=False, matchChiralTag=True, 
         The reference molecule.
     mol : rdkit.Chem.rdchem.Mol
         The molecule to be aligned.
-    match : str
+    atomCompare : str
         One of "any" (matches any pairs of atoms) and "elements" (matches only the same atoms).
-    always_maximum : bool
-        Always give the substructure that has the maximum common number of atoms - good for single
-       topology mapping. False is good for overall structure alignment. Note that in some more
-       complex molecules there might be an MCS that satisfies our criteria and is bigger. Here we
-       rely on there being one obvious MCS - something that should be the case in free energy
-       calculations anyway. Note that this option does not apply to chiral symmetric molecules.
-    matchChiralTag : bool
-        Take care of stereochemistry. Here we don't use rdkit's default behaviour because it is not
-       good for our purposes. We instead opt for a maximum common substructure and then pruning all
-       atoms that will not obey the stereochemistry. While this option does not work perfectly for
-       symmetric chiral molecules, it should work rather well in the general case. Again, the
-       results are best when the two molecules are similar in structure which should be the case
-       in FE calculations.
+    bondCompare : str
+        One of "any" (matches any bonds) and "elements" (matches only the same bonds).
     kwargs
-        Keyword arguments passed on to rdkit.Chem.rdFMCS.FindMCS.
+        Additional keyword arguments passed on to rdkit.Chem.MCS.FindMCS.
 
     Returns
     -------
@@ -251,22 +241,23 @@ def getMCSMap(ref, mol, match="any", always_maximum=False, matchChiralTag=True, 
         A list of tuples corresponding to the atom index matches between the reference and the other molecule.
     """
     def matchAndReturnMatches(*args, **kwargs):
-        mcs_string = _FMCS.FindMCS(*args, **kwargs).smartsString
+        mcs_string = _MCS.FindMCS(*args, **kwargs).smarts
         mcs = _Chem.MolFromSmarts(mcs_string)
-        return mcs, list(zip(ref.GetSubstructMatch(mcs), mol.GetSubstructMatch(mcs)))
+        # fixes some issues with RDKit concerning SMARTS
+        mcs = _Chem.MolFromSmarts(_Chem.MolToSmiles(mcs, canonical=False, allBondsExplicit=True, allHsExplicit=True))
+        return mcs, ref.GetSubstructMatches(mcs), mol.GetSubstructMatches(mcs)
+
+    def generateFragment(mol, indices_to_delete):
+        mol_frag_edit = _Chem.EditableMol(_copy.deepcopy(mol))
+        for idx in reversed(sorted(indices_to_delete)):
+            mol_frag_edit.RemoveAtom(idx)
+        mol_frag = mol_frag_edit.GetMol()
+        mol_frag.UpdatePropertyCache()
+        return mol_frag
 
     def transformIndices(indices_new, indices_to_delete):
         # take into account the fact that indices change when atoms are deleted
-        return [x + sum(x >= y for y in sorted(indices_to_delete)) for x in sorted(indices_new)]
-
-    def fixIndicesToDelete(indices_to_delete, mcs, matches):
-        # accept a molecule and indices to delete and return the indices from the old molecule corresponding to the
-        # biggest fragment in the new one
-        mcs_edit = _Chem.EditableMol(_copy.deepcopy(mcs))
-        for index in reversed(indices_to_delete):
-            mcs_edit.RemoveAtom(index)
-        indices_new = max(_rdmolops.GetMolFrags(mcs_edit.GetMol(), asMols=False, sanitizeFrags=False), key=len)
-        return [x for i, x in enumerate(matches) if i in transformIndices(indices_new, indices_to_delete)]
+        return [x + sum(x >= y for y in indices_to_delete) for x in indices_new]
 
     def fixChiralIndices(indices, mcs, matches):
         # delete all specified indices and create fragments recursively so that each one of them contains at least one
@@ -291,59 +282,47 @@ def getMCSMap(ref, mol, match="any", always_maximum=False, matchChiralTag=True, 
             fragments = fragments_new
         return [x for i, x in enumerate(matches) if i in max(fragments, key=len)]
 
-    def fixMCS(mcs, matches):
-        # check whether there are any improperly assigned rings (e.g. 5-membered to 6-membered) and flag the atoms
-        # also check if there is any chirality mismatch and flag the atoms if this is the case
-        indices_to_delete, indices_chiral = [], []
+    def fixMCS(ref, mol, match_ref, match_mol, **kwargs):
+        kwargs = {**kwargs, 'ringMatchesRingOnly': True}
+        # make sure that correct mapping is obtained between the two molecules given an MCS
+        indices_to_delete_ref = [x for x in range(ref.GetNumAtoms()) if x not in match_ref]
+        indices_to_delete_mol = [x for x in range(mol.GetNumAtoms()) if x not in match_mol]
+        mcs_ref = generateFragment(ref, indices_to_delete_ref)
+        mcs_mol = generateFragment(mol, indices_to_delete_mol)
+        mcs, _, _ = matchAndReturnMatches([mcs_ref, mcs_mol], completeRingsOnly=True, **kwargs)
+        matches = list(zip(ref.GetSubstructMatch(mcs), mol.GetSubstructMatch(mcs)))
+
+        # check if there is any chirality mismatch and flag the atoms if this is the case
+        indices_chiral = []
         for i_mcs, (i_ref, i_mol) in enumerate(matches):
-            rings_ref, rings_mol = getRings(i_ref, ref), getRings(i_mol, mol)
-            is_wrong_mapping = not isSublist(rings_ref, rings_mol) and not isSublist(rings_mol, rings_ref)
-            is_different_chirality = matchChiralTag and i_ref in chiral_ref.keys() and i_mol in chiral_mol.keys() and \
+            is_different_chirality = i_ref in chiral_ref.keys() and i_mol in chiral_mol.keys() and \
                                      chiral_ref[i_ref] != chiral_mol[i_mol]
-            if is_wrong_mapping:
-                indices_to_delete += [i_mcs]
-            elif is_different_chirality:
+            if is_different_chirality:
                 indices_chiral += [i_mcs]
+
         # delete invalid atoms
-        if indices_to_delete:
-            matches = fixIndicesToDelete(indices_to_delete, mcs, matches)
         if indices_chiral:
             matches = fixChiralIndices(indices_chiral, mcs, matches)
+
         return matches
 
-    match = match.strip().lower()
-    if match == "any":
-        comp_method = _FMCS.AtomCompare.CompareAny
-    elif match == "elements":
-        comp_method = _FMCS.AtomCompare.CompareElements
-    else:
-        raise ValueError("'match' arguments needs to be either 'any' or 'elements'")
-
-    kwargs = {
-        "atomCompare": comp_method,
-        "bondCompare": _FMCS.BondCompare.CompareAny,
-        "ringMatchesRingOnly": False,
-        **kwargs,
-    }
+    kwargs = {**kwargs, 'atomCompare': atomCompare, 'bondCompare': bondCompare}
 
     # get the chiral centres
     chiral_ref = dict(_Chem.FindMolChiralCenters(ref))
     chiral_mol = dict(_Chem.FindMolChiralCenters(mol))
+    matches = []
 
-    # find loose MCS. matchChiralTag is always False because of bad combined functionality of completeRingsOnly False
-    # and matchChiralTag True. We try to fix any wrong results later on in the code.
-    if always_maximum:
-        mcs, matches = matchAndReturnMatches([ref, mol], completeRingsOnly=False, matchChiralTag=False, **kwargs)
-        matches = fixMCS(mcs, matches)
+    mcs, matches_ref, matches_mol = matchAndReturnMatches([ref, mol], completeRingsOnly=False, **kwargs)
+    for match_ref in matches_ref:
+        for match_mol in matches_mol:
+            matches += [fixMCS(ref, mol, match_ref, match_mol, **kwargs)]
 
-    # now get the strict mapping and discard the loose mapping if it doesn't perform better
-    mcs_strict, matches_strict = matchAndReturnMatches([ref, mol], completeRingsOnly=True, matchChiralTag=False, **kwargs)
-    if matchChiralTag:
-        matches_strict = fixMCS(mcs_strict, matches_strict)
-    if not always_maximum or len(matches) < len(matches_strict):
-        return matches_strict
+    max_len = max([len(match) for match in matches])
+    matches = [match for match in matches if len(match) == max_len]
 
-    return matches
+    # TODO: fix
+    return matches[0]
 
 
 def alignTwoMolecules(ref, mol, n_min=-1, mcs=None, **kwargs):
@@ -391,46 +370,3 @@ def alignTwoMolecules(ref, mol, n_min=-1, mcs=None, **kwargs):
                 n_min -= 1
 
     return mol, mcs
-
-
-def getRings(atom_idx, molecule):
-    """
-    Returns an array with the sorted ring sizes of all rings the target atom is contained in.
-
-    Parameters
-    ----------
-    atom_idx : int
-        Index of the target atom.
-    molecule : rdkit.Chem.rdchem.Mol
-        The input molecule.
-
-    Returns
-    -------
-    rings : list
-        A sorted list of all rings the atom is a part of.
-    """
-    rings = molecule.GetRingInfo().AtomRings()
-    return sorted([len(ring) for ring in rings if atom_idx in ring])
-
-
-def isSublist(l1, l2):
-    """
-    Returns whether a list is a sublist of another, accounting for repeated elements.
-
-    Parameters
-    ----------
-    l1 : list
-        The sublist.
-    l2 : list
-        The main list.
-
-    Returns
-    -------
-    value : bool:
-        Whether l1 is contained in l2.
-    """
-    c1, c2 = _Counter(l1), _Counter(l2)
-    for k, n in c1.items():
-        if n > c2[k]:
-            return False
-    return True
