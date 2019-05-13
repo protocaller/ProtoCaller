@@ -237,27 +237,40 @@ def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", **kwargs):
     Returns
     -------
 
-    mcs : [tuple]
-        A list of tuples corresponding to the atom index matches between the reference and the other molecule.
+    mcs : [[tuple]]
+        A list of lists tuples corresponding to the atom index matches between the reference and the other molecule.
     """
     def matchAndReturnMatches(*args, **kwargs):
+        # returns the MCS of two molecules as given by RDKit
         mcs_string = _MCS.FindMCS(*args, **kwargs).smarts
+        if mcs_string is None:
+            return None, [], []
         mcs = _Chem.MolFromSmarts(mcs_string)
         # fixes some issues with RDKit concerning SMARTS
         mcs = _Chem.MolFromSmarts(_Chem.MolToSmiles(mcs, canonical=False, allBondsExplicit=True, allHsExplicit=True))
         return mcs, ref.GetSubstructMatches(mcs), mol.GetSubstructMatches(mcs)
 
-    def generateFragment(mol, indices_to_delete):
+    def generateFragment(mol, indices_to_delete, getAsFrags=False):
+        # generates a molecule from another given indices to delete
         mol_frag_edit = _Chem.EditableMol(_copy.deepcopy(mol))
         for idx in reversed(sorted(indices_to_delete)):
             mol_frag_edit.RemoveAtom(idx)
         mol_frag = mol_frag_edit.GetMol()
-        mol_frag.UpdatePropertyCache()
-        return mol_frag
+        if getAsFrags:
+            frags = _rdmolops.GetMolFrags(mol_frag, asMols=False, sanitizeFrags=False)
+            return [transformIndices(f, indices_to_delete) for f in frags]
+        else:
+            mol_frag.UpdatePropertyCache()
+            return mol_frag
 
     def transformIndices(indices_new, indices_to_delete):
         # take into account the fact that indices change when atoms are deleted
-        return [x + sum(x >= y for y in indices_to_delete) for x in indices_new]
+        if not indices_new:
+            return []
+        if not indices_to_delete:
+            return indices_new
+        remaining_indices = [x for x in range(max(indices_to_delete) + max(indices_new) + 2) if x not in indices_to_delete]
+        return [remaining_indices[x] for x in indices_new]
 
     def fixChiralIndices(indices, mcs, matches):
         # delete all specified indices and create fragments recursively so that each one of them contains at least one
@@ -290,21 +303,41 @@ def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", **kwargs):
         mcs_ref = generateFragment(ref, indices_to_delete_ref)
         mcs_mol = generateFragment(mol, indices_to_delete_mol)
         mcs, _, _ = matchAndReturnMatches([mcs_ref, mcs_mol], completeRingsOnly=True, **kwargs)
-        matches = list(zip(ref.GetSubstructMatch(mcs), mol.GetSubstructMatch(mcs)))
+        if mcs is None:
+            return [[]]
+        matches = [list(zip(x, y)) for x in ref.GetSubstructMatches(mcs) for y in mol.GetSubstructMatches(mcs)]
+
+        matches_new = []
 
         # check if there is any chirality mismatch and flag the atoms if this is the case
-        indices_chiral = []
-        for i_mcs, (i_ref, i_mol) in enumerate(matches):
-            is_different_chirality = i_ref in chiral_ref.keys() and i_mol in chiral_mol.keys() and \
-                                     chiral_ref[i_ref] != chiral_mol[i_mol]
-            if is_different_chirality:
-                indices_chiral += [i_mcs]
+        for match in matches:
+            indices_chiral = []
+            for i_mcs, (i_ref, i_mol) in enumerate(match):
+                is_different_chirality = i_ref in chiral_ref.keys() and i_mol in chiral_mol.keys() and \
+                                         chiral_ref[i_ref] != chiral_mol[i_mol]
+                if is_different_chirality:
+                    indices_chiral += [i_mcs]
 
-        # delete invalid atoms
-        if indices_chiral:
-            matches = fixChiralIndices(indices_chiral, mcs, matches)
+            # delete invalid atoms
+            if indices_chiral:
+                match = fixChiralIndices(indices_chiral, mcs, match)
 
-        return matches
+            matches_new += [match]
+
+        return matches_new
+
+    len_ref = ref.GetNumAtoms()
+    len_mol = mol.GetNumAtoms()
+    if not all([len_ref, len_mol]):
+        return [[]]
+    elif any([len_ref == 1, len_mol == 1]):
+        return [[(x, y)] for x in range(len_ref) for y in range(len_mol)]
+
+    if "iterate" in kwargs.keys():
+        iterate = True
+        kwargs.pop("iterate")
+    else:
+        iterate = False
 
     kwargs = {**kwargs, 'atomCompare': atomCompare, 'bondCompare': bondCompare}
 
@@ -313,16 +346,87 @@ def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", **kwargs):
     chiral_mol = dict(_Chem.FindMolChiralCenters(mol))
     matches = []
 
+    # get initial pruned MCS
     mcs, matches_ref, matches_mol = matchAndReturnMatches([ref, mol], completeRingsOnly=False, **kwargs)
+    if mcs is None:
+        return [[]]
     for match_ref in matches_ref:
         for match_mol in matches_mol:
-            matches += [fixMCS(ref, mol, match_ref, match_mol, **kwargs)]
+            matches += fixMCS(ref, mol, match_ref, match_mol, **kwargs)
 
+    # only keep the biggest MCS's
     max_len = max([len(match) for match in matches])
-    matches = [match for match in matches if len(match) == max_len]
+    matches = {frozenset(match) for match in matches if len(match) == max_len}
 
-    # TODO: fix
-    return matches[0]
+    # split the remainder of the molecule and recursively search for more MCS's
+    matches_new = _copy.copy(matches)
+    for match in matches:
+        if match == frozenset():
+            continue
+        match_ref, match_mol = zip(*match)
+        frags_ref = generateFragment(ref, match_ref, getAsFrags=True)
+        frags_mol = generateFragment(mol, match_mol, getAsFrags=True)
+        for frag_ref in frags_ref:
+            indices_to_delete_ref = [x for x in range(ref.GetNumAtoms()) if
+                                     x not in frag_ref]
+            for frag_mol in frags_mol:
+                indices_to_delete_mol = [x for x in range(mol.GetNumAtoms()) if
+                                         x not in frag_mol]
+                mol_new = generateFragment(mol, indices_to_delete_mol)
+                ref_new = generateFragment(ref, indices_to_delete_ref)
+                match_new_total = getMCSMap(ref_new, mol_new, iterate=True,
+                                            **kwargs)
+                if match_new_total == {frozenset()}:
+                    continue
+                for match_new in match_new_total:
+                    match_new_ref, match_new_mol = zip(*match_new)
+                    match_new_ref = transformIndices(match_new_ref,
+                                                     indices_to_delete_ref)
+                    match_new_mol = transformIndices(match_new_mol,
+                                                     indices_to_delete_mol)
+
+                    # only include if mappings are unique
+                    #if not any([len(set(match_ref).intersection(match_new_ref)),
+                    #            len(set(match_mol).intersection(match_new_mol))]):
+                    # TODO: deal with repeated indices
+                    matches_new |= {m | frozenset(zip(match_new_ref, match_new_mol)) for m in matches}
+
+    # don't prune disconnected MCS's just yet
+    if iterate:
+        return matches_new if len(matches_new) else {frozenset()}
+
+    # prune all of the resulting MCS combinations so that they are connected
+    matches_final = [[]]
+    for match_new in matches_new:
+        if match_new == frozenset():
+            continue
+        match_new_ref, match_new_mol = zip(*match_new)
+        indices_to_delete_ref = [x for x in range(ref.GetNumAtoms()) if
+                                 x not in match_new_ref]
+        indices_to_delete_mol = [x for x in range(mol.GetNumAtoms()) if
+                                 x not in match_new_mol]
+        frags_ref = generateFragment(ref, indices_to_delete_ref, getAsFrags=True)
+        frags_mol = generateFragment(mol, indices_to_delete_mol, getAsFrags=True)
+        len_frags_ref = len(frags_ref)
+        len_frags_mol = len(frags_mol)
+
+        # only keep MCS if it is connected
+        # TODO: deal with multiple fragments
+        if len_frags_ref < 2 and len_frags_mol < 2:
+            n_atoms = len(match_new)
+            if n_atoms == 0:
+                matches_final += [[]]
+            elif n_atoms == 1:
+                matches_final += [(x, y) for x in range(len_ref) for y in range(len_mol)]
+            else:
+                matches_final += fixMCS(ref, mol, match_new_ref, match_new_mol, **kwargs)
+
+    # only keep largest unique MCS's
+    max_len = max([len(match) for match in matches_final])
+    matches = {frozenset(match) for match in matches_final if len(match) == max_len}
+    matches = [list(match) for match in matches]
+
+    return matches
 
 
 def alignTwoMolecules(ref, mol, n_min=-1, mcs=None, **kwargs):
@@ -350,7 +454,8 @@ def alignTwoMolecules(ref, mol, n_min=-1, mcs=None, **kwargs):
             The maximum common substructure.
     """
     if mcs is None:
-        mcs = getMCSMap(ref, mol, **kwargs)
+        # TODO: fix
+        mcs = getMCSMap(ref, mol, **kwargs)[0]
 
     ref_conf = ref.GetConformer(-1)
     mol_conf = mol.GetConformer(-1)
