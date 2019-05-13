@@ -250,6 +250,14 @@ def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", **kwargs):
         mcs = _Chem.MolFromSmarts(_Chem.MolToSmiles(mcs, canonical=False, allBondsExplicit=True, allHsExplicit=True))
         return mcs, ref.GetSubstructMatches(mcs), mol.GetSubstructMatches(mcs)
 
+    def carbonify(mol):
+        # converts all atoms in the molecule to carbons
+        mol_c = _copy.deepcopy(mol)
+        for atom in mol_c.GetAtoms():
+            atom.SetAtomicNum(6)
+        _Chem.AssignStereochemistry(mol_c, cleanIt=True, force=True)
+        return mol_c
+
     def generateFragment(mol, indices_to_delete, getAsFrags=False):
         # generates a molecule from another given indices to delete
         mol_frag_edit = _Chem.EditableMol(_copy.deepcopy(mol))
@@ -309,18 +317,31 @@ def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", **kwargs):
 
         matches_new = []
 
-        # check if there is any chirality mismatch and flag the atoms if this is the case
+        # check if both atoms are chiral and flag the atoms if this is the case
         for match in matches:
-            indices_chiral = []
-            for i_mcs, (i_ref, i_mol) in enumerate(match):
-                is_different_chirality = i_ref in chiral_ref.keys() and i_mol in chiral_mol.keys() and \
-                                         chiral_ref[i_ref] != chiral_mol[i_mol]
-                if is_different_chirality:
-                    indices_chiral += [i_mcs]
+            _Chem.AssignStereochemistry(ref, cleanIt=True, force=True)
+            _Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
+            chiral_ref = dict(_Chem.FindMolChiralCenters(ref))
+            chiral_mol = dict(_Chem.FindMolChiralCenters(mol))
+            indices_chiral = [i_mcs for i_mcs, (i_ref, i_mol) in enumerate(match)
+                              if i_ref in chiral_ref.keys() and i_mol in chiral_mol.keys()]
 
             # delete invalid atoms
             if indices_chiral:
-                match = fixChiralIndices(indices_chiral, mcs, match)
+                # take care of R/S changing with different atom types
+                ref_c = carbonify(ref)
+                mol_c = carbonify(mol)
+                chiral_ref_c = dict(_Chem.FindMolChiralCenters(ref_c))
+                chiral_mol_c = dict(_Chem.FindMolChiralCenters(mol_c))
+
+                indices_chiral_final = []
+                for idx in indices_chiral:
+                    i_ref, i_mol = match[idx]
+                    if chiral_ref_c[i_ref] != chiral_mol_c[i_mol]:
+                        indices_chiral_final += [idx]
+
+                if indices_chiral_final:
+                    match = fixChiralIndices(indices_chiral_final, mcs, match)
 
             matches_new += [match]
 
@@ -341,12 +362,8 @@ def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", **kwargs):
 
     kwargs = {**kwargs, 'atomCompare': atomCompare, 'bondCompare': bondCompare}
 
-    # get the chiral centres
-    chiral_ref = dict(_Chem.FindMolChiralCenters(ref))
-    chiral_mol = dict(_Chem.FindMolChiralCenters(mol))
-    matches = []
-
     # get initial pruned MCS
+    matches = []
     mcs, matches_ref, matches_mol = matchAndReturnMatches([ref, mol], completeRingsOnly=False, **kwargs)
     if mcs is None:
         return [[]]

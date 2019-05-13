@@ -25,3 +25,5 @@ def test_MCS():
     assert len(getMCSMap(ref, mol)[0]) == 6
     mol = openAsRdkit("C1CC[C@@H](C2CCCC2)[C@@H](C3CCC3)C1")
     assert len(getMCSMap(ref, mol)[0]) == 15
+    mol = openAsRdkit("C3CC[C@@H](C1CCCC1)[C@@](C2CCC2)(C3)S")
+    assert len(getMCSMap(ref, mol)[0]) == 15
