@@ -202,7 +202,7 @@ def charmmguiTransform(filename, **kwargs):
         chainID = paths[0].split("pro")[-1][0].upper()
         for chain in pdb_add:
             chain.chainID = chainID
-        pdb_obj += [pdb_add]
+        pdb_obj += pdb_add
 
     filename_output = _os.path.splitext(filename)[0] + "_charmmgui.pdb"
     return fixCharmmguiPDB(pdb_obj, filename, filename_output=filename_output)
