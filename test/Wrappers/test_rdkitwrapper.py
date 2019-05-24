@@ -26,6 +26,14 @@ def test_MCS():
     mol = openAsRdkit("c1ccc(c(c1)C)c1c(cccc1)C")
     assert len(getMCSMap(ref, mol)[0]) == 13
 
+    ref = openAsRdkit("c1cc2c(cc1)c1c([nH]2)c2c([nH]1)c1c([nH]2)cc[nH]1")
+    mol = openAsRdkit("c1cc2c(cc1)c1c(c3c([nH]1)c1c([nH]3)cc[nH]1)cc2")
+    assert len(getMCSMap(ref, mol)[0]) == 15
+
+    ref = openAsRdkit("c1ccc2c(c1)c1c([nH]2)[nH]c2c1[nH]cc2")
+    mol = openAsRdkit("c1cccc(c1)c1c[nH]c2c1[nH]cc2")
+    assert len(getMCSMap(ref, mol)[0]) == 14
+
     # test some stereospecific mapping
     ref = openAsRdkit("C1CC[C@@H](C2CCCC2)[C@@H](C3CCC3)C1")
 
