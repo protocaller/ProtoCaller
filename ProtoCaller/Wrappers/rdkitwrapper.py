@@ -262,8 +262,8 @@ def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", **kwargs):
 
     Returns
     -------
-    mcs : {frozenset([tuple])}
-        A set of frozensets of tuples corresponding to the atom index matches
+    mcs : [[tuple]]]
+        A list of lists of tuples corresponding to the atom index matches
         between the reference and the other molecule.
     """
     kwargs = {
