@@ -1,8 +1,6 @@
-import collections as _collections
 import copy as _copy
-import functools as _functools
-import operator as _operator
 import os as _os
+import sys as _sys
 
 import numpy as _np
 from rdkit import Chem as _Chem
@@ -32,7 +30,8 @@ def openFileAsRdkit(filename, **kwargs):
     filename:
         The name of the input file.
     kwargs
-        Keyword arguments to be supplied to the more specialised RDKit functions.
+        Keyword arguments to be supplied to the more specialised RDKit
+        functions.
 
     Returns
     -------
@@ -52,7 +51,8 @@ def openFileAsRdkit(filename, **kwargs):
     elif extension == "sdf":
         mol = _Chem.SDMolSupplier(filename, **kwargs)[0]
     else:
-        raise TypeError("Unrecognised input extension for RDKit: {}".format(extension))
+        raise TypeError("Unrecognised input extension for RDKit: {}".format(
+            extension))
 
     if mol is None:
         raise ValueError("Invalid file format for file: {}".format(filename))
@@ -62,7 +62,8 @@ def openFileAsRdkit(filename, **kwargs):
 @_stdio.stdout_stderr()
 def openInChIAsRdkit(inchi_str, removeHs=True, **kwargs):
     """
-    Converts an InChI string into an RDKit Mol object. This function is a simple wrapper of rdkit.Chem.MolFromInchi.
+    Converts an InChI string into an RDKit Mol object. This function is a
+    simple wrapper of rdkit.Chem.MolFromInchi.
 
     Parameters
     ----------
@@ -87,7 +88,8 @@ def openInChIAsRdkit(inchi_str, removeHs=True, **kwargs):
 @_stdio.stdout_stderr()
 def openSmilesAsRdkit(smiles_str, **kwargs):
     """
-    Converts a SMILES string into an RDKit Mol object. This function is a simple wrapper of rdkit.Chem.MolFromSmiles.
+    Converts a SMILES string into an RDKit Mol object. This function is a
+    simple wrapper of rdkit.Chem.MolFromSmiles.
 
     Parameters
     ----------
@@ -109,14 +111,16 @@ def openSmilesAsRdkit(smiles_str, **kwargs):
 
 def openAsRdkit(val, minimise=None, **kwargs):
     """
-    A general wrapper which can convert a variety of representations for a molecule into an rdkit.Chem.rdchem.Mol object.
+    A general wrapper which can convert a variety of representations for a
+    molecule into an rdkit.Chem.rdchem.Mol object.
 
     Parameters
     ----------
     val : str
         Input value - SMILES, InChI strings or a filename.
     minimise : bool or None
-        Whether to perform a GAFF minimisation using OpenBabel. None means minimisation for molecules initialised from
+        Whether to perform a GAFF minimisation using OpenBabel. None means
+        minimisation for molecules initialised from
         strings and no minimisation for molecules initialised from files.
     kwargs
         Keyword arguments to be passed to the more specialsied RDKit functions.
@@ -127,7 +131,8 @@ def openAsRdkit(val, minimise=None, **kwargs):
         The input string opened as an RDKit Mol object.
     """
     if isinstance(val, str) and len(val.split(".")) == 1:
-        if minimise is None: minimise = True
+        if minimise is None:
+            minimise = True
         flist = [openSmilesAsRdkit, openInChIAsRdkit]
         for i, f in enumerate(flist):
             try:
@@ -136,18 +141,24 @@ def openAsRdkit(val, minimise=None, **kwargs):
                 break
             except:
                 if i == len(flist) - 1:
-                    raise ValueError("String not recognised as a valid SMILES or InChI input")
+                    raise ValueError("String not recognised as a valid SMILES "
+                                     "or InChI input")
         if minimise:
-            # make sure we preserve the chirality of the input string and minimise with obminimize / GAFF
+            # make sure we preserve the chirality of the input string and
+            # minimise with obminimize / GAFF
             with _fileio.Dir("Temp", temp=True):
                 smiles = _Chem.MolToSmiles(mol)
                 with open("molecule.smi", "w") as f:
                     f.write(smiles)
-                _babel.babelTransform("molecule.smi", output_extension="sdf", generate_3D_coords=True)
-                _runexternal.runExternal("obminimize -sd -c 1e-6 -n 10000 -ff GAFF -osdf molecule.sdf > minimised.sdf")
+                _babel.babelTransform("molecule.smi", output_extension="sdf",
+                                      generate_3D_coords=True)
+                _runexternal.runExternal("obminimize -sd -c 1e-6 -n 10000 -ff "
+                                         "GAFF -osdf molecule.sdf > "
+                                         "minimised.sdf")
                 mol = openFileAsRdkit("minimised.sdf")
     else:
-        if minimise is None: minimise = False
+        if minimise is None:
+            minimise = False
         try:
             mol = openFileAsRdkit(val, **kwargs)
         except:
@@ -156,7 +167,9 @@ def openAsRdkit(val, minimise=None, **kwargs):
         if minimise:
             with _fileio.Dir("Temp", temp=True):
                 saveFromRdkit(mol, "molecule.sdf")
-                _runexternal.runExternal("obminimize -sd -c 1e-6 -n 10000 -ff GAFF -osdf molecule.sdf > minimised.sdf")
+                _runexternal.runExternal("obminimize -sd -c 1e-6 -n 10000 -ff "
+                                         "GAFF -osdf molecule.sdf > "
+                                         "minimised.sdf")
                 mol = openFileAsRdkit("minimised.sdf")
 
     return mol
@@ -193,7 +206,8 @@ def saveFromRdkit(mol, filename, **kwargs):
         tempfilename = _os.path.splitext(filename)[0] + ".mol"
         _Chem.MolToMolFile(mol, filename=tempfilename, **kwargs)
         if extension == "mol2":
-            _babel.babelTransform(tempfilename, output_extension=extension, pH=None)
+            _babel.babelTransform(tempfilename, output_extension=extension,
+                                  pH=None)
         else:
             _pmd.load_file(tempfilename)[0].save(filename)
 
@@ -218,15 +232,17 @@ def translateMolecule(mol, vector):
     """
     mol_conf = mol.GetConformer(-1)
     for i in range(mol.GetNumAtoms()):
-        new_atom_position = mol_conf.GetAtomPosition(i) + _Geom.Point3D(*vector)
-        mol_conf.SetAtomPosition(i, new_atom_position)
+        new_position = mol_conf.GetAtomPosition(i) + _Geom.Point3D(*vector)
+        mol_conf.SetAtomPosition(i, new_position)
     return mol
 
 
-def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", maxRecursions=3,
-              **kwargs):
+def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", **kwargs):
     """
-    Generates the Maximum Common Substructure (MCS) mapping between two molecules.
+    Generates the Maximum Common Substructure (MCS) mapping between two
+    molecules. This algorithm calls the getFixedMCS() function which improves
+    on RDKit's default MCS algorithm. It does so recursively until it is
+    certain that the MCS has definitely been found.
 
     Parameters
     ----------
@@ -241,7 +257,8 @@ def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", maxRecursions=3,
         One of "any" (matches any bonds) and "elements" (matches only the same
         bonds).
     kwargs
-        Additional keyword arguments passed on to rdkit.Chem.MCS.FindMCS.
+        Additional keyword arguments passed on to getFixedMCS() or to
+        rdkit.Chem.MCS.FindMCS().
 
     Returns
     -------
@@ -249,125 +266,216 @@ def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", maxRecursions=3,
         A set of frozensets of tuples corresponding to the atom index matches
         between the reference and the other molecule.
     """
-    if maxRecursions == 0:
-        return {frozenset()}
+    kwargs = {
+        **kwargs,
+        'atomCompare': atomCompare,
+        'bondCompare': bondCompare,
+        'completeRingsOnly': True,
+        'ringMatchesRingOnly': True,
+    }
 
-    len_ref = ref.GetNumAtoms()
-    len_mol = mol.GetNumAtoms()
-    if not all([len_ref, len_mol]):
-        return {frozenset()}
-    elif any([len_ref == 1, len_mol == 1]):
-        return {frozenset([(x, y)] )for x in range(len_ref)
-                for y in range(len_mol)}
+    matches = getFixedMCS(ref, mol, [i for i in range(ref.GetNumAtoms())],
+                          [i for i in range(mol.GetNumAtoms())], **kwargs)
+    if matches == {frozenset()}:
+        return []
+    max_len_final = 0
+    while True:
+        # get the first of or all other smaller initial substructures
+        master_set = set().union(*matches)
+        max_len = max([len(x) for x in matches])
+        mapped_atoms_ref, mapped_atoms_mol = list(zip(*master_set))
+        unmapped_atoms_ref = ref.GetNumAtoms() - len(mapped_atoms_ref)
+        unmapped_atoms_mol = mol.GetNumAtoms() - len(mapped_atoms_mol)
 
-    if "iterate" in kwargs.keys():
-        iterate = True
-        kwargs.pop("iterate")
-    else:
-        iterate = False
-
-    kwargs = {**kwargs, 'atomCompare': atomCompare, 'bondCompare': bondCompare}
-
-    # get initial pruned MCS
-    mcs, matches_ref, matches_mol = _matchAndReturnMatches([ref, mol], **kwargs)
-    if mcs is None:
-        return {frozenset()}
-
-    # get initial fixed matches
-    matches = set()
-    for match_ref in matches_ref:
-        for match_mol in matches_mol:
-            matches |= _fixMCS(ref, mol, match_ref, match_mol, **kwargs)
-
-    # only keep the biggest MCS's
-    max_len = max([len(match) for match in matches])
-    matches = {match for match in matches if len(match) == max_len}
-
-    # split the remainder of the molecule and recursively search for more MCS's
-    matches_new = _copy.copy(matches)
-    for match in matches:
-        if match == frozenset():
-            continue
-        match_ref, match_mol = zip(*match)
-        frags_ref = _generateFragment(ref, match_ref, getAsFrags=True)
-        frags_mol = _generateFragment(mol, match_mol, getAsFrags=True)
-        for frag_ref in frags_ref:
-            indices_to_delete_ref = [x for x in range(ref.GetNumAtoms()) if
-                                     x not in frag_ref]
-            for frag_mol in frags_mol:
-                indices_to_delete_mol = [x for x in range(mol.GetNumAtoms()) if
-                                         x not in frag_mol]
-                mol_new = _generateFragment(mol, indices_to_delete_mol)
-                ref_new = _generateFragment(ref, indices_to_delete_ref)
-                match_new_total = getMCSMap(ref_new, mol_new, iterate=True,
-                                            maxRecursions=maxRecursions-1,
-                                            **kwargs)
-                if match_new_total == {frozenset()}:
-                    continue
-                for match_new in match_new_total:
-                    match_new_ref, match_new_mol = zip(*match_new)
-                    match_new_ref = _transformIndices(match_new_ref,
-                                                     indices_to_delete_ref)
-                    match_new_mol = _transformIndices(match_new_mol,
-                                                     indices_to_delete_mol)
-                    match_new = frozenset(zip(match_new_ref, match_new_mol))
-                    matches_new |= {m | match_new for m in matches}
-
-    # don't prune disconnected MCS's just yet
-    if iterate:
-        return matches_new if len(matches_new) else {frozenset()}
-
-    # prune all of the resulting MCS combinations so that they are connected
-    matches_final = set()
-    max_len = 0
-    #matches_new = _eliminateSubsets(matches_new)
-    for match_new in matches_new:
-        if match_new == frozenset() or len(match_new) < max_len:
-            continue
-        match_new_ref, match_new_mol = zip(*match_new)
-        indices_to_delete_ref = [x for x in range(ref.GetNumAtoms()) if
-                                 x not in match_new_ref]
-        indices_to_delete_mol = [x for x in range(mol.GetNumAtoms()) if
-                                 x not in match_new_mol]
-        frags_ref = _generateFragment(ref, indices_to_delete_ref, getAsFrags=True)
-        frags_mol = _generateFragment(mol, indices_to_delete_mol, getAsFrags=True)
-
-        # only keep MCS if it is connected
-        for frag_ref in frags_ref:
-            for frag_mol in frags_mol:
-                match_new_frag = [(x, y) for x in frag_ref for y in frag_mol
-                                  if (x, y) in match_new]
-                n_atoms = len(match_new_frag)
-
-                if n_atoms >= max_len:
-                    if n_atoms == 0:
-                        matches_final |= {frozenset()}
-                    elif n_atoms == 1:
-                        max_len = 1
-                        matches_final |= {frozenset([x, y] )for x in range(len_ref) for y
-                                          in range(len_mol)}
-                    else:
-                        fixed_mcss = _fixMCS(ref, mol, match_new_ref,
-                                            match_new_mol, min_len=max_len-1,
-                                             **kwargs)
-                        max_len = max(max_len, len(max(fixed_mcss, key=len)))
-                        matches_final |= {frozenset(x) for x in fixed_mcss}
-
-    # remove all subsets and proceed to
-    matches_final |= set(matches)
-    matches_final = _eliminateSubsets(matches_final)
+        # only keep iterating if it is theoretically possible to get a bigger
+        # structure than what we have
+        if max_len <= max_len_final or max_len > unmapped_atoms_mol or \
+                max_len > unmapped_atoms_ref:
+            break
+        else:
+            frags_ref = _generateFragment(ref, mapped_atoms_ref,
+                                          getAsFrags=True)
+            frags_ref = [x for x in frags_ref if len(x) >= max_len]
+            frags_mol = _generateFragment(mol, mapped_atoms_mol,
+                                          getAsFrags=True)
+            frags_mol = [x for x in frags_mol if len(x) >= max_len]
+            for frag_ref in frags_ref:
+                for frag_mol in frags_mol:
+                    matches |= getFixedMCS(ref, mol, frag_ref, frag_mol,
+                                           **kwargs)
+            max_len_final = max_len
 
     # only keep largest unique MCS's
-    matches = {frozenset(match) for match in matches_final if len(match) == max_len}
+    matches = _onlyKeepLongest(matches)[0]
     matches = [list(match) for match in matches]
 
     return matches
 
 
-def alignTwoMolecules(ref, mol, n_min=-1, mcs=None, mcs_parameters=None,
-                      minimiser_parameters=None):
+def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
+                valid_mcs=False, two_way_matching=True, **kwargs):
     """
-    Aligns two molecules based on an input MCS.
+    A helper function to getMCSMap which expands on RDKit's strict MCS
+    algorithm. The first addition is recursive bond breaking to find a
+    connected MCS where aliphatic atoms can be mapped to ring atoms. The second
+    addition is the detection of atoms with different stereochemistry and
+    finding the biggest fragment that doesn't contain them. This algorithm
+    still doesn't support the functionality of mapping two very similar atoms
+    of different stereochemistry. This might be added in the future.
+
+    Parameters
+    ----------
+    ref : rdkit.Chem.Mol
+        The reference molecule.
+    mol : rdkit.Chem.Mol
+        The molecule to be aligned.
+    match_ref : list
+        A list of indices corresponding to the MCS for the reference molecule.
+    match_mol : list
+        A list of indices corresponding to the MCS for the molecule to be
+        aligned.
+    break_recursively : bool
+        Whether to use the recursive bond breaking algorithm to improve on
+        RDKit's functionality
+    valid_mcs : bool
+        Whether the input MCS is ordered, unique and valid.
+    two_way_matching : bool
+        This algorithm matches certain aliphatic mol atoms to certain ring
+        ref atoms by default. This parameter determines if the opposite is also
+        true. A value of True is good for matching Ligand B to ligand A and
+        a value of False is good for matching Ligand A to the binding pocket
+        ligand.
+    kwargs :
+        Keyword arguments to be supplied to _matchAndReturnMatches()
+
+    Returns
+    -------
+    matches : {frozenset([tuple])}
+        A set of frozensets corresponding to the largest unique MCS's given the
+        input.
+    """
+    kwargs = {x: y for x, y in kwargs.items()}
+    kwargs["ringMatchesRingOnly"] = True
+    kwargs["completeRingsOnly"] = True
+
+    # make sure that correct mapping is obtained between the two molecules
+    # given an MCS
+    if not valid_mcs:
+        indices_to_delete_ref = [x for x in range(ref.GetNumAtoms())
+                                 if x not in match_ref]
+        indices_to_delete_mol = [x for x in range(mol.GetNumAtoms())
+                                 if x not in match_mol]
+        mcs_ref = _generateFragment(ref, indices_to_delete_ref)
+        mcs_mol = _generateFragment(mol, indices_to_delete_mol)
+        mcs, _, _ = _matchAndReturnMatches([mcs_ref, mcs_mol], **kwargs)
+
+        if mcs is None:
+            return {frozenset()}
+        matches = {frozenset(zip(x, y))
+                   for x in set(ref.GetSubstructMatches(mcs))
+                   for y in set(mol.GetSubstructMatches(mcs))}
+    else:
+        matches = {frozenset(zip(match_ref, match_mol))}
+
+    if break_recursively:
+        # recursively break bonds to maximise MCS
+        matches_rec_prev = {x: {x} for x in matches}
+        for match in matches:
+            while True:
+                matches_rec = set()
+                for submatch in matches_rec_prev[match]:
+                    refs_broken, mols_broken = \
+                        _breakMismatchingBonds(ref, mol, *list(zip(*submatch)))
+                    pairs_broken = [(x, mol) for x in refs_broken]
+                    if two_way_matching:
+                        pairs_broken += [(ref, x) for x in mols_broken]
+
+                    # get recursive matches
+                    for ref_broken, mol_broken in pairs_broken:
+                        mcs_broken, matches_ref_broken, matches_mol_broken = \
+                            _matchAndReturnMatches([ref_broken, mol_broken],
+                                                   **kwargs)
+                        matches_broken = {frozenset(zip(x, y))
+                                          for x in matches_ref_broken
+                                          for y in matches_mol_broken}
+                        # only keep the matches that are connected to the
+                        # original one
+                        matches_rec |= {x for x in matches_broken
+                                        if _haveCommonElements(x, submatch)}
+
+                # combine the new MCS's in an optimal way
+                matches_rec, max_len_rec = \
+                    _optimalMergedSets(*matches_rec_prev[match], *matches_rec)
+
+                # break the recursion if the new MCS is not larger
+                if max_len_rec > len(max(matches_rec_prev[match], key=len)):
+                    matches_rec_prev[match] = matches_rec
+                else:
+                    break
+
+        matches = set().union(*[matches_rec_prev[x] for x in matches])
+
+    # here we deal with mismatching atoms of different chirality
+    matches_final = set()
+    # take care of R/S changing with different atom types
+    _Chem.AssignStereochemistry(ref, cleanIt=True, force=True)
+    _Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
+    ref_c = _carbonify(ref)
+    mol_c = _carbonify(mol)
+    chiral_ref_c = dict(_Chem.FindMolChiralCenters(ref_c))
+    chiral_mol_c = dict(_Chem.FindMolChiralCenters(mol_c))
+
+    # check if both atoms are chiral and flag the atoms if this is the case
+    for match in matches:
+        if match == frozenset():
+            continue
+        # only deal with one of the molecules
+        chiral_ref_indices = [x[0] for x in match
+                              if x[0] in chiral_ref_c.keys()
+                              and x[1] in chiral_mol_c.keys()
+                              and chiral_ref_c[x[0]] != chiral_mol_c[x[1]]]
+
+        # delete invalid atoms
+        frags_ref_total = {frozenset(list(zip(*match))[0])}
+        for i_ref in chiral_ref_indices:
+            frags_ref = set()
+            for frag_prev in frags_ref_total:
+                # ignore if the fragment doesn't contain the chiral atom
+                if i_ref not in frag_prev:
+                    frags_ref |= {frag_prev}
+                    continue
+                # only include indices that are not a result of ring breaking
+                indices_to_delete = {i for i in range(ref.GetNumAtoms())} - \
+                                    frag_prev | {i_ref}
+                frags_ref_temp = _generateFragment(ref, indices_to_delete,
+                                                   getAsFrags=True)
+                frags_ref |= {frozenset(set(x) | {i_ref})
+                              for x in frags_ref_temp if i_ref not in x}
+            frags_ref_total = frags_ref
+
+        frags_ref_total = _onlyKeepLongest(frags_ref_total)[0]
+        for frag_ref in frags_ref_total:
+            matches_final |= {frozenset([x for x in match
+                                         if x[0] in frag_ref])}
+
+    matches_final, max_len_final = _onlyKeepLongest(matches_final)
+    if not matches_final:
+        return {frozenset()}
+
+    return matches_final
+
+
+def alignTwoMolecules(ref, mol, n_min=-1, two_way_matching=True, mcs=None,
+                      mcs_parameters=None, minimiser_parameters=None):
+    """
+    Aligns two molecules based on an input MCS. The algorithm uses atom
+    freezing of the common core and force field minimisation of the rest.
+    Additional minimisation using minimiseAlignmentScore() is then performed.
+
+    If there is a choice between several equally long MCS's the ones with
+    the highest atom-atom matches are first selected (e.g. C->C mapping trumps
+    C->H mapping). After that the first structure with the lowest MSD is
+    selected.
 
     Parameters
     ----------
@@ -375,100 +483,169 @@ def alignTwoMolecules(ref, mol, n_min=-1, mcs=None, mcs_parameters=None,
         The reference molecule.
     mol : rdkit.Chem.rdchem.Mol
         The molecule to be aligned.
+    two_way_matching : bool
+        Whether to treat ref and mol equally in terms of matching.
     n_min : int
         Minimum number of force field minimisation iterations. -1 is no limit.
     mcs : [tuple] or None
-        The maximum common substucture. None means the one generated from getMCSMap.
-    kwargs
-        Keyword arguments passed onto getMCSMap if mcs is None.
+        The maximum common substucture. None means the one generated from
+        getMCSMap.
+    mcs_parameters : dict
+        A dictionary of the parameters to be passed on to getMCSMap().
+    minimiser_parameters : dict
+        A dictionary of the parameters to be apssed on to
+        minimiseAlignmentScore().
 
     Returns
     -------
-        mol : rdkit.Chem.rdchem.Mol
-            The aligned molecule.
-        mcs : [tuple]
-            The maximum common substructure.
+    mol : rdkit.Chem.rdchem.Mol
+        The aligned molecule.
+    mcs : [tuple]
+        The maximum common substructure.
     """
     if mcs_parameters is None:
         mcs_parameters = {}
+    mcs_parameters = {
+        **mcs_parameters,
+        "two_way_matching": two_way_matching,
+    }
     if minimiser_parameters is None:
         minimiser_parameters = {}
 
     if mcs is None:
         mcss = getMCSMap(ref, mol, **mcs_parameters)
         # only choose the maps that give maximum atom similarity
-        scores = [getMatchingAtomScore(ref,mol, mcs) for mcs in mcss]
+        scores = [getMatchingAtomScore(ref, mol, mcs) for mcs in mcss]
         scores_max = max(scores)
         mcss = [mcs for mcs, score in zip(mcss, scores) if score == scores_max]
     else:
         mcss = [mcs]
 
-    # if we have multiple equivalent MCS's we pick the one with best RMSD
-    mol_final, rmsd_final, mcs_final = None, None, None
+    # if we have multiple equivalent MCS's we pick the one with best MSD
+    mol_final, score_final, mcs_final = None, None, None
     for mcs in mcss:
         ref_conf = ref.GetConformer(-1)
-        mol_conf = mol.GetConformer(-1)
 
-        ff = _FF.UFFGetMoleculeForceField(mol)
-        for i_ref, i_mol in mcs:
-            mol_conf.SetAtomPosition(i_mol, ref_conf.GetAtomPosition(i_ref))
-            ff.AddFixedPoint(i_mol)
+        while True:
+            # translate the molecule randomly to prevent minimisation failure
+            try:
+                vec = _np.random.uniform(-1, 1, size=3)
+                mol = translateMolecule(mol, tuple(vec))
+                mol_conf = mol.GetConformer(-1)
+                ff = _FF.UFFGetMoleculeForceField(mol)
+                for i_ref, i_mol in mcs:
+                    mol_conf.SetAtomPosition(i_mol,
+                                             ref_conf.GetAtomPosition(i_ref))
+                    ff.AddFixedPoint(i_mol)
 
-        if mol_conf.GetNumAtoms() != len(mcs):
-            ff.Initialize()
-            more = ff.Minimize()
-            while more and n_min:
-                more = ff.Minimize()
-                # n_min = -1 means infinite minimisation
-                if n_min != -1:
-                    n_min -= 1
+                if mol_conf.GetNumAtoms() != len(mcs):
+                    ff.Initialize()
+                    more = ff.Minimize()
+                    while more and n_min:
+                        more = ff.Minimize()
+                        # n_min = -1 means infinite minimisation
+                        if n_min != -1:
+                            n_min -= 1
+                break
+            except:
+                continue
 
-        mol, rmsd = minimiseRMSD(ref, mol, frozen_atoms=list(zip(*mcs))[1],
-                                 **minimiser_parameters)
+        frozen_atoms = list(zip(*mcs))[1]
+        mol, score = minimiseAlignmentScore( ref, mol,
+                                             frozen_atoms=frozen_atoms,
+                                             **minimiser_parameters)
 
-        if rmsd_final is None or rmsd < rmsd_final:
-            mol_final, rmsd_final, mcs_final = mol, rmsd, mcs
+        if score_final is None or score < score_final:
+            mol_final = mol
+            score_final = score
+            mcs_final = mcs
 
     return mol_final, mcs_final
 
 
-def minimiseRMSD(ref, mol, frozen_atoms=None, confId1=-1, confId2=-1,
-                 algorithm=_minimize, **kwargs):
-    if algorithm is None:
-        return _copy.deepcopy(mol), getRMSD(ref, mol, confId1=confId1,
-                                            confId2=confId2)
+def minimiseAlignmentScore(ref, mol, frozen_atoms=None, confId1=-1, confId2=-1,
+                           minimisation_algorithm=_minimize, **kwargs):
+    """
+    Rotates all of the rotatable dihedrals outside of the MCS  until a balance
+    between good alignment to the reference and minimal clashing with other
+    atoms in the same molecule is achieved.
+
+    Parameters
+    ----------
+    ref : rdkit.Chem.rdchem.Mol
+        The reference molecule.
+    mol : rdkit.Chem.rdchem.Mol
+        The molecule to be aligned.
+    frozen_atoms : list
+        The list of indices of the atoms in mol not to be moved.
+    confId1 : int
+        The conformer number of ref.
+    confId2 : int
+        The conformer number of mol.
+    minimisation_algorithm : function
+        A scipy algorithm to be used for minimisation. Default is regular
+        local minimisation using scipy.optimize.minimize. Custom algorithms
+        can also be used as long as they obey the same format as the ones in
+        scipy.optimize.
+    kwargs:
+        Keyword arguments to be supplied to the minimiser algorithm.
+
+    Returns
+    -------
+    mcs : {frozenset([tuple])}
+        A set of frozensets of tuples corresponding to the atom index matches
+        between the reference and the other molecule.
+    alignment_score : float
+        The alignment score after alignment obtained from getAlignmentScore()
+    """
+    if minimisation_algorithm is None:
+        return _copy.deepcopy(mol), getAlignmentScore(ref, mol,
+                                                      confId1=confId1,
+                                                      confId2=confId2)
     if frozen_atoms is None:
         frozen_atoms = []
 
     mol = _copy.deepcopy(mol)
     mol_conf = mol.GetConformer(confId2)
 
+    all_bonds = mol.GetBonds()
+    all_bonds_indices = [(x.GetBeginAtomIdx(), x.GetEndAtomIdx()) for x in
+                         all_bonds]
+
+    # a dictionary which shows how many frozen atoms each atom is bonded to
+    n_frozen_neighbours = {}
+    unfrozen_neighbours = {}
+    for atom in range(mol.GetNumAtoms()):
+        atom_neighbours = set().union(*[set(x) for x in all_bonds_indices
+                                        if atom in x]) - {atom}
+        unfrozen_neighbours[atom] = atom_neighbours - set(frozen_atoms)
+        n_frozen_neighbours[atom] = len(atom_neighbours) - \
+                                    len(atom_neighbours - set(frozen_atoms))
+
     # find rotatable bonds outside of the frozen atom domain
     rbonds = _Chem.MolFromSmarts('[!$(*#*)&!D1]-&!@[!$(*#*)&!D1]')
     rbond_indices = mol.GetSubstructMatches(rbonds)
     rbond_indices = [(i1, i2) for i1, i2 in rbond_indices
-                     if not (i1 in frozen_atoms and i2 in frozen_atoms)]
-
-    all_bonds = mol.GetBonds()
-    all_bonds_indices = [(x.GetBeginAtomIdx(), x.GetEndAtomIdx()) for x in all_bonds]
+                     if n_frozen_neighbours[i1] <= 1
+                     or n_frozen_neighbours[i2] <= 1]
 
     dihedrals = []
     initial_values = []
     for i1, i2 in rbond_indices:
-        neighbours_1 = [x for x in all_bonds_indices if i1 in x and i2 not in x]
-        neighbours_2 = [x for x in all_bonds_indices if i2 in x and i1 not in x]
+        neighbours_1 = list(unfrozen_neighbours[i1] - {i2})
+        neighbours_2 = list(unfrozen_neighbours[i2] - {i1})
 
         # only rotate if the bond belongs to a dihedral
         if len(neighbours_1) and len(neighbours_2):
-            dihedral = [list(set(neighbours_1[0]) - {i1})[0], i1,
-                        i2, list(set(neighbours_2[0]) - {i2})[0]]
+            dihedral = [neighbours_1[0], i1, i2, neighbours_2[0]]
             mol_temp = _Chem.EditableMol(_copy.deepcopy(mol))
             mol_temp.RemoveBond(i1, i2)
             frags = _Chem.GetMolFrags(mol_temp.GetMol(),
                                       asMols=False, sanitizeFrags=False)
 
             for frag in frags:
-                if i2 in frag and set(frozen_atoms).intersection(frag):
+                if i2 in frag and set(frozen_atoms).intersection(
+                        unfrozen_neighbours[i2]):
                     dihedral = list(reversed(dihedral))
 
             dihedrals += [dihedral]
@@ -482,43 +659,155 @@ def minimiseRMSD(ref, mol, frozen_atoms=None, confId1=-1, confId2=-1,
         for dihedral, arg in zip(dihedrals, list(args[0])):
             _Transforms.SetDihedralRad(mol_conf_temp, *dihedral, arg)
 
-        return getRMSD(ref, mol_temp, confId1=confId1, confId2=confId2)
+        return getAlignmentScore(ref, mol_temp, confId1=confId1,
+                                 confId2=confId2)
 
-    # rotate dihedrals until RMSD minimisation
+    # rotate dihedrals until MSD minimisation
     if len(initial_values):
-        result = algorithm(rotateDihedral, _np.asarray(initial_values),
-                           **kwargs)
-        optimal_angles, final_rmsd = list(result.x), result.fun
+        result = minimisation_algorithm(rotateDihedral,
+                                        _np.asarray(initial_values), **kwargs)
+        optimal_angles, final_alignment_score = list(result.x), result.fun
         for dihedral, optimal_angle in zip(dihedrals, optimal_angles):
             _Transforms.SetDihedralRad(mol_conf, *dihedral, optimal_angle)
-        return mol, final_rmsd
+        return mol, final_alignment_score
     else:
-        return mol, getRMSD(ref, mol, confId1=confId1, confId2=confId2)
+        return mol, getAlignmentScore(ref, mol, confId1=confId1,
+                                      confId2=confId2)
 
 
-def getRMSD(ref, mol, confId1=-1, confId2=-1):
+def getAlignmentScore(ref, mol, confId1=-1, confId2=-1):
+    """
+    Returns the alignment score between two molecules. The way this is done is
+    by calculating all possible distances between atom i of ref and atom j of
+    mol and computing the sum of their squares. All atoms from mol that are
+    within 1 Anstrom of atom j contribute inverse square distances to the score
+    in order to prevent unfavourable clashes.
+
+    Parameters
+    ----------
+    ref : rdkit.Chem.rdchem.Mol
+        The reference molecule.
+    mol : rdkit.Chem.rdchem.Mol
+        The molecule to be aligned.
+    confId1 : int
+        The conformer number of ref.
+    confId2 : int
+        The conformer number of mol.
+
+    Returns
+    -------
+    alignment_score : float
+        The alignment score of the two conformers.
+    """
     ref_conf = ref.GetConformer(confId1)
     mol_conf = mol.GetConformer(confId2)
 
-    rmsd = 0
-    for atom2 in mol.GetAtoms():
-        rmsds = []
-        for atom1 in ref.GetAtoms():
-            x1 = ref_conf.GetAtomPosition(atom1.GetIdx())
-            x2 = mol_conf.GetAtomPosition(atom2.GetIdx())
-            rmsds += [(x1 - x2).LengthSq()]
-        rmsd += min(rmsds)
+    alignment_score = 0
+    for mol_idx in range(mol.GetNumAtoms()):
+        for ref_idx in range(ref.GetNumAtoms()):
+            x1 = ref_conf.GetAtomPosition(ref_idx)
+            x2 = mol_conf.GetAtomPosition(mol_idx)
+            alignment_score += (x1 - x2).LengthSq()
 
-    return rmsd
+        for mol_idx2 in range(mol_idx):
+            x1 = mol_conf.GetAtomPosition(mol_idx)
+            x2 = mol_conf.GetAtomPosition(mol_idx2)
+            len_sq = (x1 - x2).LengthSq()
+            if len_sq > 1:
+                continue
+            elif len_sq < 2 / _sys.maxsize:
+                return _sys.maxsize
+            else:
+                alignment_score += 2 / len_sq
+
+    return alignment_score
 
 
 def getMatchingAtomScore(mol1, mol2, matches):
+    """
+    Returns the matching atom score between two molecules. This is simply
+    the number of atoms that are mapped onto the same element from the other
+    molecule.
+
+    Parameters
+    ----------
+    mol1 : rdkit.Chem.rdchem.Mol
+        The first molecule.
+    mol2 : rdkit.Chem.rdchem.Mol
+        The second molecule.
+    matches : [tuple]
+        The maximum common substructure matches.
+
+    Returns
+    -------
+    matching_atoms : float
+        The matching atom score of the two molecules.
+    """
     matching_atoms = 0
     for i1, i2 in matches:
         n1 = mol1.GetAtomWithIdx(i1).GetAtomicNum()
         n2 = mol2.GetAtomWithIdx(i2).GetAtomicNum()
         matching_atoms += (n1 == n2)
     return matching_atoms
+
+
+def _breakMismatchingBonds(ref, mol, match_ref, match_mol):
+    """
+    Breaks all bonds bordering on an MCS if they are a subset of another MCS.
+    Helpful at breaking rings in order to utilise the strict MCS algorithm.
+
+    Parameters
+    ----------
+    ref : rdkit.Chem.rdchem.Mol
+        The reference molecule.
+    mol : rdkit.Chem.rdchem.Mol
+        The molecule to be aligned.
+    match_ref : [int]
+        The indices of the matched reference.
+    match_mol : [int]
+        The indices of the matched molecule.
+
+    Returns
+    -------
+    ref : [rdkit.Chem.rdchem.Mol]
+        The reference molecules with broken bonds.
+    mol : [rdkit.Chem.rdchem.Mol]
+        The molecules with broken bonds to be aligned.
+    """
+    # get all bonds
+    bonds_ref = [frozenset([x.GetBeginAtomIdx(), x.GetEndAtomIdx()])
+                 for x in ref.GetBonds()]
+    bonds_mol = [frozenset([x.GetBeginAtomIdx(), x.GetEndAtomIdx()])
+                 for x in mol.GetBonds()]
+
+    # only keep bordering bonds
+    bonds_ref = {x for x in bonds_ref if len(x | set(match_ref))
+                 == len(match_ref) + 1}
+    bonds_mol = {x for x in bonds_mol if len(x | set(match_mol))
+                 == len(match_mol) + 1}
+
+    # break the bonds if they don't fragment the molecule
+    refs_broken = []
+    for bond in bonds_ref:
+        ref_copy = _Chem.EditableMol(_copy.deepcopy(ref))
+        ref_copy.RemoveBond(*bond)
+        ref_copy = ref_copy.GetMol()
+        if len(_rdmolops.GetMolFrags(ref_copy, asMols=False,
+                                     sanitizeFrags=False)) == 1:
+            ref_copy.UpdatePropertyCache()
+            refs_broken += [ref_copy]
+
+    mols_broken = []
+    for bond in bonds_mol:
+        mol_copy = _Chem.EditableMol(_copy.deepcopy(mol))
+        mol_copy.RemoveBond(*bond)
+        mol_copy = mol_copy.GetMol()
+        if len(_rdmolops.GetMolFrags(mol_copy, asMols=False,
+                                     sanitizeFrags=False)) == 1:
+            mol_copy.UpdatePropertyCache()
+            mols_broken += [mol_copy]
+
+    return refs_broken, mols_broken
 
 
 def _carbonify(mol):
@@ -542,233 +831,84 @@ def _carbonify(mol):
     return mol_c
 
 
-def _eliminateSubsets(sets):
-    """Return a list of the elements of `sequence_of_sets`, removing all
-    elements that are subsets of other elements.  Assumes that each
-    element is a set or frozenset and that no element is repeated."""
-
-    def is_power_of_two(n):
-        """Returns True iff n is a power of two.  Assumes n > 0."""
-        return (n & (n - 1)) == 0
-
-    # The code below does not handle the case of a sequence containing
-    # only the empty set, so let's just handle all easy cases now.
-    if len(sets) <= 1:
-        return list(sets)
-    # We need an indexable sequence so that we can use a bitmap to
-    # represent each set.
-    if not isinstance(sets, _collections.Sequence):
-        sets = list(sets)
-    # For each element, construct the list of all sets containing that
-    # element.
-    sets_containing_element = {}
-    for i, s in enumerate(sets):
-        for element in s:
-            try:
-                sets_containing_element[element] |= 1 << i
-            except KeyError:
-                sets_containing_element[element] = 1 << i
-    # For each set, if the intersection of all of the lists in which it is
-    # contained has length != 1, this set can be eliminated.
-    out = {s for s in sets
-           if s and is_power_of_two(_functools.reduce(
-               _operator.and_, (sets_containing_element[x] for x in s)))}
-    return out
-
-
-def _breakMismatchingBonds(ref, mol, match_ref_strict, match_mol_strict,
-                           match_ref_loose, match_mol_loose):
+def _generateFragment(mol, indices_to_delete, getAsFrags=False):
     """
-    Breaks all bonds bordering on an MCS if they are a subset of another MCS.
-    Helpful at breaking rings in order to utilise the strict MCS algorithm.
+    Generates a molecule from another given indices of atoms to be deleted.
+    It can either return the new molecule or the indices of the resulting
+    fragments.
 
     Parameters
     ----------
-    ref : rdkit.Chem.rdchem.Mol
-        The reference molecule.
-    mol : rdkit.Chem.rdchem.Mol
-        The molecule to be aligned.
-    match_ref_strict : [int]
-        The indices of the strictly matched reference.
-    match_mol_strict : [int]
-        The indices of the strictly matched molecule.
-    match_ref_loose : [int]
-        The indices of the loosely matched reference.
-    match_mol_loose : [int]
-        The indices of the loosely matched molecule.
+    mol : rdkit.Chem.Mol
+        The input molecule.
+    indices_to_delete : list
+        A list of the atom indices to be deleted.
+    getAsFrags : bool
+        False returns an rdkit.Chem.Mol object, True returns a list of tuples.
 
     Returns
     -------
-
-    ref : rdkit.Chem.rdchem.Mol
-        The reference molecule.
-    mol : rdkit.Chem.rdchem.Mol
-        The molecule to be aligned.
-    successful : bool
-        Whether any bonds were broken
+    mol_frag :
+        Either an rdkit.Chem.Mol object or a list of tuples corresponding to
+        the new molecule.
     """
-    swap = False
-    # get all bonds
-    bonds_ref = [frozenset([x.GetBeginAtomIdx(), x.GetEndAtomIdx()])
-                 for x in ref.GetBonds()]
-    bonds_mol = [frozenset([x.GetBeginAtomIdx(), x.GetEndAtomIdx()])
-                 for x in mol.GetBonds()]
-
-    # only keep bordering bonds that are part of the loose MCS
-
-    bonds_ref_temp = {x for x in bonds_ref if len(x | set(match_ref_strict))
-                 == len(match_ref_strict) + 1 }
-    bonds_mol_temp = {x for x in bonds_mol if len(x | set(match_mol_strict))
-                 == len(match_mol_strict) + 1 }
-
-    bonds_ref = {x for x in bonds_ref if len(x | set(match_ref_strict))
-                 == len(match_ref_strict) + 1 and x.issubset(match_ref_loose)}
-    bonds_mol = {x for x in bonds_mol if len(x | set(match_mol_strict))
-                 == len(match_mol_strict) + 1 and x.issubset(match_mol_loose)}
-
-    # map the molecule indices to the reference indices and vice versa
-    bonds_ref_new = set()
-    for atom1, atom2 in bonds_ref:
-        try:
-            b1 = match_mol_loose[match_ref_loose.index(atom1)]
-            b2 = match_mol_loose[match_ref_loose.index(atom2)]
-        except (IndexError, ValueError):
-            continue
-        bonds_ref_new |= {frozenset([b1, b2])}
-
-    bonds_mol_new = set()
-    for atom1, atom2 in bonds_mol:
-        try:
-            b1 = match_ref_loose[match_mol_loose.index(atom1)]
-            b2 = match_ref_loose[match_mol_loose.index(atom2)]
-        except (IndexError, ValueError):
-            continue
-        bonds_mol_new |= {frozenset([b1, b2])}
-
-    # swap the molecules if the reference is a subset of the molecule
-    if bonds_ref == bonds_mol_new:
-        return ref, mol, False
-    elif bonds_ref.issubset(bonds_mol_new):
-        bonds_to_break = bonds_mol - bonds_ref_new
-        swap = not swap
-        ref, mol = mol, ref
-    elif bonds_mol_new.issubset(bonds_ref):
-        bonds_to_break = bonds_ref - bonds_mol_new
+    mol_frag_edit = _Chem.EditableMol(_copy.deepcopy(mol))
+    for idx in reversed(sorted(set(indices_to_delete))):
+        mol_frag_edit.RemoveAtom(idx)
+    mol_frag = mol_frag_edit.GetMol()
+    if getAsFrags:
+        frags = _rdmolops.GetMolFrags(mol_frag, asMols=False,
+                                      sanitizeFrags=False)
+        return [_transformIndices(f, indices_to_delete) for f in frags]
     else:
-        return ref, mol, False
-
-    # break all bonds
-    ref_copy = _Chem.EditableMol(_copy.deepcopy(ref))
-    for bond in bonds_to_break:
-        ref_copy.RemoveBond(*bond)
-    ref_copy = ref_copy.GetMol()
-    ref_copy.UpdatePropertyCache()
-
-    if swap:
-        return mol, ref_copy, True
-    else:
-        return ref_copy, mol, True
+        mol_frag.UpdatePropertyCache()
+        return mol_frag
 
 
-def _fixMCS(ref, mol, match_ref, match_mol, min_len=0, **kwargs):
-    kwargs = {x: y for x, y in kwargs.items()
-              if x not in ["ringMatchesRingOnly", "completeRingsOnly"]}
+def _haveCommonElements(set1, set2):
+    """
+    Determines whether two sets of tuples have common tuple elements. They may
+    not necessarily have common elements.
 
-    # create a makeshift static memoisation variable
-    if "memo" not in _fixMCS.__dict__:
-        _fixMCS.memo = {}
+    Parameters
+    ----------
+    set1 : set
+        The first input set.
+    set2 : set
+        The second input set.
 
-    memo_key = (_Chem.MolToSmiles(ref), _Chem.MolToSmiles(mol),
-                frozenset(match_ref), frozenset(match_mol))
-    if memo_key in _fixMCS.memo.keys():
-        return _fixMCS.memo[memo_key]
+    Returns
+    -------
+    have_common_elements : bool
+        Whether the sets have common tuple elements.
+    """
+    if not set1 or not set2:
+        return set()
+    tuple11, tuple12 = list(zip(*set1))
+    tuple21, tuple22 = list(zip(*set2))
+    return set(tuple11).intersection(tuple21) and \
+           set(tuple12).intersection(tuple22)
 
-    # make sure that correct mapping is obtained between the two molecules given an MCS
-    indices_to_delete_ref = [x for x in range(ref.GetNumAtoms())
-                             if x not in match_ref]
-    indices_to_delete_mol = [x for x in range(mol.GetNumAtoms())
-                             if x not in match_mol]
-    mcs_ref = _generateFragment(ref, indices_to_delete_ref)
-    mcs_mol = _generateFragment(mol, indices_to_delete_mol)
-    mcs_strict, _, _ = _matchAndReturnMatches([mcs_ref, mcs_mol],
-                                             ringMatchesRingOnly=True,
-                                             completeRingsOnly=True,
-                                             **kwargs)
-
-    if mcs_strict is None:
-        return {frozenset()}
-    matches_strict = {frozenset(zip(x, y))
-                      for x in set(ref.GetSubstructMatches(mcs_strict))
-                      for y in set(mol.GetSubstructMatches(mcs_strict))}
-
-    mcs_loose, _, _ = _matchAndReturnMatches([mcs_ref, mcs_mol],
-                                            ringMatchesRingOnly=False,
-                                            completeRingsOnly=False,
-                                            **kwargs)
-    matches_loose = {frozenset(zip(x, y))
-                     for x in set(ref.GetSubstructMatches(mcs_loose))
-                     for y in set(mol.GetSubstructMatches(mcs_loose))}
-    matches = _copy.deepcopy(matches_strict)
-
-    # break the recursion early if the matches are not big enough
-    max_len_strict = len(max(matches_strict, key=len))
-    max_len_loose = len(max(matches_loose, key=len))
-    if max_len_strict <= min_len:
-        return {frozenset()}
-
-    # recursively break bonds to maximise strict MCS
-    if max_len_strict < max_len_loose:
-        for match_strict in matches_strict:
-            for match_loose in matches_loose:
-                if match_strict != match_loose:
-                    ref_broken, mol_broken, flag = _breakMismatchingBonds(
-                        ref, mol, *zip(*match_strict), *zip(*match_loose))
-                    #print(_Chem.MolToSmiles(ref), _Chem.MolToSmiles(mol))
-                    #(_Chem.MolToSmiles(mcs_ref), _Chem.MolToSmiles(mcs_mol))
-                    if flag:
-                        max_len = max([len(x) for x in matches])
-                        matches |= _fixMCS(ref_broken, mol_broken,
-                                           match_ref, match_mol,
-                                           min_len=max_len, **kwargs)
-                        #print(_Chem.MolToSmiles(ref_broken), _Chem.MolToSmiles(mol_broken))
-
-
-    # check if both atoms are chiral and flag the atoms if this is the case
-    matches_final = set()
-    for match in matches:
-        _Chem.AssignStereochemistry(ref, cleanIt=True, force=True)
-        _Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
-        chiral_ref = dict(_Chem.FindMolChiralCenters(ref))
-        chiral_mol = dict(_Chem.FindMolChiralCenters(mol))
-        indices_chiral = [i_mcs for i_mcs, (i_ref, i_mol) in enumerate(match)
-                          if i_ref in chiral_ref.keys() and i_mol in chiral_mol.keys()]
-
-        # delete invalid atoms
-        if indices_chiral:
-            # take care of R/S changing with different atom types
-            ref_c = _carbonify(ref)
-            mol_c = _carbonify(mol)
-            chiral_ref_c = dict(_Chem.FindMolChiralCenters(ref_c))
-            chiral_mol_c = dict(_Chem.FindMolChiralCenters(mol_c))
-
-            indices_chiral_final = []
-            for idx in indices_chiral:
-                i_ref, i_mol = match[idx]
-                if chiral_ref_c[i_ref] != chiral_mol_c[i_mol]:
-                    indices_chiral_final += [idx]
-
-            if indices_chiral_final:
-                match = _fixChiralIndices(indices_chiral_final, mcs_strict,
-                                          match)
-
-        matches_final |= {match}
-
-    _fixMCS.memo[memo_key] = matches_final
-
-    return matches_final
 
 def _matchAndReturnMatches(*args, **kwargs):
-    # returns the MCS of two molecules as given by RDKit
+    """
+    A light wrapper around RDKit's FindMCS function. Here we use the deprecated
+    version of the function because it supports strict matching of rings to
+    rings of the same size.
+
+    Parameters
+    ----------
+    args:
+        Positional arguments to be given to FindMCS. The first argument is
+        assumed to be input molecules.
+    kwargs:
+        Keyword arguments to be given to FindMCS.
+
+    Returns
+    -------
+    transformed_indices : [int]
+        Transformed indices.
+    """
     mcs_string = _MCS.FindMCS(*args, **kwargs).smarts
     if mcs_string is None:
         return None, [], []
@@ -777,45 +917,104 @@ def _matchAndReturnMatches(*args, **kwargs):
     mcs = _Chem.MolFromSmarts(_Chem.MolToSmiles(mcs, canonical=False,
                                                 allBondsExplicit=True,
                                                 allHsExplicit=True))
-    return tuple([mcs] + [x.GetSubstructMatches(mcs) for x in args[0]])
+    return tuple([mcs] + [set(x.GetSubstructMatches(mcs)) for x in args[0]])
 
 
-def _generateFragment(mol, indices_to_delete, getAsFrags=False):
-    # generates a molecule from another given indices to delete
-    mol_frag_edit = _Chem.EditableMol(_copy.deepcopy(mol))
-    for idx in reversed(sorted(set(indices_to_delete))):
-        mol_frag_edit.RemoveAtom(idx)
-    mol_frag = mol_frag_edit.GetMol()
-    if getAsFrags:
-        frags = _rdmolops.GetMolFrags(mol_frag, asMols=False, sanitizeFrags=False)
-        return [_transformIndices(f, indices_to_delete) for f in frags]
-    else:
-        mol_frag.UpdatePropertyCache()
-        return mol_frag
+def _onlyKeepLongest(input_set):
+    """
+    Only keeps the longest elements of the input set.
+
+    Parameters
+    ----------
+    input_set : set
+        The input set to be pruned.
+
+    Returns
+    -------
+    pruned_set : set
+        The resulting pruned set.
+    max_len : float
+        The length of the largest element(s).
+    """
+    if not input_set:
+        return {}, 0
+    max_len = max([len(x) for x in input_set])
+    return {x for x in input_set if len(x) == max_len}, max_len
 
 
-def _fixChiralIndices(indices, mcs, matches):
-    # delete all specified indices and create fragments recursively so that each one of them contains at least one
-    # of the indices
-    fragments = {frozenset(i for i in range(mcs.GetNumAtoms()))}
-    for index in indices:
-        fragments_new = set()
-        for fragment in fragments:
-            # every fragment is stored as a set of indices. Here we recreate this fragment from the MCS
-            # then we fragment this fragment further by deleting the index from it
-            if index not in fragment:
-                fragments_new.add(fragment)
-                continue
-            indices_to_delete = [x for x in range(mcs.GetNumAtoms()) if x == index or x not in fragment]
-            mcs_edit = _Chem.EditableMol(_copy.deepcopy(mcs))
-            for index_to_delete in reversed(indices_to_delete):
-                mcs_edit.RemoveAtom(index_to_delete)
-            # the new fragments resulting from the fragment have new indices that need to be translated back
-            fragment_new = {frozenset(i for i in _transformIndices(x, indices_to_delete) + [index])
-                            for x in _rdmolops.GetMolFrags(mcs_edit.GetMol(), asMols=False, sanitizeFrags=False)}
-            fragments_new |= fragment_new
-        fragments = fragments_new
-    return {x for i, x in enumerate(matches) if i in max(fragments, key=len)}
+def _optimalMergedSets(*sets):
+    """
+    Generates the optimal merged set from a sequence of sets of tuples. If
+    two sets have common tuple elements but not common tuples they are deemed
+    incompatible. The algorithm finds the longest combination(s) of these sets.
+
+    Parameters
+    ----------
+    sets : set
+        The sets to be added
+
+    Returns
+    -------
+    sets_final : {frozenset([tuple])}
+        A set containing all the optimal set(s).
+    max_len_final:
+        The length of the optimal set(s).
+    """
+    def reduceByOne(inpsets):
+        outpsets = set()
+        for inpset in inpsets:
+            for x in inpset:
+                outpsets |= {frozenset([y for y in inpset if y != x])}
+        return outpsets
+
+    def isCompatibleSet(inpset):
+        return not any([x.issubset(inpset) for x in incompatible_sets])
+
+    def getLen(number_set):
+        return len(set().union(*[sets[i] for i in number_set]))
+
+    def getSet(number_set):
+        return set().union(*[sets[i] for i in number_set])
+
+    if len(sets) <= 1:
+        return set([frozenset(x) for x in sets]), len(sets)
+
+    # get incompatible pairs of sets in terms of their position
+    lengths = [len(x) for x in sets]
+    maximum_lengths = [sum(sorted(lengths[:i+1], reverse=True))
+                       for i in range(len(sets))]
+    incompatible_sets = []
+    for i in range(len(sets)):
+        set1 = sets[i]
+        for j in range(i):
+            set2 = sets[j]
+            set12 = set1.union(set2)
+            tuple1, tuple2 = zip(*set12)
+            if not (len(set(tuple1)) == len(set(tuple2)) == len(set12)):
+                incompatible_sets += [{i, j}]
+
+    # reductively generate longest subset(s) that obey(s) all rules
+    # we do this by translating the sets into numbers corresponding to set
+    # positions
+    sets_to_include = {frozenset([x for x in range(len(sets))])}
+    sets_final = set()
+    max_len_final = 0
+    for size in reversed(range(len(sets))):
+        sets_new = {x for x in sets_to_include if isCompatibleSet(x)}
+        max_len = max([getLen(x) for x in sets_new]) if sets_new else 0
+        if max_len > max_len_final:
+            max_len_final = max_len
+            sets_final = {x for x in sets_new if getLen(x) == max_len}
+        elif max_len == max_len_final:
+            sets_final |= {x for x in sets_new if getLen(x) == max_len}
+        if not size or max_len > maximum_lengths[size-1]:
+            break
+        sets_to_include = reduceByOne(sets_to_include)
+
+    # translate back into the actual sets
+    sets_final = {frozenset(getSet(x)) for x in sets_final}
+
+    return sets_final, max_len_final
 
 
 def _transformIndices(current_indices, deleted_indices):

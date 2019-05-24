@@ -181,7 +181,6 @@ class Perturbation:
             Whether to realign an already aligned ligand.
         kwargs
             Keyword arguments to pass to ProtoCaller.Wrappers.rdkitwrapper.alignTwoMolecules.
-            Default: always_maximum = False.
 
         Returns
         -------
@@ -197,7 +196,8 @@ class Perturbation:
             _stdio.stdout_stderr()(self.ligand1.parametrise)(reparametrise=False)
             output_filename = "{}_aligned_{}.{}".format(self.ligand1.name, self.name,
                                                         self.ligand1.parametrised_files[1].split(".")[-1])
-        if "always_maximum" not in kwargs.keys(): kwargs["always_maximum"] = False
+        if "two_way_matching" not in kwargs.keys():
+            kwargs["two_way_matching"] = False
 
         lig_temp = _copy.deepcopy(self.ligand1.molecule)
         self._ligand1_molecule[ref], mcs = _rdkit.alignTwoMolecules(ref.molecule, lig_temp, **kwargs)
@@ -217,7 +217,6 @@ class Perturbation:
             Whether to realign an already aligned ligand.
         kwargs
             Keyword arguments to pass to ProtoCaller.Wrappers.rdkitwrapper.alignTwoMolecules.
-            Default: always_maximum = True.
 
         Returns
         -------
@@ -235,7 +234,8 @@ class Perturbation:
             _stdio.stdout_stderr()(self.ligand2.parametrise)(reparametrise=False)
             output_filename = "{}_aligned_{}.{}".format(self.ligand2.name, self.name,
                                                         self.ligand2.parametrised_files[1].split(".")[-1])
-        if "always_maximum" not in kwargs.keys(): kwargs["always_maximum"] = True
+        if "two_way_matching" not in kwargs.keys():
+            kwargs["two_way_matching"] = True
 
         if self.current_ref is None:
             self._ligand1_molecule[None] = self.ligand1.molecule
