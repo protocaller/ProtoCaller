@@ -123,21 +123,52 @@ class PDB(Chain, _CondList.ConditionalList):
         """
         if filename is None: filename = self.filename
         with open(filename, "w") as file:
+            # write SEQRES
+            total_residue_list = self.totalResidueList()
+            chainIDs = [x.chainID for x in total_residue_list]
+            chain_lengths = {x: chainIDs.count(x) for x in set(chainIDs)}
+            line, curr_chainID, i, j = None, None, None, None
+            for residue in total_residue_list:
+                if residue.chainID != curr_chainID:
+                    if line is not None:
+                        file.write(line + "\n")
+                    curr_chainID = residue.chainID
+                    i, j = 1, 1
+                    line = "SEQRES {:>3d} {:1.1}  {:>3d}  ".format(i, curr_chainID, chain_lengths[curr_chainID])
+                if j == 14:
+                    file.write(line + "\n")
+                    i += 1
+                    j = 1
+                    line = "SEQRES {:>3d} {:1.1}  {:>3d}  ".format(i, curr_chainID, chain_lengths[curr_chainID])
+                line += "{} ".format(residue.resName)
+                j += 1
+            if j != 1:
+                file.write(line + "\n")
+
+            # write missing atoms and residues
             for residue in self.missing_residues + self.missing_atoms:
                 file.write(residue.__str__())
+
+            # write modified residues
             for i, residue in enumerate(self.modified_residues):
                 file.write("MODRES {:>4d} {:>3.3} {:1.1} {:>4d}{:1.1}\n".format(i + 1, residue.resName, residue.chainID,
                                                                                 residue.resSeq, residue.iCode))
+
+            #write disulfide bonds
             for i, pair in enumerate(self.disulfide_bonds):
                 template = "SSBOND{:>4d} CYS {:1.1} {:>4d}{:1.1}   CYS {:>1.1} {:>4d}{:1.1}\n"
                 file.write(template.format(i + 1, pair[0].chainID, pair[0].resSeq, pair[0].iCode,
                                            pair[1].chainID, pair[1].resSeq, pair[1].iCode))
+
+            # write site residues
             for i in range(0, len(self.site_residues), 4):
                 str_list = ["SITE              "]
                 for residue in self.site_residues[i:min(i + 4, len(self.site_residues))]:
                     str_list += "{:>3.3} {:1.1}{:>4d}{:1.1} ".format(residue.resName, residue.chainID, residue.resSeq,
                                                                      residue.iCode)
                 file.write("".join(str_list) + "\n")
+
+            # write all residues
             for chain in self:
                 file.write(chain.__str__())
                 if chain.type == "chain":
