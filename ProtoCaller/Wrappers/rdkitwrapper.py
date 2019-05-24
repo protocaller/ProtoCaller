@@ -8,6 +8,7 @@ from rdkit.Chem import AllChem as _AllChem
 from rdkit.Chem import rdForceFieldHelpers as _FF
 from rdkit.Chem import rdmolops as _rdmolops
 from rdkit.Chem import rdMolTransforms as _Transforms
+from rdkit.Chem import TorsionFingerprints as _Torsions
 from rdkit.Geometry import rdGeometry as _Geom
 import parmed as _pmd
 from scipy.optimize import minimize as _minimize
@@ -526,13 +527,21 @@ def alignTwoMolecules(ref, mol, n_min=-1, two_way_matching=True, mcs=None,
     for mcs in mcss:
         ref_conf = ref.GetConformer(-1)
 
+        # MMFF gives better conformations but can occasionally fail
+        ff_to_use = "mmff"
         while True:
             # translate the molecule randomly to prevent minimisation failure
             try:
                 vec = _np.random.uniform(-1, 1, size=3)
                 mol = translateMolecule(mol, tuple(vec))
                 mol_conf = mol.GetConformer(-1)
-                ff = _FF.UFFGetMoleculeForceField(mol)
+
+                if ff_to_use == "mmff":
+                    ff = _FF.MMFFGetMoleculeForceField(
+                        mol, _FF.MMFFGetMoleculeProperties(mol), confId=0)
+                else:
+                    ff = _FF.UFFGetMoleculeForceField(mol)
+
                 for i_ref, i_mol in mcs:
                     mol_conf.SetAtomPosition(i_mol,
                                              ref_conf.GetAtomPosition(i_ref))
@@ -548,12 +557,14 @@ def alignTwoMolecules(ref, mol, n_min=-1, two_way_matching=True, mcs=None,
                             n_min -= 1
                 break
             except:
+                # sometimes MMFF fails and in this case we use UFF
+                ff_to_use = "uff"
                 continue
 
         frozen_atoms = list(zip(*mcs))[1]
-        mol, score = minimiseAlignmentScore( ref, mol,
-                                             frozen_atoms=frozen_atoms,
-                                             **minimiser_parameters)
+        mol, score = minimiseAlignmentScore(ref, mol,
+                                            frozen_atoms=frozen_atoms,
+                                            **minimiser_parameters)
 
         if score_final is None or score < score_final:
             mol_final = mol
@@ -622,34 +633,38 @@ def minimiseAlignmentScore(ref, mol, frozen_atoms=None, confId1=-1, confId2=-1,
         n_frozen_neighbours[atom] = len(atom_neighbours) - \
                                     len(atom_neighbours - set(frozen_atoms))
 
-    # find rotatable bonds outside of the frozen atom domain
-    rbonds = _Chem.MolFromSmarts('[!$(*#*)&!D1]-&!@[!$(*#*)&!D1]')
+    # find rotatable bonds at the edge of and outside of the frozen atom domain
+    smarts = "[!$([NH]!@C(=O))&!D1&!$(*#*)]-&!@[!$([NH]!@C(=O))&!D1&!$(*#*)]"
+    rbonds = _Chem.MolFromSmarts(smarts)
     rbond_indices = mol.GetSubstructMatches(rbonds)
-    rbond_indices = [(i1, i2) for i1, i2 in rbond_indices
+    rbond_indices = [{i1, i2} for i1, i2 in rbond_indices
                      if n_frozen_neighbours[i1] <= 1
                      or n_frozen_neighbours[i2] <= 1]
 
+    # only rotate if the bond belongs to a dihedral
+    dihedrals_ini = [x[0][0] for x in _Torsions.CalculateTorsionLists(mol)[0]]
+    dihedrals_ini = [x for x in dihedrals_ini if set(x[1:3]) in rbond_indices]
+
     dihedrals = []
     initial_values = []
-    for i1, i2 in rbond_indices:
-        neighbours_1 = list(unfrozen_neighbours[i1] - {i2})
-        neighbours_2 = list(unfrozen_neighbours[i2] - {i1})
 
-        # only rotate if the bond belongs to a dihedral
-        if len(neighbours_1) and len(neighbours_2):
-            dihedral = [neighbours_1[0], i1, i2, neighbours_2[0]]
-            mol_temp = _Chem.EditableMol(_copy.deepcopy(mol))
-            mol_temp.RemoveBond(i1, i2)
-            frags = _Chem.GetMolFrags(mol_temp.GetMol(),
-                                      asMols=False, sanitizeFrags=False)
+    for i0, i1, i2, i3 in dihedrals_ini:
+        mol_temp = _Chem.EditableMol(_copy.deepcopy(mol))
+        mol_temp.RemoveBond(i1, i2)
+        frags = _Chem.GetMolFrags(mol_temp.GetMol(),
+                                  asMols=False, sanitizeFrags=False)
 
-            for frag in frags:
-                if i2 in frag and set(frozen_atoms).intersection(
-                        unfrozen_neighbours[i2]):
-                    dihedral = list(reversed(dihedral))
+        for frag in frags:
+            n_frozen = len(set(frozen_atoms) & set(frag))
+            if n_frozen > 1:
+                if i3 in frag:
+                    dihedral = (i3, i2, i1, i0)
+                else:
+                    dihedral = (i0, i1, i2, i3)
+                break
 
-            dihedrals += [dihedral]
-            initial_values += [_Transforms.GetDihedralRad(mol_conf, *dihedral)]
+        dihedrals += [dihedral]
+        initial_values += [_Transforms.GetDihedralRad(mol_conf, *dihedral)]
 
     def rotateDihedral(*args):
         nonlocal dihedrals, mol, confId1
