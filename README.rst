@@ -17,10 +17,11 @@ This package is distributed via Conda. To install it, run the following commands
 
 .. code-block:: bash
 
-    conda install -c essexlab protocaller -c michellab/label/dev -c rdkit -c openbabel -c conda-forge -c omnia -c acellera
-    pip install fileupload pygtail pypdb
+    conda install -c michellab/label/dev -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab protocaller
 
-The last line is needed for BioSimSpace functionality. You can ignore it if you already have BioSimSpace installed.
+ProtoCaller depends on BioSimSpace. If it is run on MacOS, there is a known
+issue with BioSimSpace which means that instead of python one has to run
+the sire_python interpreter instead.
 
 
 Getting Started
