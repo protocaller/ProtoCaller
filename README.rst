@@ -13,7 +13,7 @@ This tool uses a variety of tools to automate the free energy calculation proces
 Installation
 ------------
 
-This package is distributed via Conda. To install it, run the following commands:
+This package is distributed via Conda. To install it, run the following command:
 
 .. code-block:: bash
 
