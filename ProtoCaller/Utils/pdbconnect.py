@@ -2,7 +2,7 @@ import os as _os
 import re as _re
 import requests as _requests
 
-from ProtoCaller.shared import pypdb as _pypdb
+import pypdb as _pypdb
 
 
 class PDBDownloader:

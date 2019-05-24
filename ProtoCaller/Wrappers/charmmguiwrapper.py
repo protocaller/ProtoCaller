@@ -9,7 +9,7 @@ from selenium.webdriver.firefox import options as _options
 from selenium.webdriver.common import by as _by
 from selenium.webdriver.support import expected_conditions as _EC
 from selenium.webdriver.support import wait as _wait
-from ProtoCaller.shared import seleniumrequests as _seleniumrequests
+import seleniumrequests as _seleniumrequests
 
 from ProtoCaller.IO.PDB import PDB as _PDB
 
