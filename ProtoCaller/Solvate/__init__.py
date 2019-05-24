@@ -11,7 +11,6 @@ import parmed as _pmd
 import ProtoCaller.Parametrise as _parametrise
 import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Utils.runexternal as _runexternal
-import ProtoCaller.Utils.stdio as _stdio
 import ProtoCaller.Wrappers.parmedwrapper as _pmdwrap
 
 
@@ -92,7 +91,7 @@ def solvate(complex, params, box_length=8, shell=0, neutralise=True, ion_conc=0.
 
         waters.save(filebase + "_waters.pdb")
         waters_prep = _parametrise.parametriseAndLoadPmd(params, filebase + "_waters.pdb", "water")
-        waters_prep.box = _stdio.ignore_warnings(_pmd.load_file)(files[0], xyz=files[1], skip_bonds=True).box
+        waters_prep.box = _pmd.load_file(files[1]).box
         for residue in waters_prep.residues:
             residue.name = "SOL"
         waters_prep_filenames = [filebase + "_waters.top", filebase + "_waters.gro"]
