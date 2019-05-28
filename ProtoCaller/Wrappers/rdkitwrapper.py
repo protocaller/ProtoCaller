@@ -975,11 +975,12 @@ def _optimalMergedSets(*sets):
     max_len_final:
         The length of the optimal set(s).
     """
-    def reduceByOne(inpsets):
+    def increaseByOne(inpsets, max_len):
         outpsets = set()
+        max_len_set = {i for i in range(max_len)}
         for inpset in inpsets:
-            for x in inpset:
-                outpsets |= {frozenset([y for y in inpset if y != x])}
+            for x in max_len_set - inpset:
+                outpsets |= {frozenset([*inpset, x])}
         return outpsets
 
     def isCompatibleSet(inpset):
@@ -994,10 +995,15 @@ def _optimalMergedSets(*sets):
     if len(sets) <= 1:
         return set([frozenset(x) for x in sets]), len(sets)
 
-    # get incompatible pairs of sets in terms of their position
+    # get maximum possible lengths of the sets
+    tuples1 = set().union(*[list(zip(*x))[0] for x in sets])
+    tuples2 = set().union(*[list(zip(*x))[1] for x in sets])
     lengths = [len(x) for x in sets]
-    maximum_lengths = [sum(sorted(lengths[:i+1], reverse=True))
-                       for i in range(len(sets))]
+    max_lens = [sum(sorted(lengths[:i+1], reverse=True))
+                for i in range(len(sets))]
+    max_lens = [min(x, len(tuples1), len(tuples2)) for x in max_lens]
+
+    # get incompatible pairs of sets in terms of their position
     incompatible_sets = []
     for i in range(len(sets)):
         set1 = sets[i]
@@ -1008,23 +1014,29 @@ def _optimalMergedSets(*sets):
             if not (len(set(tuple1)) == len(set(tuple2)) == len(set12)):
                 incompatible_sets += [{i, j}]
 
-    # reductively generate longest subset(s) that obey(s) all rules
+    # build up larger subsets that obey all the rules
     # we do this by translating the sets into numbers corresponding to set
     # positions
-    sets_to_include = {frozenset([x for x in range(len(sets))])}
+    sets_incl = {frozenset([i]) for i in range(len(sets))}
     sets_final = set()
     max_len_final = 0
-    for size in reversed(range(len(sets))):
-        sets_new = {x for x in sets_to_include if isCompatibleSet(x)}
-        max_len = max([getLen(x) for x in sets_new]) if sets_new else 0
-        if max_len > max_len_final:
-            max_len_final = max_len
-            sets_final = {x for x in sets_new if getLen(x) == max_len}
-        elif max_len == max_len_final:
-            sets_final |= {x for x in sets_new if getLen(x) == max_len}
-        if not size or max_len > maximum_lengths[size-1]:
+    for size in range(len(sets)):
+        max_len = max([getLen(x) for x in sets_incl]) if sets_incl else 0
+        if max_len:
+            if max_len > max_len_final:
+                max_len_final = max_len
+                sets_final = {x for x in sets_incl if getLen(x) == max_len}
+            elif max_len == max_len_final:
+                sets_final |= {x for x in sets_incl if getLen(x) == max_len}
+            else:
+                break
+
+        if size == len(sets) - 1 or max_len == max_lens[size] \
+                or max_len < max_len_final:
             break
-        sets_to_include = reduceByOne(sets_to_include)
+
+        sets_incl = increaseByOne(sets_incl, len(sets))
+        sets_incl = {x for x in sets_incl if isCompatibleSet(x)}
 
     # translate back into the actual sets
     sets_final = {frozenset(getSet(x)) for x in sets_final}
