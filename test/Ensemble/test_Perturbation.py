@@ -31,12 +31,6 @@ def test_align():
                 (-35.279, 4.975, 6.072),
                 (-35.163, 4.013, 3.860),
                 (-33.869, 5.013, 2.112),
-                (-31.263, 8.640, 1.798),
-                (-32.569, 8.991, 2.866),
-                (-32.809, 9.733, 2.028),
-                (-32.102, 9.717, 3.591),
-                (-31.088, 7.968, 3.375),
-                (-33.677, 8.973, 3.124),
             }
 
             vec1 = mol._sire_molecule.property("coordinates0").toVector()
@@ -44,7 +38,7 @@ def test_align():
             vec2 = mol._sire_molecule.property("coordinates1").toVector()
             positions_B = {(x[0], x[1], x[2]) for x in vec2}
 
-            assert len(positions.intersection(positions_A)) == 21
-            assert len(positions.intersection(positions_B)) == 21
-
-            assert len(vec1) == len(vec2) == len(positions)
+            assert positions.issubset(positions_A)
+            assert positions.issubset(positions_B)
+            assert len(positions_A) == len(positions_B) == 21
+            assert positions_A == positions_B
