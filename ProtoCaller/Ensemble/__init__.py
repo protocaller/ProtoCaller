@@ -102,8 +102,10 @@ class Ensemble:
         self.params = _parametrise.Params(protein_ff=protein_ff, ligand_ff=ligand_ff, water_ff=water_ff)
 
         # molecular systems
-        self.protein = protein
-        self.ligand_ref = ligand_ref
+        if not isinstance(protein, Protein):
+            self.protein = Protein(protein, ligand_ref=ligand_ref)
+        else:
+            self.protein = protein
         self.morphs = morphs
         self._complex_template = None
         self.systems_prep = {}
@@ -133,12 +135,6 @@ class Ensemble:
             if value is not None:
                 value = Protein(value) if not isinstance(value, Protein) else value
             self.systems_prep = {}
-        elif key == "ligand_ref":
-            if value is not None:
-                if self.protein is None:
-                    raise ValueError("Cannot assign ligand_id without a protein")
-                else:
-                    self.protein.ligand_ref = value
 
         # setter
         super(Ensemble, self).__setattr__("_" + key, value)
