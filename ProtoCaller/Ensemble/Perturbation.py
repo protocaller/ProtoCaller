@@ -259,7 +259,8 @@ class Perturbation:
             mapping[indices_1[idx1]] = indices_2[idx2]
 
         # finally create morph
-        self._morph[self.current_ref] = _BSS.Align.merge(ligand1_BSS, ligand2_BSS, mapping=mapping)
+        self._morph[self.current_ref] = _BSS.Align.merge(
+            ligand1_BSS, ligand2_BSS, mapping=mapping, allow_ring_breaking=True)
 
         return self._morph[self.current_ref], mcs
 
