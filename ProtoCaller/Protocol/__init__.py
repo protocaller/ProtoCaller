@@ -359,9 +359,8 @@ class Protocol:
         self._generateNPTEquilibrationParams()
         self.skip_positions = 10000
         self.skip_energies = 10000
-        self.integrator = "leapfrog"
+        self.integrator = "stochastic"
         self.n_steps = 2500000
-        self.thermostat = "nose-hoover"
         self.barostat = "parrinello-rahman"
 
     def _generateVacuumParams(self):
@@ -380,9 +379,8 @@ class Protocol:
         self.vdw_corr = "no"
         self.constraint = "h_bonds"
         self.constraint_type = "lincs"
-        self.integrator = "leapfrog"
+        self.integrator = "stochastic"
         self.n_steps = 250000
-        self.thermostat = "nose-hoover"
         self.temp_time_coupling = 1
         self.temperature = 298
         self.temp_groups = "all"
