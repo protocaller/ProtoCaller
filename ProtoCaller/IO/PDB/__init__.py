@@ -28,6 +28,9 @@ class PDB(Chain, _CondList.ConditionalList):
         _CondList.ConditionalList.__init__(self, [])
         self.readPDB(input)
 
+    def __repr__(self):
+        return "<PDB of {} chains>".format(len(self))
+
     @property
     def type(self):
         """str: Returns "protein". A potentially useful placeholder for more functionality in the future."""
