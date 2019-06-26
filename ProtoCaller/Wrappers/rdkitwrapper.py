@@ -467,7 +467,8 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
 
 
 def alignTwoMolecules(ref, mol, n_min=-1, two_way_matching=True, mcs=None,
-                      mcs_parameters=None, minimiser_parameters=None):
+                      mcs_parameters=None, minimiser_parameters=None,
+                      minimise_score=True):
     """
     Aligns two molecules based on an input MCS. The algorithm uses atom
     freezing of the common core and force field minimisation of the rest.
@@ -494,7 +495,7 @@ def alignTwoMolecules(ref, mol, n_min=-1, two_way_matching=True, mcs=None,
     mcs_parameters : dict
         A dictionary of the parameters to be passed on to getMCSMap().
     minimiser_parameters : dict
-        A dictionary of the parameters to be apssed on to
+        A dictionary of the parameters to be passed on to
         minimiseAlignmentScore().
 
     Returns
@@ -522,7 +523,7 @@ def alignTwoMolecules(ref, mol, n_min=-1, two_way_matching=True, mcs=None,
     else:
         mcss = [mcs]
 
-    # if we have multiple equivalent MCS's we pick the one with best MSD
+    # if we have multiple equivalent MCS's we pick the one with best score
     mol_final, score_final, mcs_final = None, None, None
     for mcs in mcss:
         ref_conf = ref.GetConformer(-1)
@@ -561,21 +562,82 @@ def alignTwoMolecules(ref, mol, n_min=-1, two_way_matching=True, mcs=None,
                 ff_to_use = "uff"
                 continue
 
-        frozen_atoms = list(zip(*mcs))[1]
-        mol, score = minimiseAlignmentScore(ref, mol,
-                                            frozen_atoms=frozen_atoms,
-                                            **minimiser_parameters)
+        if not minimise_score:
+            return mol, mcs
+
+        mol_new, score = minimiseAlignmentScore(ref, mol, mcs=mcs,
+                                                **minimiser_parameters)
 
         if score_final is None or score < score_final:
-            mol_final = mol
+            mol_final = mol_new
             score_final = score
             mcs_final = mcs
 
     return mol_final, mcs_final
 
 
-def minimiseAlignmentScore(ref, mol, frozen_atoms=None, confId1=-1, confId2=-1,
-                           minimisation_algorithm=_minimize, **kwargs):
+def getAlignmentScore(ref, mol, mcs=None, confId1=-1, confId2=-1):
+    """
+    Returns the alignment score between two molecules. The way this is done is
+    by calculating all possible distances between atom i of ref and atom j of
+    mol and computing the sum of their squares. All atoms from mol that are
+    within 1 Angstrom of atom j contribute inverse square distances to the
+    score in order to prevent unfavourable clashes.
+
+    Parameters
+    ----------
+    ref : rdkit.Chem.rdchem.Mol
+        The reference molecule.
+    mol : rdkit.Chem.rdchem.Mol
+        The molecule to be aligned.
+    mcs : [(tuple)] or None
+        The maximum common substructure of the two molecules.
+    confId1 : int
+        The conformer number of ref.
+    confId2 : int
+        The conformer number of mol.
+
+    Returns
+    -------
+    alignment_score : float
+        The alignment score of the two conformers.
+    """
+    if not mcs is None:
+        frozen_atoms_ref, frozen_atoms_mol = list(zip(*mcs))
+    else:
+        frozen_atoms_ref, frozen_atoms_mol = [], []
+
+    ref_conf = ref.GetConformer(confId1)
+    mol_conf = mol.GetConformer(confId2)
+
+    alignment_score = 0
+    mol_indices = [x for x in range(mol.GetNumAtoms())
+                   if x not in frozen_atoms_mol]
+    ref_indices = [x for x in range(ref.GetNumAtoms())
+                   if x not in frozen_atoms_ref]
+    for mol_idx in mol_indices:
+        for ref_idx in ref_indices:
+            x1 = ref_conf.GetAtomPosition(ref_idx)
+            x2 = mol_conf.GetAtomPosition(mol_idx)
+            alignment_score += (x1 - x2).LengthSq()
+
+        for mol_idx2 in range(ref.GetNumAtoms()):
+            x1 = mol_conf.GetAtomPosition(mol_idx)
+            x2 = mol_conf.GetAtomPosition(mol_idx2)
+            len_sq = (x1 - x2).LengthSq()
+            if len_sq > 1:
+                continue
+            elif len_sq < 2 / _sys.maxsize:
+                return _sys.maxsize
+            else:
+                alignment_score += 2 / len_sq**6
+
+    return alignment_score
+
+
+def minimiseAlignmentScore(ref, mol, mcs=None, confId1=-1, confId2=-1,
+                           minimisation_algorithm=_minimize,
+                           scoring_algorithm=getAlignmentScore, **kwargs):
     """
     Rotates all of the rotatable dihedrals outside of the MCS  until a balance
     between good alignment to the reference and minimal clashing with other
@@ -587,8 +649,8 @@ def minimiseAlignmentScore(ref, mol, frozen_atoms=None, confId1=-1, confId2=-1,
         The reference molecule.
     mol : rdkit.Chem.rdchem.Mol
         The molecule to be aligned.
-    frozen_atoms : list
-        The list of indices of the atoms in mol not to be moved.
+    mcs : [(tuple)] or None
+        The maximum common substructure of the two molecules.
     confId1 : int
         The conformer number of ref.
     confId2 : int
@@ -603,18 +665,22 @@ def minimiseAlignmentScore(ref, mol, frozen_atoms=None, confId1=-1, confId2=-1,
 
     Returns
     -------
-    mcs : {frozenset([tuple])}
-        A set of frozensets of tuples corresponding to the atom index matches
-        between the reference and the other molecule.
+    mol : rdkit.Chem.rdchem.Mol
+        The aligned molecule.
     alignment_score : float
-        The alignment score after alignment obtained from getAlignmentScore()
+        The alignment score after alignment obtained from getAlignmentScore().
     """
+    if mcs is None:
+        mcs = []
+        frozen_atoms = []
+    else:
+        frozen_atoms = list(zip(*mcs))[1]
+
     if minimisation_algorithm is None:
-        return _copy.deepcopy(mol), getAlignmentScore(ref, mol,
+        return _copy.deepcopy(mol), scoring_algorithm(ref, mol, mcs=mcs,
                                                       confId1=confId1,
                                                       confId2=confId2)
-    if frozen_atoms is None:
-        frozen_atoms = []
+
 
     mol = _copy.deepcopy(mol)
     mol_conf = mol.GetConformer(confId2)
@@ -674,7 +740,7 @@ def minimiseAlignmentScore(ref, mol, frozen_atoms=None, confId1=-1, confId2=-1,
         for dihedral, arg in zip(dihedrals, list(args[0])):
             _Transforms.SetDihedralRad(mol_conf_temp, *dihedral, arg)
 
-        return getAlignmentScore(ref, mol_temp, confId1=confId1,
+        return scoring_algorithm(ref, mol_temp, mcs=mcs, confId1=confId1,
                                  confId2=confId2)
 
     # rotate dihedrals until MSD minimisation
@@ -686,56 +752,8 @@ def minimiseAlignmentScore(ref, mol, frozen_atoms=None, confId1=-1, confId2=-1,
             _Transforms.SetDihedralRad(mol_conf, *dihedral, optimal_angle)
         return mol, final_alignment_score
     else:
-        return mol, getAlignmentScore(ref, mol, confId1=confId1,
+        return mol, scoring_algorithm(ref, mol, mcs=mcs, confId1=confId1,
                                       confId2=confId2)
-
-
-def getAlignmentScore(ref, mol, confId1=-1, confId2=-1):
-    """
-    Returns the alignment score between two molecules. The way this is done is
-    by calculating all possible distances between atom i of ref and atom j of
-    mol and computing the sum of their squares. All atoms from mol that are
-    within 1 Anstrom of atom j contribute inverse square distances to the score
-    in order to prevent unfavourable clashes.
-
-    Parameters
-    ----------
-    ref : rdkit.Chem.rdchem.Mol
-        The reference molecule.
-    mol : rdkit.Chem.rdchem.Mol
-        The molecule to be aligned.
-    confId1 : int
-        The conformer number of ref.
-    confId2 : int
-        The conformer number of mol.
-
-    Returns
-    -------
-    alignment_score : float
-        The alignment score of the two conformers.
-    """
-    ref_conf = ref.GetConformer(confId1)
-    mol_conf = mol.GetConformer(confId2)
-
-    alignment_score = 0
-    for mol_idx in range(mol.GetNumAtoms()):
-        for ref_idx in range(ref.GetNumAtoms()):
-            x1 = ref_conf.GetAtomPosition(ref_idx)
-            x2 = mol_conf.GetAtomPosition(mol_idx)
-            alignment_score += (x1 - x2).LengthSq()
-
-        for mol_idx2 in range(mol_idx):
-            x1 = mol_conf.GetAtomPosition(mol_idx)
-            x2 = mol_conf.GetAtomPosition(mol_idx2)
-            len_sq = (x1 - x2).LengthSq()
-            if len_sq > 1:
-                continue
-            elif len_sq < 2 / _sys.maxsize:
-                return _sys.maxsize
-            else:
-                alignment_score += 2 / len_sq
-
-    return alignment_score
 
 
 def getMatchingAtomScore(mol1, mol2, matches):
