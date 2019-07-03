@@ -736,8 +736,10 @@ def minimiseAlignmentScore(ref, mol, mcs=None, confId1=-1, confId2=-1,
                                     len(atom_neighbours - set(frozen_atoms))
 
     # find rotatable bonds at the edge of and outside of the frozen atom domain
-    smarts = "[!$([NH]!@C(=O))&!D1&!$(*#*)]-&!@[!$([NH]!@C(=O))&!D1&!$(*#*)]"
-    rbonds = _Chem.MolFromSmarts(smarts)
+    amide = "[NX3]!@[C]=[OX1]"
+    ester = "[OX2]!@[C]=[OX1]"
+    smarts = "[!$({0})&!$({1})&!D1&!$(*#*)]-&!@[!$({0})&!$({1})&!D1&!$(*#*)]"
+    rbonds = _Chem.MolFromSmarts(smarts.format(amide, ester))
     rbond_indices = mol.GetSubstructMatches(rbonds)
     rbond_indices = [{i1, i2} for i1, i2 in rbond_indices
                      if n_frozen_neighbours[i1] <= 1
@@ -1333,16 +1335,15 @@ def _optimalMergedSets(*sets):
     max_len_final:
         The length of the optimal set(s).
     """
-    def increaseByOne(inpsets, max_len):
+    def increaseByOne(inpsets):
         outpsets = set()
-        max_len_set = {i for i in range(max_len)}
         for inpset in inpsets:
-            for x in max_len_set - inpset:
+            all_sets = [compatible_dict[i] for i in inpset]
+            available_sets = set(all_sets[0]).intersection(*all_sets[1:])
+            available_sets -= inpset
+            for x in available_sets:
                 outpsets |= {frozenset([*inpset, x])}
         return outpsets
-
-    def isCompatibleSet(inpset):
-        return not any([x.issubset(inpset) for x in incompatible_sets])
 
     def getLen(number_set):
         return len(set().union(*[sets[i] for i in number_set]))
@@ -1353,16 +1354,21 @@ def _optimalMergedSets(*sets):
     if len(sets) <= 1:
         return set([frozenset(x) for x in sets]), len(sets)
 
-    # get incompatible pairs of sets in terms of their position
-    incompatible_sets = []
+    # get compatible pairs of sets in terms of their position
+    compatible_sets = []
     for i in range(len(sets)):
         set1 = sets[i]
         for j in range(i):
             set2 = sets[j]
             set12 = set1.union(set2)
             tuple1, tuple2 = zip(*set12)
-            if not (len(set(tuple1)) == len(set(tuple2)) == len(set12)):
-                incompatible_sets += [{i, j}]
+            if len(set(tuple1)) == len(set(tuple2)) == len(set12):
+                compatible_sets += [{i, j}]
+
+    # turn compatible_sets into a dictionary as well
+    compatible_dict = {}
+    for i in range(len(sets)):
+        compatible_dict[i] = {i}.union(*[x for x in compatible_sets if i in x])
 
     # build up larger subsets that obey all the rules
     # we do this by translating the sets into numbers corresponding to set
@@ -1382,8 +1388,7 @@ def _optimalMergedSets(*sets):
             break
 
         if size != len(sets) - 1:
-            sets_incl = increaseByOne(sets_incl, len(sets))
-            sets_incl = {x for x in sets_incl if isCompatibleSet(x)}
+            sets_incl = increaseByOne(sets_incl)
 
     # translate back into the actual sets
     sets_final = {frozenset(getSet(x)) for x in sets_final}
