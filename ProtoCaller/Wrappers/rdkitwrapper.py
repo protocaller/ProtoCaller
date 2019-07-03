@@ -1021,14 +1021,6 @@ def _optimalMergedSets(*sets):
     if len(sets) <= 1:
         return set([frozenset(x) for x in sets]), len(sets)
 
-    # get maximum possible lengths of the sets
-    tuples1 = set().union(*[list(zip(*x))[0] for x in sets])
-    tuples2 = set().union(*[list(zip(*x))[1] for x in sets])
-    lengths = [len(x) for x in sets]
-    max_lens = [sum(sorted(lengths[:i+1], reverse=True))
-                for i in range(len(sets))]
-    max_lens = [min(x, len(tuples1), len(tuples2)) for x in max_lens]
-
     # get incompatible pairs of sets in terms of their position
     incompatible_sets = []
     for i in range(len(sets)):
@@ -1048,21 +1040,18 @@ def _optimalMergedSets(*sets):
     max_len_final = 0
     for size in range(len(sets)):
         max_len = max([getLen(x) for x in sets_incl]) if sets_incl else 0
-        if max_len:
-            if max_len > max_len_final:
-                max_len_final = max_len
-                sets_final = {x for x in sets_incl if getLen(x) == max_len}
-            elif max_len == max_len_final:
-                sets_final |= {x for x in sets_incl if getLen(x) == max_len}
-            else:
-                break
 
-        if size == len(sets) - 1 or max_len == max_lens[size] \
-                or max_len < max_len_final:
+        if max_len > max_len_final:
+            max_len_final = max_len
+            sets_final = {x for x in sets_incl if getLen(x) == max_len}
+        elif max_len == max_len_final:
+            sets_final |= {x for x in sets_incl if getLen(x) == max_len}
+        else:
             break
 
-        sets_incl = increaseByOne(sets_incl, len(sets))
-        sets_incl = {x for x in sets_incl if isCompatibleSet(x)}
+        if size != len(sets) - 1:
+            sets_incl = increaseByOne(sets_incl, len(sets))
+            sets_incl = {x for x in sets_incl if isCompatibleSet(x)}
 
     # translate back into the actual sets
     sets_final = {frozenset(getSet(x)) for x in sets_final}
