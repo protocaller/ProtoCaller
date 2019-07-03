@@ -1,7 +1,9 @@
+import ProtoCaller as PC
+from ProtoCaller.Utils.fileio import Dir
 from ProtoCaller.Wrappers.rdkitwrapper import *
 
 
-def test_MCS():
+def test_MCS_extended():
     # test some extended mapping
     ref = openAsRdkit("C1CNC(CC1)C2CC(CCC2)C3CCCC3")
     mol = openAsRdkit("C1CCC(CC1)C2OC(CC2)C3CCNC3")
@@ -35,6 +37,38 @@ def test_MCS():
     mol = openAsRdkit("c1cccc(c1)c1c[nH]c2c1[nH]cc2")
     assert len(getMCSMap(ref, mol)[0]) == 14
 
+
+def test_MCS_EZ():
+    with Dir(PC.TESTDIR + "/shared"):
+        # test mapping of an asymmetric double bond onto symmetric one
+        ref = openFileAsRdkit("EZ_ref1.mol2", removeHs=False)
+        mol = openFileAsRdkit("EZ_mol1.mol2", removeHs=False)
+        results = getMCSMap(ref, mol)
+        assert all([len(x) == 38 for x in results])
+        assert all([{(11, 12), (12, 11)}.issubset(x) for x in results])
+
+        # test mapping between two esters of different E/Z conformations
+        ref = openFileAsRdkit("EZ_ref2.mol2", removeHs=False)
+        mol = openFileAsRdkit("EZ_mol2.mol2", removeHs=False)
+        results = getMCSMap(ref, mol)
+        assert all([len(x) == 28 for x in results])
+
+        # test mapping a double bond and a single bond with unfavourable
+        # conformation
+        ref = openFileAsRdkit("EZ_ref3.mol2", removeHs=False)
+        mol = openFileAsRdkit("EZ_mol3.mol2", removeHs=False)
+        results = getMCSMap(ref, mol, timeout=1)
+        assert all([len(x) == 38 for x in results])
+
+        # test mapping a double bond and a single bond with favourable
+        # conformation
+        ref = openFileAsRdkit("EZ_ref4.mol2", removeHs=False)
+        mol = openFileAsRdkit("EZ_mol4.mol2", removeHs=False)
+        results = getMCSMap(ref, mol, timeout=1)
+        assert all([len(x) == 41 for x in results])
+
+
+def test_MCS_RS():
     # test some stereospecific mapping
     ref = openAsRdkit("C1CC[C@@H](C2CCCC2)[C@@H](C3CCC3)C1")
 

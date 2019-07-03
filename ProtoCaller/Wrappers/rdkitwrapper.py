@@ -1,3 +1,4 @@
+import itertools as _it
 import copy as _copy
 import os as _os
 import sys as _sys
@@ -422,6 +423,34 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
 
         matches = set().union(*[matches_rec_prev[x] for x in matches])
 
+    # break mismatching neighbours next to a double / amide / ester bond
+    matches_new = set()
+    for match in matches:
+        results = _breakEZBonds(ref, mol, *list(zip(*match)))
+
+        if not len(results[0]):
+            # matching is already correct
+            matches_new |= {match}
+            continue
+
+        match_new = set()
+        for ref_broken, mol_broken, mcs_broken, del_ref, del_mol in zip(*results):
+            mcs_broken = set(mcs_broken)
+            _, matches_ref_broken, matches_mol_broken = \
+                _matchAndReturnMatches([ref_broken, mol_broken],
+                                       **kwargs)
+            matches_broken = {frozenset(zip(_transformIndices(x, del_ref),
+                                            _transformIndices(y, del_mol)))
+                              for x in matches_ref_broken
+                              for y in matches_mol_broken}
+            # only keep the matches that are connected to the
+            # original one
+            match_new |= {x for x in matches_broken
+                          if _haveCommonElements(x, mcs_broken)}
+
+        matches_new |= _optimalMergedSets(*match_new, mcs_broken)[0]
+    matches = matches_new
+
     # here we deal with mismatching atoms of different chirality
     matches_final = set()
     # take care of R/S changing with different atom types
@@ -436,6 +465,7 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
     for match in matches:
         if match == frozenset():
             continue
+
         # only deal with one of the molecules
         chiral_ref_indices = [x[0] for x in match
                               if x[0] in chiral_ref_c.keys()
@@ -723,8 +753,7 @@ def minimiseAlignmentScore(ref, mol, mcs=None, confId1=-1, confId2=-1,
     for i0, i1, i2, i3 in dihedrals_ini:
         mol_temp = _Chem.EditableMol(_copy.deepcopy(mol))
         mol_temp.RemoveBond(i1, i2)
-        frags = _Chem.GetMolFrags(mol_temp.GetMol(),
-                                  asMols=False, sanitizeFrags=False)
+        frags = _Chem.GetMolFrags(mol_temp.GetMol(), sanitizeFrags=False)
 
         for frag in frags:
             n_frozen = len(set(frozen_atoms) & set(frag))
@@ -762,6 +791,47 @@ def minimiseAlignmentScore(ref, mol, mcs=None, confId1=-1, confId2=-1,
                                       confId2=confId2)
 
 
+def getEZStereochemistry(mol, carbonify=True, confId=-1):
+    if carbonify:
+        mol_c = _carbonify(mol)
+    else:
+        mol_c = _copy.deepcopy(mol)
+
+    all_bonds = [x for x in mol.GetBonds()]
+    all_bonds_c = [x for x in mol_c.GetBonds()]
+    all_bond_indices = [{x.GetBeginAtomIdx(), x.GetEndAtomIdx()}
+                        for x in all_bonds]
+
+    amide = "[NX3;R0]!@[C;R0]=[OX1]"
+    ester = "[OX2;R0]!@[C;R0]=[OX1]"
+    double = "[$([*X3;R0])&!$(*=*!-*)]=&!@[$([*X2,X3;R0])&!$(*=*!-*)]"
+
+    matches_amides = list(mol.GetSubstructMatches(_Chem.MolFromSmarts(amide)))
+    matches_esters = list(mol.GetSubstructMatches(_Chem.MolFromSmarts(ester)))
+    matches_double = list(mol.GetSubstructMatches(_Chem.MolFromSmarts(double)))
+    matches_all = [frozenset(x[:2])
+                   for x in matches_amides + matches_esters + matches_double]
+
+    bond_mapper = {
+        _Chem.BondStereo.STEREOE: "E",
+        _Chem.BondStereo.STEREOZ: "Z",
+        _Chem.BondStereo.STEREONONE: None,
+    }
+
+    bonds = {}
+
+    # generate E/Z information
+    for bond in matches_all:
+        idx = all_bond_indices.index(bond)
+        all_bonds_c[idx].SetBondType(_Chem.BondType.DOUBLE)
+        _Chem.DetectBondStereochemistry(mol_c, confId=confId)
+        _Chem.AssignStereochemistry(mol_c, cleanIt=True, force=True)
+        bonds[bond] = bond_mapper[mol_c.GetBondWithIdx(idx).GetStereo()]
+        all_bonds_c[idx].SetBondType(_Chem.BondType.SINGLE)
+
+    return bonds
+
+
 def getMatchingAtomScore(mol1, mol2, matches):
     """
     Returns the matching atom score between two molecules. This is simply
@@ -789,6 +859,271 @@ def getMatchingAtomScore(mol1, mol2, matches):
         matching_atoms += (n1 == n2)
     return matching_atoms
 
+
+def _breakEZBonds(ref, mol, match_ref, match_mol):
+    """
+    Detects double bonds with mismatching E/Z stereochemistry and breaks all
+    adjacent bonds one by one so that the MCS algorithm is forced to obey the
+    stereochemistry.
+
+    Parameters
+    ----------
+    ref : rdkit.Chem.rdchem.Mol
+        The reference molecule.
+    mol : rdkit.Chem.rdchem.Mol
+        The molecule to be aligned.
+    match_ref : [int]
+        The indices of the matched reference.
+    match_mol : [int]
+        The indices of the matched molecule.
+
+    Returns
+    -------
+    refs : [rdkit.Chem.rdchem.Mol]
+        The reference molecules with broken bonds.
+    mols : [rdkit.Chem.rdchem.Mol]
+        The target molecules with broken bonds.
+    mcss : [[tuple]]
+        The new pruned MCSs - one per ref-mol pair
+    ids_ref : [[int]]
+        The deleted atoms from the original ref resulting in each fragment.
+    ids_mol : [[int]]
+        The deleted atoms from the original mol resulting in each fragment.
+    """
+    match_rev_map = {x: y for x, y in zip(match_mol, match_ref)}
+
+    # get E/Z information of the original molecule
+    EZ_mol = getEZStereochemistry(mol)
+
+    # get MCS as a fragment and obtain its E/Z information
+    indices_to_delete_ref = [x for x in range(ref.GetNumAtoms())
+                             if x not in match_ref]
+    indices_to_delete_mol = [x for x in range(mol.GetNumAtoms())
+                             if x not in match_mol]
+    mcs_ref = _generateFragment(ref, indices_to_delete_ref)
+    mcs_mol = _generateFragment(mol, indices_to_delete_mol)
+    # initialise the ring info, otherwise an error is thrown
+    _Chem.GetSymmSSSR(mcs_ref)
+    _Chem.GetSymmSSSR(mcs_mol)
+
+    EZ_ref_mcs = getEZStereochemistry(mcs_ref)
+    EZ_ref_mcs = {frozenset(_transformIndices(k, indices_to_delete_ref)): v
+                  for k, v in EZ_ref_mcs.items()}
+    EZ_mol_mcs = getEZStereochemistry(mcs_mol)
+    EZ_mol_mcs = {frozenset(_transformIndices(k, indices_to_delete_mol)): v
+                  for k, v in EZ_mol_mcs.items()}
+    # get rid of symmetric bonds with asymmetric mappings
+    EZ_mol_mcs = {key: val for key, val in EZ_mol_mcs.items()
+                  if frozenset(key) in EZ_mol.keys()
+                  and EZ_mol[key] is not None}
+
+    # get all bonds
+    bonds_ref = {(x.GetBeginAtomIdx(), x.GetEndAtomIdx()): x
+                 for x in ref.GetBonds()}
+    bonds_mol = {(x.GetBeginAtomIdx(), x.GetEndAtomIdx()): x
+                 for x in mol.GetBonds()}
+    bonds_mcs_ref = [(x.GetBeginAtomIdx(), x.GetEndAtomIdx())
+                     for x in mcs_ref.GetBonds()]
+    bonds_mcs_mol = [(x.GetBeginAtomIdx(), x.GetEndAtomIdx())
+                     for x in mcs_mol.GetBonds()]
+    # transform fragment indices to master indices
+    bonds_mcs_ref = [tuple(_transformIndices(x, indices_to_delete_ref))
+                     for x in bonds_mcs_ref]
+    bonds_mcs_mol = [tuple(_transformIndices(x, indices_to_delete_mol))
+                     for x in bonds_mcs_mol]
+
+
+    # bonds that we break in the first instance (tetrahedral bonds) that are
+    # not in the MCS
+    bonds_to_break_ref = []
+    # pairs of bonds that we break independently of one another
+    bonds_to_break_pairs = {}
+
+    # populate the above empty containers using bond information from original
+    # molecules (will need to transform the indices back later)
+    for bond_mol, chirality_mol in EZ_mol_mcs.items():
+        # make sure we have an ordered bond
+        bond_mol = [key for key, val in bonds_mol.items()
+                    if set(key) == set(bond_mol)][0]
+        # only consider bonds that are inside the MCS
+        if set(bond_mol).issubset(match_mol):
+            bond_ref = tuple([match_ref[match_mol.index(x)] for x in bond_mol])
+            bonds_to_break_pairs[(bond_ref, bond_mol)] = []
+
+            # get all adjacent bonds for atom 0 and atom 1 for both mols
+            neighbours = {"ref": {}, "mol": {}}
+            neighbours["mol"][0] = [k for k, v in bonds_mol.items()
+                                    if bond_mol[0] in k
+                                    and bond_mol[1] not in k
+                                    and set(k).issubset(match_mol)]
+            neighbours["mol"][1] = [k for k, v in bonds_mol.items()
+                                    if bond_mol[1] in k
+                                    and bond_mol[0] not in k
+                                    and set(k).issubset(match_mol)]
+            neighbours["ref"][0] = [(match_rev_map[x[0]], match_rev_map[x[1]])
+                                    for x in neighbours["mol"][0]]
+            neighbours["ref"][1] = [(match_rev_map[x[0]], match_rev_map[x[1]])
+                                    for x in neighbours["mol"][1]]
+
+            # no bond breakage if less than 2 adjacent bonds
+            single_bonds = True
+            for i in ["ref", "mol"]:
+                for j in [0, 1]:
+                    neighbours[i][j] += [None] * (2 - len(neighbours[i][j]))
+                    # don't break in the case we have a symmetric ester
+                    single_bonds = single_bonds and None not in neighbours[i][j]
+
+            # planar bonds mapped onto tetrahedral bonds
+            if frozenset(bond_ref) not in EZ_ref_mcs.keys():
+                # get neighbouring bonds outside of MCS
+                breakbonds_ref = {frozenset(x) for x in bonds_ref.keys()
+                                  if len(set(x) & set(bond_ref)) == 1}
+                breakbonds_ref -= {frozenset(x) for x in
+                                   neighbours["ref"][0] + neighbours["ref"][1]}
+
+                # add to unconditional break list
+                bonds_to_break_ref += list(breakbonds_ref)
+
+                # make bond appear as double in order to generate E/Z info
+                idx = [i for i, x in enumerate(bonds_mcs_ref)
+                       if set(x) == set(bond_ref)][0]
+                mcs_ref.GetBondWithIdx(idx).SetBondType(_Chem.BondType.DOUBLE)
+                _Chem.DetectBondStereochemistry(mcs_ref)
+                _Chem.AssignStereochemistry(mcs_ref, cleanIt=True, force=True)
+
+                # regenerate stereochemical information
+                EZ_ref_mcs = getEZStereochemistry(mcs_ref)
+                EZ_ref_mcs = {frozenset(
+                    _transformIndices(k, indices_to_delete_ref)): v
+                    for k, v in EZ_ref_mcs.items()}
+
+            # asymmetric planar bonds mapped onto symmetric planar bonds
+            if single_bonds and EZ_ref_mcs[frozenset(bond_ref)] is None:
+                symm_bonds = []
+                bond_atoms_ref = neighbours["ref"][0] + neighbours["ref"][1]
+                bond_atoms_mol = neighbours["mol"][0] + neighbours["mol"][1]
+
+                # determine which bound atoms are symmetric
+                for b_ref, b_mol in zip(bond_atoms_ref, bond_atoms_mol):
+                    idx_ref, = set(b_ref) - set(bond_ref)
+                    idx_mol, = set(b_mol) - set(bond_mol)
+
+                    # transform the indices to MCS indices
+                    idx_ref = _revTransformIndices([idx_ref],
+                                                   indices_to_delete_ref)[0]
+                    idx_mol = _revTransformIndices([idx_mol],
+                                                   indices_to_delete_mol)[0]
+
+                    # determine pro-E and pro-Z atoms
+                    mcs_ref_c = _carbonify(mcs_ref)
+                    mcs_mol_c = _carbonify(mcs_mol)
+                    mcs_ref_c.GetAtomWithIdx(idx_ref).SetAtomicNum(14)
+                    mcs_mol_c.GetAtomWithIdx(idx_mol).SetAtomicNum(14)
+
+                    mcs_ref_c.GetBondWithIdx(
+                        bonds_mcs_ref.index(bond_ref)).SetBondType(
+                        _Chem.BondType.DOUBLE)
+                    mcs_mol_c.GetBondWithIdx(
+                        bonds_mcs_mol.index(bond_mol)).SetBondType(
+                        _Chem.BondType.DOUBLE)
+
+                    EZ_mcs_ref_c = getEZStereochemistry(mcs_ref_c,
+                                                        carbonify=False)
+                    EZ_mcs_mol_c = getEZStereochemistry(mcs_mol_c,
+                                                        carbonify=False)
+
+                    # these are the symmetric atoms
+                    EZ_curbond_ref = EZ_mcs_ref_c[frozenset(bond_ref)]
+                    if EZ_curbond_ref is not None:
+                        EZ_curbond_mol = EZ_mcs_mol_c[frozenset(bond_mol)]
+                        if EZ_curbond_ref != EZ_curbond_mol:
+                            symm_bonds += [[b_ref, b_mol]]
+
+                # swap the substituents if we have a mismatch
+                if symm_bonds:
+                    bonds_to_break_pairs[(bond_ref, bond_mol)] += \
+                        [(symm_bonds[0][0], symm_bonds[1][1]),
+                         (symm_bonds[1][0], symm_bonds[0][1])]
+            # E mapped to Z and vice-versa
+            elif EZ_ref_mcs[frozenset(bond_ref)] != chirality_mol:
+                # swap the substituents and break bonds on both atoms
+                for k2 in [0, 1]:
+                    for k3 in [0, 1]:
+                        bond1 = neighbours["ref"][k2][k3]
+                        bond2 = neighbours["mol"][k2][k3 - 1]
+                        bonds_to_break_pairs[(bond_ref, bond_mol)] += [(bond1,
+                                                                        bond2)]
+            else:
+                # all mappings are fine
+                del bonds_to_break_pairs[(bond_ref, bond_mol)]
+
+
+    if not bonds_to_break_pairs:
+        return [], [], [], [], []
+
+    # now we finally break the bonds
+    refs_prev, mols_prev = [_copy.deepcopy(ref)], [_copy.deepcopy(mol)]
+    mcss_prev = [list(zip(match_ref, match_mol))]
+    ids_ref_prev, ids_mol_prev = [[]], [[]]
+
+    for (dbond_ref, dbond_mol), v in bonds_to_break_pairs.items():
+        # iterate over previously created fragments
+        for ref_prev, mol_prev, mcs_prev, id_ref_prev, id_mol_prev in \
+                zip(refs_prev, mols_prev, mcss_prev, ids_ref_prev, ids_mol_prev):
+            refs, mols, mcss, ids_ref, ids_mol = [], [], [], [], []
+            # transform the double bond representation back to the original
+            # indices
+            dbond_ref = _revTransformIndices(dbond_ref, id_ref_prev)
+            dbond_mol = _revTransformIndices(dbond_mol, id_mol_prev)
+            # continue if bond is not a part of the fragment
+            if not set(dbond_ref).issubset(list(zip(*mcs_prev))[0]):
+                continue
+
+            for breakbond_ref, breakbond_mol in v:
+                if breakbond_ref is not None:
+                    breakbond_ref = _revTransformIndices(breakbond_ref,
+                                                         id_ref_prev)
+                if breakbond_mol is not None:
+                    breakbond_mol = _revTransformIndices(breakbond_mol,
+                                                         id_mol_prev)
+
+                # break the bonds in the reference molecule
+                ref_copy = _Chem.EditableMol(_copy.deepcopy(ref))
+                for bond in [breakbond_ref] + bonds_to_break_ref:
+                    if bond:
+                        ref_copy.RemoveBond(*bond)
+                ref_copy = ref_copy.GetMol()
+                ref_frags = _rdmolops.GetMolFrags(ref_copy,
+                                                  sanitizeFrags=False)
+                deleted_frags_ref = list(_it.chain(
+                    *[list(x) for x in ref_frags
+                      if not set(dbond_ref).issubset(x)]))
+                ids_ref += [deleted_frags_ref]
+                refs += [_generateFragment(ref_copy, deleted_frags_ref)]
+
+                # break the bonds in the target molecule
+                mol_copy = _Chem.EditableMol(_copy.deepcopy(mol))
+                if breakbond_mol:
+                    mol_copy.RemoveBond(*breakbond_mol)
+                mol_copy = mol_copy.GetMol()
+                mol_frags = _rdmolops.GetMolFrags(mol_copy,
+                                                  sanitizeFrags=False)
+                deleted_frags_mol = list(_it.chain(
+                    *[list(x) for x in mol_frags
+                      if not set(dbond_mol).issubset(x)]))
+                ids_mol += [deleted_frags_mol]
+                mols += [_generateFragment(mol_copy, deleted_frags_mol)]
+
+                # get new pruned MCS for every broken molecule
+                mcss += [[(x, y) for x, y in zip(match_ref, match_mol)
+                          if x not in deleted_frags_ref
+                          and y not in deleted_frags_mol]]
+
+                # update old values
+                refs_prev, mols_prev, mcss_prev = refs, mols, mcss
+                ids_ref_prev, ids_mol_prev = ids_ref, ids_mol
+
+    return refs, mols, mcss, ids_ref, ids_mol
 
 def _breakMismatchingBonds(ref, mol, match_ref, match_mol):
     """
@@ -831,8 +1166,7 @@ def _breakMismatchingBonds(ref, mol, match_ref, match_mol):
         ref_copy = _Chem.EditableMol(_copy.deepcopy(ref))
         ref_copy.RemoveBond(*bond)
         ref_copy = ref_copy.GetMol()
-        if len(_rdmolops.GetMolFrags(ref_copy, asMols=False,
-                                     sanitizeFrags=False)) == 1:
+        if len(_rdmolops.GetMolFrags(ref_copy, sanitizeFrags=False)) == 1:
             ref_copy.UpdatePropertyCache()
             refs_broken += [ref_copy]
 
@@ -841,8 +1175,7 @@ def _breakMismatchingBonds(ref, mol, match_ref, match_mol):
         mol_copy = _Chem.EditableMol(_copy.deepcopy(mol))
         mol_copy.RemoveBond(*bond)
         mol_copy = mol_copy.GetMol()
-        if len(_rdmolops.GetMolFrags(mol_copy, asMols=False,
-                                     sanitizeFrags=False)) == 1:
+        if len(_rdmolops.GetMolFrags(mol_copy, sanitizeFrags=False)) == 1:
             mol_copy.UpdatePropertyCache()
             mols_broken += [mol_copy]
 
@@ -898,8 +1231,7 @@ def _generateFragment(mol, indices_to_delete, getAsFrags=False):
         mol_frag_edit.RemoveAtom(idx)
     mol_frag = mol_frag_edit.GetMol()
     if getAsFrags:
-        frags = _rdmolops.GetMolFrags(mol_frag, asMols=False,
-                                      sanitizeFrags=False)
+        frags = _rdmolops.GetMolFrags(mol_frag, sanitizeFrags=False)
         return [_transformIndices(f, indices_to_delete) for f in frags]
     else:
         mol_frag.UpdatePropertyCache()
@@ -1057,6 +1389,33 @@ def _optimalMergedSets(*sets):
     sets_final = {frozenset(getSet(x)) for x in sets_final}
 
     return sets_final, max_len_final
+
+
+def _revTransformIndices(prev_indices, deleted_indices):
+    """
+    Generates the new indices of the molecule given the old and the deleted
+    indices.
+
+    Parameters
+    ----------
+    prev_indices : [int]
+        Previous indices that are to be transformed.
+    deleted_indices : [int]
+        Deleted indices from the previous molecule.
+
+    Returns
+    -------
+    transformed_indices : [int]
+        Transformed indices.
+    """
+    if not prev_indices:
+        return []
+    if not deleted_indices:
+        return prev_indices
+    if set(prev_indices) & set(deleted_indices):
+        raise ValueError("Cannot transform deleted indices.")
+    return [x - sum(x >= y for y in sorted(deleted_indices))
+            for x in sorted(prev_indices)]
 
 
 def _transformIndices(current_indices, deleted_indices):
