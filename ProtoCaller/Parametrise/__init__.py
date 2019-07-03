@@ -33,9 +33,14 @@ class Params:
 
     @protein_ff.setter
     def protein_ff(self, val):
-        val = val.strip()
-        if val not in _PC.PROTEINFFS:
-            raise ValueError("Value %s not supported. Supported values: " % val, _PC.PROTEINFFS)
+        val = val.strip().lower()
+        try:
+            val = next(
+                v for i, v in enumerate(_PC.PROTEINFFS) if v.lower() == val)
+        except StopIteration:
+            raise ValueError(
+                "Value %s not supported. Supported values: " % val,
+                _PC.PROTEINFFS)
         self._protein_ff = val
 
     @property
@@ -45,9 +50,14 @@ class Params:
 
     @ligand_ff.setter
     def ligand_ff(self, val):
-        val = val.strip()
-        if val not in _PC.LIGANDFFS:
-            raise ValueError("Value %s not supported. Supported values: " % val, _PC.LIGANDFFS)
+        val = val.strip().lower()
+        try:
+            val = next(
+                v for i, v in enumerate(_PC.LIGANDFFS) if v.lower() == val)
+        except StopIteration:
+            raise ValueError(
+                "Value %s not supported. Supported values: " % val,
+                _PC.LIGANDFFS)
         self._ligand_ff = val
 
     @property
@@ -57,9 +67,14 @@ class Params:
 
     @water_ff.setter
     def water_ff(self, val):
-        val = val.strip()
-        if val not in _PC.WATERFFS:
-            raise ValueError("Value %s not supported. Supported values: " % val, _PC.WATERFFS)
+        val = val.strip().lower()
+        try:
+            val = next(
+                v for i, v in enumerate(_PC.WATERFFS) if v.lower() == val)
+        except StopIteration:
+            raise ValueError(
+                "Value %s not supported. Supported values: " % val,
+                _PC.WATERFFS)
         self._water_ff = val
 
 
