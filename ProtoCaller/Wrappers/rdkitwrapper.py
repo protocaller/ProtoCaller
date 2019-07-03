@@ -267,7 +267,13 @@ def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", **kwargs):
         A list of lists of tuples corresponding to the atom index matches
         between the reference and the other molecule.
     """
+    kwargs_default = {
+        "maximize": "atoms",
+        "timeout": 60,
+    }
+
     kwargs = {
+        **kwargs_default,
         **kwargs,
         'atomCompare': atomCompare,
         'bondCompare': bondCompare,
