@@ -866,6 +866,8 @@ def _carbonify(mol):
     mol_c = _copy.deepcopy(mol)
     for atom in mol_c.GetAtoms():
         atom.SetAtomicNum(6)
+    for bond in mol_c.GetBonds():
+        bond.SetBondType(_Chem.rdchem.BondType.SINGLE)
     _Chem.AssignStereochemistry(mol_c, cleanIt=True, force=True)
     return mol_c
 
