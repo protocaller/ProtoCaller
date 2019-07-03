@@ -429,7 +429,8 @@ class Protein:
             print("Parametrising original crystal system...")
             # extract non-protein residues from pdb file and save them as separate pdb files
             hetatm_files, hetatm_types = self._pdb_obj.writeHetatms()
-            non_protein_residues = self._pdb_obj.filter("type not in ['water', 'simple_cation', 'simple_anion']")
+            filter = "type in ['amino_acid', 'amino_acid_modified']"
+            non_protein_residues = self._pdb_obj.filter(filter)
             self._pdb_obj.purgeResidues(non_protein_residues, "keep")
             self._pdb_obj.reNumberResidues()
             self._pdb_obj.writePDB(self.pdb)
