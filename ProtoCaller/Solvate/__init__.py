@@ -67,12 +67,15 @@ def solvate(complex, params, box_length=8, shell=0, neutralise=True, ion_conc=0.
         temp = False
 
     with _fileio.Dir(dirname=work_dir, temp=temp):
-        # center
+        # centre
         if centre:
             complex, box_length, _ = centrefunc(complex, box_length)
 
         # solvate with gmx solvate and load unparametrised waters into memory
         files = _PC.IO.GROMACS.saveAsGromacs(filebase, complex)
+        # reloading the complex fixes some problems with ParmEd
+        if isinstance(complex, _pmd.Structure):
+            complex = _pmdwrap.openFilesAsParmed(files)
         new_gro = filebase + "_solvated.gro"
         command = "{0} solvate -shell {1} -box {2} {2} {2} -cp \"{3}\" -o \"{4}\"".format(
             _PC.GROMACSEXE, shell, box_length, files[1], new_gro)
@@ -145,6 +148,5 @@ def solvate(complex, params, box_length=8, shell=0, neutralise=True, ion_conc=0.
                 ions_prep.save(filename)
 
             return complex + readfunc(ions_prep_filenames)
-
         else:
             complex + readfunc(waters_prep_filenames)
