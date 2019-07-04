@@ -1,3 +1,5 @@
+from pytest import approx
+
 import ProtoCaller as PC
 from ProtoCaller.Utils.fileio import Dir
 from ProtoCaller.Wrappers.rdkitwrapper import *
@@ -82,3 +84,19 @@ def test_MCS_RS():
     assert len(getMCSMap(ref, mol)[0]) == 15
     mol = openAsRdkit("C3CC[C@@H](C1CCCC1)[C@@](C2CCC2)(C3)S")
     assert len(getMCSMap(ref, mol)[0]) == 15
+
+
+def test_align():
+    from ProtoCaller.Wrappers.rdkitwrapper import _nonMCSDihedrals
+    with Dir(PC.TESTDIR + "/shared"):
+        # test conservation of dihedrals
+        ref = openFileAsRdkit("Align_ref1.mol2", removeHs=False)
+        mol = openFileAsRdkit("Align_mol1.mol2", removeHs=False)
+        mcs = getMCSMap(ref, mol)[0]
+        dihedrals = _nonMCSDihedrals(mol, mcs)
+        assert len(dihedrals) == 3
+        mol_new, mcs_new = alignTwoMolecules(ref, mol, minimise_score=False)
+        assert mcs == mcs_new
+        dihedrals_new = _nonMCSDihedrals(mol_new, mcs_new)
+        assert dihedrals.keys() == dihedrals_new.keys()
+        assert approx(dihedrals.values(), dihedrals.values())

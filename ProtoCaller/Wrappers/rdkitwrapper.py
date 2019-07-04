@@ -564,6 +564,9 @@ def alignTwoMolecules(ref, mol, n_min=-1, two_way_matching=True, mcs=None,
     for mcs in mcss:
         ref_conf = ref.GetConformer(-1)
 
+        # get the non MCS dihedrals and store their initial values
+        dihedrals_ini = _nonMCSDihedrals(mol, mcs=mcs)
+
         # MMFF gives better conformations but can occasionally fail
         ff_to_use = "mmff"
         while True:
@@ -592,6 +595,10 @@ def alignTwoMolecules(ref, mol, n_min=-1, two_way_matching=True, mcs=None,
                         # n_min = -1 means infinite minimisation
                         if n_min != -1:
                             n_min -= 1
+
+                # restore the dihedral angles to their initial values
+                for dihedral, val in dihedrals_ini.items():
+                    _Transforms.SetDihedralRad(mol_conf, *dihedral, val)
                 break
             except:
                 # sometimes MMFF fails and in this case we use UFF
@@ -717,7 +724,6 @@ def minimiseAlignmentScore(ref, mol, mcs=None, confId1=-1, confId2=-1,
                                                       confId1=confId1,
                                                       confId2=confId2)
 
-
     mol = _copy.deepcopy(mol)
     mol_conf = mol.GetConformer(confId2)
 
@@ -745,47 +751,28 @@ def minimiseAlignmentScore(ref, mol, mcs=None, confId1=-1, confId2=-1,
                      if n_frozen_neighbours[i1] <= 1
                      or n_frozen_neighbours[i2] <= 1]
 
-    # only rotate if the bond belongs to a dihedral
-    dihedrals_ini = [x[0][0] for x in _Torsions.CalculateTorsionLists(mol)[0]]
-    dihedrals_ini = [x for x in dihedrals_ini if set(x[1:3]) in rbond_indices]
-
-    dihedrals = []
-    initial_values = []
-
-    for i0, i1, i2, i3 in dihedrals_ini:
-        mol_temp = _Chem.EditableMol(_copy.deepcopy(mol))
-        mol_temp.RemoveBond(i1, i2)
-        frags = _Chem.GetMolFrags(mol_temp.GetMol(), sanitizeFrags=False)
-
-        for frag in frags:
-            n_frozen = len(set(frozen_atoms) & set(frag))
-            if n_frozen > 1:
-                if i3 in frag:
-                    dihedral = (i3, i2, i1, i0)
-                else:
-                    dihedral = (i0, i1, i2, i3)
-                break
-
-        dihedrals += [dihedral]
-        initial_values += [_Transforms.GetDihedralRad(mol_conf, *dihedral)]
+    # get non MCS dihedrals corresponding to non-rotatable bonds
+    dihedrals = _nonMCSDihedrals(mol, mcs, confId=confId2)
+    dihedrals = {k: v for k, v in dihedrals.items()
+                 if set(k[1:3]) in rbond_indices}
 
     def rotateDihedral(*args):
         nonlocal dihedrals, mol, confId1
 
         mol_temp = _copy.deepcopy(mol)
         mol_conf_temp = mol_temp.GetConformer(confId1)
-        for dihedral, arg in zip(dihedrals, list(args[0])):
+        for dihedral, arg in zip(dihedrals.keys(), list(args[0])):
             _Transforms.SetDihedralRad(mol_conf_temp, *dihedral, arg)
 
         return scoring_algorithm(ref, mol_temp, mcs=mcs, confId1=confId1,
                                  confId2=confId2)
 
     # rotate dihedrals until MSD minimisation
-    if len(initial_values):
-        result = minimisation_algorithm(rotateDihedral,
-                                        _np.asarray(initial_values), **kwargs)
+    if len(dihedrals):
+        ini_vals = _np.array(list(dihedrals.values()))
+        result = minimisation_algorithm(rotateDihedral, ini_vals, **kwargs)
         optimal_angles, final_alignment_score = list(result.x), result.fun
-        for dihedral, optimal_angle in zip(dihedrals, optimal_angles):
+        for dihedral, optimal_angle in zip(dihedrals.keys(), optimal_angles):
             _Transforms.SetDihedralRad(mol_conf, *dihedral, optimal_angle)
         return mol, final_alignment_score
     else:
@@ -1293,6 +1280,63 @@ def _matchAndReturnMatches(*args, **kwargs):
                                                 allBondsExplicit=True,
                                                 allHsExplicit=True))
     return tuple([mcs] + [set(x.GetSubstructMatches(mcs)) for x in args[0]])
+
+
+def _nonMCSDihedrals(mol, mcs=None, confId=-1):
+    """
+    Retrieves all non-ring dihedrals which are not a part of the MCS. In case
+    they are bordering dihedrals, the ordering is done so that directly
+    feeding the resulting dihedrals into RDKit's SetDihedralRad() does not move
+    the common core.
+
+    Parameters
+    ----------
+    mol : rdkit.Chem.rdchem.Mol
+        The molecule to be aligned.
+    mcs : [(tuple)] or None
+        The maximum common substructure of the two molecules.
+    confId : int
+        The conformer number of mol.
+
+    Returns
+    -------
+    dihedrals : dict((int, int, int, int), float)
+        All of the non-ring dihedrals outside of the MCS and their values in
+        radians.
+    """
+    if mcs is None:
+        frozen_atoms = []
+    else:
+        frozen_atoms = list(zip(*mcs))[1]
+
+    mol = _copy.deepcopy(mol)
+    mol_conf = mol.GetConformer(confId)
+
+    # only rotate if the bond belongs to a dihedral
+    pattern = _Chem.MolFromSmarts("[*]~[*;X3,X4]~&!@[*;X3,X4]~[*]")
+    dihedrals_ini =  mol.GetSubstructMatches(pattern)
+    dihedrals_unique = {frozenset(x[1:3]): x for x in reversed(dihedrals_ini)}
+
+    dihedrals = {}
+
+    for i0, i1, i2, i3 in dihedrals_unique.values():
+        mol_temp = _Chem.EditableMol(_copy.deepcopy(mol))
+        mol_temp.RemoveBond(i1, i2)
+        frags = _Chem.GetMolFrags(mol_temp.GetMol(), sanitizeFrags=False)
+
+        for frag in frags:
+            n_frozen = len(set(frozen_atoms) & set(frag))
+            if n_frozen <= 1:
+                if i1 in frag:
+                    dihedral = (i3, i2, i1, i0)
+                else:
+                    dihedral = (i0, i1, i2, i3)
+
+                dihedrals[dihedral] = _Transforms.GetDihedralRad(mol_conf,
+                                                                 *dihedral)
+                break
+
+    return dihedrals
 
 
 def _onlyKeepLongest(input_set):
