@@ -69,6 +69,19 @@ def test_MCS_EZ():
         results = getMCSMap(ref, mol, timeout=1)
         assert all([len(x) == 41 for x in results])
 
+        # test the recursive algorithm for > 1 mismatching bonds
+        ref = openFileAsRdkit("EZ_ref5.mol2", removeHs=False)
+        mol = openFileAsRdkit("EZ_mol5.mol2", removeHs=False)
+        results = getMCSMap(ref, mol, timeout=1)
+        assert all([len(x) == 17 for x in results])
+
+        # test the recursive algorithm for > 1 mismatching bonds and matching
+        # a double bond onto a single bond
+        ref = openFileAsRdkit("EZ_ref6.mol2", removeHs=False)
+        mol = openFileAsRdkit("EZ_mol6.mol2", removeHs=False)
+        results = getMCSMap(ref, mol, timeout=1)
+        assert all([len(x) == 17 for x in results])
+
 
 def test_MCS_RS():
     # test some stereospecific mapping

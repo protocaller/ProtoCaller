@@ -1055,18 +1055,19 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
     mcss_prev = [list(zip(match_ref, match_mol))]
     ids_ref_prev, ids_mol_prev = [[]], [[]]
 
-    for (dbond_ref, dbond_mol), v in bonds_to_break_pairs.items():
+    for (dbond_ref_orig, dbond_mol_orig), v in bonds_to_break_pairs.items():
+        refs, mols, mcss, ids_ref, ids_mol = [], [], [], [], []
         # iterate over previously created fragments
         for ref_prev, mol_prev, mcs_prev, id_ref_prev, id_mol_prev in \
                 zip(refs_prev, mols_prev, mcss_prev, ids_ref_prev, ids_mol_prev):
-            refs, mols, mcss, ids_ref, ids_mol = [], [], [], [], []
+            # continue if bond is not a part of the fragment
+            if len(set(dbond_ref_orig) & set(id_ref_prev)) or \
+                    len(set(dbond_mol_orig) & set(id_mol_prev)):
+                continue
             # transform the double bond representation back to the original
             # indices
-            dbond_ref = _revTransformIndices(dbond_ref, id_ref_prev)
-            dbond_mol = _revTransformIndices(dbond_mol, id_mol_prev)
-            # continue if bond is not a part of the fragment
-            if not set(dbond_ref).issubset(list(zip(*mcs_prev))[0]):
-                continue
+            dbond_ref = _revTransformIndices(dbond_ref_orig, id_ref_prev)
+            dbond_mol = _revTransformIndices(dbond_mol_orig, id_mol_prev)
 
             for breakbond_ref, breakbond_mol in v:
                 if breakbond_ref is not None:
@@ -1077,7 +1078,7 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
                                                          id_mol_prev)
 
                 # break the bonds in the reference molecule
-                ref_copy = _Chem.EditableMol(_copy.deepcopy(ref))
+                ref_copy = _Chem.EditableMol(_copy.deepcopy(ref_prev))
                 for bond in [breakbond_ref] + bonds_to_break_ref:
                     if bond:
                         ref_copy.RemoveBond(*bond)
@@ -1087,11 +1088,11 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
                 deleted_frags_ref = list(_it.chain(
                     *[list(x) for x in ref_frags
                       if not set(dbond_ref).issubset(x)]))
-                ids_ref += [deleted_frags_ref]
+                ids_ref += [_transformIndices(deleted_frags_ref, id_ref_prev) + id_ref_prev]
                 refs += [_generateFragment(ref_copy, deleted_frags_ref)]
 
                 # break the bonds in the target molecule
-                mol_copy = _Chem.EditableMol(_copy.deepcopy(mol))
+                mol_copy = _Chem.EditableMol(_copy.deepcopy(mol_prev))
                 if breakbond_mol:
                     mol_copy.RemoveBond(*breakbond_mol)
                 mol_copy = mol_copy.GetMol()
@@ -1100,17 +1101,18 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
                 deleted_frags_mol = list(_it.chain(
                     *[list(x) for x in mol_frags
                       if not set(dbond_mol).issubset(x)]))
-                ids_mol += [deleted_frags_mol]
+                ids_mol += [_transformIndices(deleted_frags_mol, id_mol_prev) + id_mol_prev]
                 mols += [_generateFragment(mol_copy, deleted_frags_mol)]
 
                 # get new pruned MCS for every broken molecule
                 mcss += [[(x, y) for x, y in zip(match_ref, match_mol)
-                          if x not in deleted_frags_ref
-                          and y not in deleted_frags_mol]]
-
-                # update old values
-                refs_prev, mols_prev, mcss_prev = refs, mols, mcss
-                ids_ref_prev, ids_mol_prev = ids_ref, ids_mol
+                          if x not in ids_ref[-1] and y not in ids_mol[-1]]]
+        
+        bonds_to_break_ref = []
+        
+        # update old values
+        refs_prev, mols_prev, mcss_prev = refs, mols, mcss
+        ids_ref_prev, ids_mol_prev = ids_ref, ids_mol
 
     return refs, mols, mcss, ids_ref, ids_mol
 
