@@ -7,36 +7,36 @@ from ProtoCaller.Wrappers.rdkitwrapper import *
 
 def test_MCS_extended():
     # test some extended mapping
-    ref = openAsRdkit("C1CNC(CC1)C2CC(CCC2)C3CCCC3")
-    mol = openAsRdkit("C1CCC(CC1)C2OC(CC2)C3CCNC3")
+    ref = openAsRdkit("C1CNC(CC1)C2CC(CCC2)C3CCCC3", minimise=False)
+    mol = openAsRdkit("C1CCC(CC1)C2OC(CC2)C3CCNC3", minimise=False)
     assert len(getMCSMap(ref, mol)[0]) == 11
 
-    ref = openAsRdkit("C1CCC(CC1)CCCC2CCCC2")
-    mol = openAsRdkit("C1CCC(CC1)C2OC(CC2)C3CCNC3")
+    ref = openAsRdkit("C1CCC(CC1)CCCC2CCCC2", minimise=False)
+    mol = openAsRdkit("C1CCC(CC1)C2OC(CC2)C3CCNC3", minimise=False)
     assert len(getMCSMap(ref, mol)[0]) == 14
 
-    ref = openAsRdkit("C1CCCC1")
-    mol = openAsRdkit("C1CCC1")
+    ref = openAsRdkit("C1CCCC1", minimise=False)
+    mol = openAsRdkit("C1CCC1", minimise=False)
     assert len(getMCSMap(ref, mol)) == 0
 
-    ref = openAsRdkit("c1Nc2c(c1)Cc1c2cccc1")
-    mol = openAsRdkit("c1ccc(c(c1)C)c1Nccc1")
+    ref = openAsRdkit("c1Nc2c(c1)Cc1c2cccc1", minimise=False)
+    mol = openAsRdkit("c1ccc(c(c1)C)c1Nccc1", minimise=False)
     assert len(getMCSMap(ref, mol)[0]) == 12
     assert len(getMCSMap(mol, ref, two_way_matching=False)[0]) == 6
 
-    ref = openAsRdkit("c1ccc2c(c1)Cc1c2cccc1")
+    ref = openAsRdkit("c1ccc2c(c1)Cc1c2cccc1", minimise=False)
 
-    mol = openAsRdkit("c1ccc(c(c1)C)c1ccccc1")
+    mol = openAsRdkit("c1ccc(c(c1)C)c1ccccc1", minimise=False)
     assert len(getMCSMap(ref, mol)[0]) == 13
-    mol = openAsRdkit("c1ccc(c(c1)C)c1c(cccc1)C")
+    mol = openAsRdkit("c1ccc(c(c1)C)c1c(cccc1)C", minimise=False)
     assert len(getMCSMap(ref, mol)[0]) == 13
 
-    ref = openAsRdkit("c1cc2c(cc1)c1c([nH]2)c2c([nH]1)c1c([nH]2)cc[nH]1")
-    mol = openAsRdkit("c1cc2c(cc1)c1c(c3c([nH]1)c1c([nH]3)cc[nH]1)cc2")
+    ref = openAsRdkit("c1cc2c(cc1)c1c([nH]2)c2c([nH]1)c1c([nH]2)cc[nH]1", minimise=False)
+    mol = openAsRdkit("c1cc2c(cc1)c1c(c3c([nH]1)c1c([nH]3)cc[nH]1)cc2", minimise=False)
     assert len(getMCSMap(ref, mol)[0]) == 15
 
-    ref = openAsRdkit("c1ccc2c(c1)c1c([nH]2)[nH]c2c1[nH]cc2")
-    mol = openAsRdkit("c1cccc(c1)c1c[nH]c2c1[nH]cc2")
+    ref = openAsRdkit("c1ccc2c(c1)c1c([nH]2)[nH]c2c1[nH]cc2", minimise=False)
+    mol = openAsRdkit("c1cccc(c1)c1c[nH]c2c1[nH]cc2", minimise=False)
     assert len(getMCSMap(ref, mol)[0]) == 14
 
 
@@ -54,6 +54,8 @@ def test_MCS_EZ():
         mol = openFileAsRdkit("EZ_mol2.mol2", removeHs=False)
         results = getMCSMap(ref, mol)
         assert all([len(x) == 28 for x in results])
+        results_rev = getMCSMap(mol, ref)
+        assert all([len(x) == 28 for x in results_rev])
 
         # test mapping a double bond and a single bond with unfavourable
         # conformation
@@ -74,6 +76,8 @@ def test_MCS_EZ():
         mol = openFileAsRdkit("EZ_mol5.mol2", removeHs=False)
         results = getMCSMap(ref, mol, timeout=1)
         assert all([len(x) == 17 for x in results])
+        results_rev = getMCSMap(ref, mol, timeout=1)
+        assert all([len(x) == 17 for x in results_rev])
 
         # test the recursive algorithm for > 1 mismatching bonds and matching
         # a double bond onto a single bond

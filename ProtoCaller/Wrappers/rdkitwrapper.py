@@ -9,7 +9,6 @@ from rdkit.Chem import AllChem as _AllChem
 from rdkit.Chem import rdForceFieldHelpers as _FF
 from rdkit.Chem import rdmolops as _rdmolops
 from rdkit.Chem import rdMolTransforms as _Transforms
-from rdkit.Chem import TorsionFingerprints as _Torsions
 from rdkit.Geometry import rdGeometry as _Geom
 import parmed as _pmd
 from scipy.optimize import minimize as _minimize
@@ -413,7 +412,8 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
 
                 # combine the new MCS's in an optimal way
                 matches_rec, max_len_rec = \
-                    _optimalMergedSets(*matches_rec_prev[match], *matches_rec)
+                    _optimalMergedSets(*matches_rec_prev[match], *matches_rec,
+                                       seed=None)
 
                 # break the recursion if the new MCS is not larger
                 if max_len_rec > len(max(matches_rec_prev[match], key=len)):
@@ -448,7 +448,7 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
             match_new |= {x for x in matches_broken
                           if _haveCommonElements(x, mcs_broken)}
 
-        matches_new |= _optimalMergedSets(*match_new, mcs_broken)[0]
+        matches_new |= _optimalMergedSets(*match_new, seed=mcs_broken)[0]
     matches = matches_new
 
     # here we deal with mismatching atoms of different chirality
@@ -780,11 +780,35 @@ def minimiseAlignmentScore(ref, mol, mcs=None, confId1=-1, confId2=-1,
                                       confId2=confId2)
 
 
-def getEZStereochemistry(mol, carbonify=True, confId=-1):
+def getEZStereochemistry(mol, carbonify=True, confId=-1, extra_bonds=None):
+    """
+    Determines the stereochemistry of double bonds, esters and amides. Note
+    that the corresponding E/Z labels might not correspond to the IUPAC E/Z
+    labels. None corresponds to a symmetric bond.
+
+    Parameters
+    ----------
+    mol : rdkit.Chem.rdchem.Mol
+        The input molecule.
+    carbonify : bool
+        Whether to ignore atom type when determining the stereochemistry.
+    confId : int
+        The conformer ID to be used for stereochemistry determination.
+    extra_bonds : [(int, int)]
+        Extra bonds to be treated as double.
+
+    Returns
+    -------
+    bonds : dict(frozenset(int, int), str)
+        The relevant double bonds and their labels.
+    """
     if carbonify:
         mol_c = _carbonify(mol)
     else:
         mol_c = _copy.deepcopy(mol)
+
+    if extra_bonds is None:
+        extra_bonds = []
 
     all_bonds = [x for x in mol.GetBonds()]
     all_bonds_c = [x for x in mol_c.GetBonds()]
@@ -798,8 +822,8 @@ def getEZStereochemistry(mol, carbonify=True, confId=-1):
     matches_amides = list(mol.GetSubstructMatches(_Chem.MolFromSmarts(amide)))
     matches_esters = list(mol.GetSubstructMatches(_Chem.MolFromSmarts(ester)))
     matches_double = list(mol.GetSubstructMatches(_Chem.MolFromSmarts(double)))
-    matches_all = [frozenset(x[:2])
-                   for x in matches_amides + matches_esters + matches_double]
+    matches_all = {frozenset(x[:2]) for x in matches_amides + matches_esters +
+                   matches_double + extra_bonds}
 
     bond_mapper = {
         _Chem.BondStereo.STEREOE: "E",
@@ -968,23 +992,21 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
                 breakbonds_ref = {frozenset(x) for x in bonds_ref.keys()
                                   if len(set(x) & set(bond_ref)) == 1}
                 breakbonds_ref -= {frozenset(x) for x in
-                                   neighbours["ref"][0] + neighbours["ref"][1]}
+                                   neighbours["ref"][0] + neighbours["ref"][1]
+                                   if x is not None}
 
                 # add to unconditional break list
                 bonds_to_break_ref += list(breakbonds_ref)
 
-                # make bond appear as double in order to generate E/Z info
-                idx = [i for i, x in enumerate(bonds_mcs_ref)
-                       if set(x) == set(bond_ref)][0]
-                mcs_ref.GetBondWithIdx(idx).SetBondType(_Chem.BondType.DOUBLE)
-                _Chem.DetectBondStereochemistry(mcs_ref)
-                _Chem.AssignStereochemistry(mcs_ref, cleanIt=True, force=True)
-
                 # regenerate stereochemical information
-                EZ_ref_mcs = getEZStereochemistry(mcs_ref)
-                EZ_ref_mcs = {frozenset(
+                extra_bonds = [_revTransformIndices(list(bond_ref),
+                                                    indices_to_delete_ref)]
+                EZ_ref_mcs_new = getEZStereochemistry(mcs_ref,
+                                                      extra_bonds=extra_bonds)
+                EZ_ref_mcs_new = {frozenset(
                     _transformIndices(k, indices_to_delete_ref)): v
-                    for k, v in EZ_ref_mcs.items()}
+                    for k, v in EZ_ref_mcs_new.items()}
+                EZ_ref_mcs = {**EZ_ref_mcs, **EZ_ref_mcs_new}
 
             # asymmetric planar bonds mapped onto symmetric planar bonds
             if single_bonds and EZ_ref_mcs[frozenset(bond_ref)] is None:
@@ -1071,9 +1093,13 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
 
             for breakbond_ref, breakbond_mol in v:
                 if breakbond_ref is not None:
+                    if len(set(breakbond_ref) & set(id_ref_prev)):
+                        continue
                     breakbond_ref = _revTransformIndices(breakbond_ref,
                                                          id_ref_prev)
                 if breakbond_mol is not None:
+                    if len(set(breakbond_mol) & set(id_mol_prev)):
+                        continue
                     breakbond_mol = _revTransformIndices(breakbond_mol,
                                                          id_mol_prev)
 
@@ -1363,7 +1389,7 @@ def _onlyKeepLongest(input_set):
     return {x for x in input_set if len(x) == max_len}, max_len
 
 
-def _optimalMergedSets(*sets):
+def _optimalMergedSets(*sets, seed=None):
     """
     Generates the optimal merged set from a sequence of sets of tuples. If
     two sets have common tuple elements but not common tuples they are deemed
@@ -1371,6 +1397,8 @@ def _optimalMergedSets(*sets):
 
     Parameters
     ----------
+    seed : set
+        A set that will definitely be present in the returned result.
     sets : set
         The sets to be added
 
@@ -1400,6 +1428,10 @@ def _optimalMergedSets(*sets):
     if len(sets) <= 1:
         return set([frozenset(x) for x in sets]), len(sets)
 
+    if seed is None:
+        seed = set()
+    sets = [seed, *sets]
+
     # get compatible pairs of sets in terms of their position
     compatible_sets = []
     for i in range(len(sets)):
@@ -1419,7 +1451,7 @@ def _optimalMergedSets(*sets):
     # build up larger subsets that obey all the rules
     # we do this by translating the sets into numbers corresponding to set
     # positions
-    sets_incl = {frozenset([i]) for i in range(len(sets))}
+    sets_incl = {frozenset([0])}
     sets_final = set()
     max_len_final = 0
     for size in range(len(sets)):
