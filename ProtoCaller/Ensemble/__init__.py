@@ -126,7 +126,7 @@ class Ensemble:
         if key == "engine":
             value = value.upper()
             if value not in _PC.ENGINES:
-                raise ValueError("Value %s not supported. Supported values: " % value, _PC.ENGINES)
+                raise ValueError("Value {} not supported. Supported values: {}".format(value, _PC.ENGINES))
         elif key in ["box_length_complex", "box_length_morph", "ion_conc", "shell"]:
             value = float(value)
         elif key == "morphs":
@@ -218,14 +218,21 @@ class Ensemble:
         """
         if systems is None: systems = self.systems_prep
         # TODO support other engines
-        print("Saving solvated complexes as GROMACS...")
+        print("Saving solvated complexes as {}...".format(self.engine))
         with self.workdir:
+            if self.engine == "GROMACS":
+                savefunc = _IO.GROMACS.saveAsGromacs
+            elif self.engine == "NAMD":
+                savefunc = _IO.NAMD.saveAsNamd
+            else:
+                raise ValueError("Value {} not supported. Supported values: "
+                                 "{}".format(self.engine, _PC.ENGINES))
+
             for name, (morph, complexes) in systems.items():
                 with _fileio.Dir(name):
-                    _IO.GROMACS.saveAsGromacs("morph", morph)
-
+                    savefunc("morph", morph)
                     if len(complexes) == 1:
-                        _IO.GROMACS.saveAsGromacs("complex_final", complexes[0])
+                        savefunc("complex_final", complexes[0])
                     else:
                         for j, complex in enumerate(complexes):
-                            _IO.GROMACS.saveAsGromacs("complex_final%d" % j, complex)
+                            savefunc("complex_final%d" % j, complex)

@@ -3,6 +3,8 @@ import os as _os
 import numpy as _np
 import parmed as _pmd
 
+import ProtoCaller.Utils.fileio as _fileio
+
 
 def openFilesAsParmed(filelist, fix_dihedrals=True, **kwargs):
     """
@@ -22,16 +24,36 @@ def openFilesAsParmed(filelist, fix_dihedrals=True, **kwargs):
     mol : parmed.structure.Structure
         The file loaded as a ParmEd Structure object.
     """
+
     if len(filelist) == 1:
         mol = _pmd.load_file(filelist[0], **kwargs)
     else:
-        try:
-            mol = _pmd.load_file(filelist[0], xyz=filelist[1], **kwargs)
-        except:
+        extensions = [f.split(".")[-1] for f in filelist]
+        if "psf" not in extensions:
             try:
-                mol = _pmd.load_file(filelist[1], xyz=filelist[0], **kwargs)
+                mol = _pmd.load_file(filelist[0], xyz=filelist[1], **kwargs)
             except:
-                raise OSError("There was an error while reading the input files.")
+                try:
+                    mol = _pmd.load_file(filelist[1], xyz=filelist[0],
+                                         **kwargs)
+                except:
+                    raise OSError("There was an error while reading the input "
+                                  "files.")
+        else:
+            index_psf = extensions.index("psf")
+            index_pdb = extensions.index("pdb")
+            params = [filelist[i] for i in range(len(extensions))
+                      if i not in [index_psf, index_pdb]]
+            psf = _pmd.load_file(filelist[index_psf])
+            if params:
+                psf.load_parameters(_pmd.charmm.CharmmParameterSet(*params))
+            pdb = _pmd.load_file(filelist[index_pdb])
+
+            with _fileio.Dir("Temp", temp=True):
+                pdb.save("temp.gro")
+                psf.save('temp.top')
+                mol = _pmd.load_file("temp.top", xyz="temp.gro")
+
 
     if fix_dihedrals:
         for i, d_i in enumerate(mol.dihedrals):
@@ -101,7 +123,10 @@ def fixCharge(filelist):
     for atom in system:
         atom.charge += d_charge
 
-    return saveFilesFromParmed(system, filelist)
+    structure_files = [f for f in filelist if f.split(".")[-1] not in
+                       ["rtf", "prm", "str"]]
+    params = list(set(filelist) - set(structure_files))
+    return saveFilesFromParmed(system, structure_files) + params
 
 
 def centre(system, box_length):
