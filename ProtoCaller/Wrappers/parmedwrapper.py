@@ -1,3 +1,4 @@
+import copy as _copy
 import os as _os
 
 import numpy as _np
@@ -159,4 +160,43 @@ def resize(system, box_length):
     """
     system.box = 3 * [10 * box_length] + 3 * [90]
     system.box[0] = system.box[1] = system.box[2] = 10 * box_length
+    return system
+
+
+def rescaleSystemParams(system, scale, includelist=None, excludelist=None, neutralise=True):
+    system = _copy.deepcopy(system)
+
+    if excludelist is None and includelist is None:
+        excludelist = ["WAT"]
+    elif excludelist is not None and includelist is not None:
+        raise ValueError("Only one of includelist and excludelist can be set")
+
+    if neutralise:
+        if excludelist is not None:
+            total_charge = round(sum([atom.charge for atom in system.atoms if atom.residue.name not in excludelist]))
+        elif includelist is not None:
+            total_charge = round(sum([atom.charge for atom in system.atoms if atom.residue.name in includelist]))
+
+    for res in system.residues:
+        if neutralise and res.name.lower() == "na" and total_charge < 0:
+            total_charge += 1
+        elif neutralise and res.name.lower() == "cl" and total_charge > 0:
+            total_charge -= 1
+        elif excludelist is not None and res.name in excludelist:
+            continue
+        elif includelist is not None and res.name not in includelist:
+            continue
+
+        if scale != 1:
+            pass
+            #dihedrals
+
+        for atom in res.atoms:
+            atom.type += "_"
+            atom.epsilon *= scale
+            atom.charge *= scale
+
+        if res.name.lower() in ["na", "cl"]:
+            res.name += "_"
+
     return system

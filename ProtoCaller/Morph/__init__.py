@@ -10,11 +10,41 @@ __all__ = []
 
 class Morph():
     def __init__(self, system1, system2):
-        for res1, res2 in zip(system1.residues, system2.residues):
-            if res1.name != res2.name:
-                raise ValueError("Need the same type and sequence of residues for both systems.")
-        self.system1 = _copy.deepcopy(system1)
-        self.system2 = _copy.deepcopy(system2)
+        self._check(system1, system2)
+        self._system1 = _copy.copy(system1)
+        self._system2 = _copy.copy(system2)
+        self.merge()
+
+    def __add__(self, val):
+        self._system1.initialize_topology(box=self._system1.box)
+        self._system2.initialize_topology(box=self._system2.box)
+        morph_new = Morph(self._system1, self._system2)
+        morph_new._system1 += val
+        morph_new._system2 += val
+        return morph_new
+
+    def __iadd__(self, val):
+        self._system1 += val
+        self._system2 += val
+
+    @property
+    def system1(self):
+        return self._system1
+
+    @system1.setter
+    def system1(self, val):
+        self._check(self._system2, val)
+        self._system1 = val
+        self.merge()
+
+    @property
+    def system2(self):
+        return self._system2
+
+    @system2.setter
+    def system2(self, val):
+        self._check(self._system1, val)
+        self._system2 = val
         self.merge()
 
     def merge(self):
@@ -29,10 +59,8 @@ class Morph():
             atom.type = "du"
             return atom
 
-        self.map = []
-
         N = 0
-        for r, (res1, res2) in enumerate(zip(self.system1.residues, self.system2.residues)):
+        for r, (res1, res2) in enumerate(zip(self._system1.residues, self._system2.residues)):
             incr = 0
             N += len(res1.atoms)
 
@@ -43,10 +71,10 @@ class Morph():
                     if atom1.xx == atom2.xx and atom1.xy == atom2.xy and atom1.xz == atom2.xz:
                         map[i] = j
                         break
-                    if j == len(self.system2.residues[r]) - 1:
+                    if j == len(self._system2.residues[r]) - 1:
                         du = _copy.deepcopy(atom1)
                         dummify(du)
-                        self.system2.add_atom(du, res2.name, res2.number)
+                        self._system2.add_atom(du, res2.name, res2.number)
                         map[i] = N + incr
                         incr += 1
                         break
@@ -57,11 +85,9 @@ class Morph():
                 try:
                     rev_map(j)
                 except ValueError:
-                    # calling the property enables index update - this seemingly pointless line is needed
                     du = _copy.deepcopy(atom2)
                     dummify(du)
-                    self.system1.add_atom(du, res1.name, res1.number)
-                    self.system1.atoms[-1].idx
+                    self._system1.add_atom(du, res1.name, res1.number)
                     map[len(res1.atoms) - 1] = j
 
             for j, atom2 in enumerate(res2.atoms):
@@ -72,12 +98,16 @@ class Morph():
 
             res2.sort()
 
-        self.system1.atoms.sort()
-        self.system2.atoms.sort()
+        for atom1, atom2 in zip(self._system1.atoms, self._system2.atoms):
+            # calling the property enables index update - this seemingly pointless line is needed
+            atom1.idx, atom2.idx
+
+        self._system1.atoms.sort()
+        self._system2.atoms.sort()
 
         # bonds - needed since parmed doesn't write nonbonded atoms
-        bonds_1 = {tuple(sorted([x.atom1.idx, x.atom2.idx])): x.type for x in self.system1.bonds}
-        bonds_2 = {tuple(sorted([x.atom1.idx, x.atom2.idx])): x.type for x in self.system2.bonds}
+        bonds_1 = {tuple(sorted([x.atom1.idx, x.atom2.idx])): x.type for x in self._system1.bonds}
+        bonds_2 = {tuple(sorted([x.atom1.idx, x.atom2.idx])): x.type for x in self._system2.bonds}
 
         common_keys = set(bonds_1.keys()).intersection(bonds_2.keys())
         unique_bonds_1 = set(bonds_1.keys()) - common_keys
@@ -86,7 +116,7 @@ class Morph():
         for i, j in ((1, 2), (2, 1)):
             exec("bonds_i, bonds_j = bonds_%d, bonds_%d" % (i, j), locals(), globals())
             exec("unique_bonds_i = unique_bonds_%d" % i, locals(), globals())
-            exec("system_j = self.system%d" % j, locals(), globals())
+            exec("system_j = self._system%d" % j, locals(), globals())
             for key in unique_bonds_i:
                 val = bonds_i[key]
                 if val not in system_j.bond_types:
@@ -102,9 +132,9 @@ class Morph():
         '''
         # angles - not necessarily needed
         angles_1 = {(min(x.atom1.idx, x.atom3.idx), x.atom2.idx, max(x.atom1.idx, x.atom3.idx)) : x.type
-                    for x in self.system1.angles}
+                    for x in self._system1.angles}
         angles_2 = {(min(x.atom1.idx, x.atom3.idx), x.atom2.idx, max(x.atom1.idx, x.atom3.idx)): x.type
-                    for x in self.system2.angles}
+                    for x in self._system2.angles}
 
         common_keys = set(angles_1.keys()).intersection(angles_2.keys())
         unique_angles_1 = set(angles_1.keys()) - common_keys
@@ -113,7 +143,7 @@ class Morph():
         for i, j in ((1, 2), (2, 1)):
             exec("angles_i, angles_j = angles_%d, angles_%d" % (i, j), locals(), globals())
             exec("unique_angles_i = unique_angles_%d" % i, locals(), globals())
-            exec("system_j = self.system%d" % j, locals(), globals())
+            exec("system_j = self._system%d" % j, locals(), globals())
             for key in unique_angles_i:
                 val = angles_i[key]
                 if val not in system_j.angle_types:
@@ -128,8 +158,8 @@ class Morph():
 
 
         # dihedrals - not necessarily needed; not completely functional for double dihedrals
-        dihedrals_1 = {(x.atom1.idx, x.atom2.idx, x.atom3.idx, x.atom4.idx) : x.type for x in self.system1.dihedrals}
-        dihedrals_2 = {(x.atom1.idx, x.atom2.idx, x.atom3.idx, x.atom4.idx) : x.type for x in self.system2.dihedrals}
+        dihedrals_1 = {(x.atom1.idx, x.atom2.idx, x.atom3.idx, x.atom4.idx) : x.type for x in self._system1.dihedrals}
+        dihedrals_2 = {(x.atom1.idx, x.atom2.idx, x.atom3.idx, x.atom4.idx) : x.type for x in self._system2.dihedrals}
 
         common_keys = set(dihedrals_1.keys()).intersection(dihedrals_2.keys())
         unique_dihedrals_1 = set(dihedrals_1.keys()) - common_keys
@@ -138,7 +168,7 @@ class Morph():
         for i, j in ((1, 2), (2, 1)):
             exec("dihedrals_i, dihedrals_j = dihedrals_%d, dihedrals_%d" % (i, j), locals(), globals())
             exec("unique_dihedrals_i = unique_dihedrals_%d" % i, locals(), globals())
-            exec("system_j = self.system%d" % j, locals(), globals())
+            exec("system_j = self._system%d" % j, locals(), globals())
             added_zero_dihedral = False
             for key in unique_dihedrals_i:
                 val = dihedrals_i[key]
@@ -163,7 +193,7 @@ class Morph():
                                                   for (m, n, o, p), t in sorted(dihedrals_j.items())])
         '''
 
-    def write(self, filename, *args, **kwargs):
+    def save(self, filename, *args, **kwargs):
         ext = filename.split(".")[-1]
         if ext == "gro":
             self._writeToGro(filename)
@@ -176,7 +206,7 @@ class Morph():
         except:
             pass
 
-        self.system1.save(filename)
+        self._system1.save(filename)
 
     def _writeToTop(self, filename, intermediate_files=False):
         filebase, ext = _os.path.splitext(filename)[0], filename.split(".")[-1]
@@ -189,8 +219,8 @@ class Morph():
             except:
                 pass
 
-        self.system1.save(filename1)
-        self.system2.save(filename2)
+        self._system1.save(filename1)
+        self._system2.save(filename2)
 
         top1 = open(filename1).readlines()
         top2 = open(filename2).readlines()
@@ -282,3 +312,9 @@ class Morph():
                 for line in ls:
                     file.write("\t" + "\t\t".join(map(str, line)) + "\n")
                 file.write("\n")
+
+    @staticmethod
+    def _check(system1, system2):
+        for res1, res2 in zip(system1.residues, system2.residues):
+            if res1.name != res2.name:
+                raise ValueError("Need the same type and sequence of residues for both systems.")
