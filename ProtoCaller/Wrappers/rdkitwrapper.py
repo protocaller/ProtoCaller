@@ -1031,22 +1031,26 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
                     mcs_ref_c.GetAtomWithIdx(idx_ref).SetAtomicNum(14)
                     mcs_mol_c.GetAtomWithIdx(idx_mol).SetAtomicNum(14)
 
-                    mcs_ref_c.GetBondWithIdx(
-                        bonds_mcs_ref.index(bond_ref)).SetBondType(
+                    idx_bond_ref, = [i for i, x in enumerate(bonds_mcs_ref)
+                                     if set(bond_ref) == set(x)]
+                    mcs_ref_c.GetBondWithIdx(idx_bond_ref).SetBondType(
                         _Chem.BondType.DOUBLE)
-                    mcs_mol_c.GetBondWithIdx(
-                        bonds_mcs_mol.index(bond_mol)).SetBondType(
+                    idx_bond_mol, = [i for i, x in enumerate(bonds_mcs_mol)
+                                     if set(bond_mol) == set(x)]
+                    mcs_mol_c.GetBondWithIdx(idx_bond_mol).SetBondType(
                         _Chem.BondType.DOUBLE)
 
+                    t_bond_ref = _revTransformIndices(bond_ref, indices_to_delete_ref)
                     EZ_mcs_ref_c = getEZStereochemistry(mcs_ref_c,
-                                                        carbonify=False)
+                        carbonify=False, extra_bonds=[t_bond_ref])
+                    t_bond_mol = _revTransformIndices(bond_mol, indices_to_delete_mol)
                     EZ_mcs_mol_c = getEZStereochemistry(mcs_mol_c,
-                                                        carbonify=False)
+                        carbonify=False, extra_bonds=[t_bond_mol])
 
                     # these are the symmetric atoms
-                    EZ_curbond_ref = EZ_mcs_ref_c[frozenset(bond_ref)]
+                    EZ_curbond_ref = EZ_mcs_ref_c[frozenset(t_bond_ref)]
                     if EZ_curbond_ref is not None:
-                        EZ_curbond_mol = EZ_mcs_mol_c[frozenset(bond_mol)]
+                        EZ_curbond_mol = EZ_mcs_mol_c[frozenset(t_bond_mol)]
                         if EZ_curbond_ref != EZ_curbond_mol:
                             symm_bonds += [[b_ref, b_mol]]
 
