@@ -791,9 +791,9 @@ def getEZStereochemistry(mol, carbonify=True, confId=-1):
     all_bond_indices = [{x.GetBeginAtomIdx(), x.GetEndAtomIdx()}
                         for x in all_bonds]
 
-    amide = "[NX3;R0]!@[C;R0]=[OX1]"
+    amide = "[N;X2,X3;R0]!@[C;R0]=[OX1]"
     ester = "[OX2;R0]!@[C;R0]=[OX1]"
-    double = "[$([*X3;R0])&!$(*=*!-*)]=&!@[$([*X2,X3;R0])&!$(*=*!-*)]"
+    double = "[$([*;X3;R0])&!$(*=*!-*)]=&!@[$([*;X2,X3;R0])&!$(*=*!-*)]"
 
     matches_amides = list(mol.GetSubstructMatches(_Chem.MolFromSmarts(amide)))
     matches_esters = list(mol.GetSubstructMatches(_Chem.MolFromSmarts(ester)))

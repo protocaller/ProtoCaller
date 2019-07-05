@@ -82,6 +82,12 @@ def test_MCS_EZ():
         results = getMCSMap(ref, mol, timeout=1)
         assert all([len(x) == 17 for x in results])
 
+        # test mapping of mismatching amide onto an ester
+        ref = openFileAsRdkit("EZ_ref7.mol2", removeHs=False)
+        mol = openFileAsRdkit("EZ_mol7.mol2", removeHs=False)
+        results = getMCSMap(ref, mol, timeout=1)
+        assert all([len(x) == 30 for x in results])
+
 
 def test_MCS_RS():
     # test some stereospecific mapping
