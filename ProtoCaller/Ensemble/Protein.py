@@ -398,17 +398,16 @@ class Protein:
                 self.pdb = _PDB2PQR.pdb2pqrTransform(self.pdb, **kwargs)
 
             # protonate ligands
-            if len(self.ligands + self.cofactors):
-                kwargs = protonate_ligands_options
-                if protonate_ligands == "babel":
-                    for ligand in self.ligands + self.cofactors:
-                        if not ligand.protonated:
-                            ligand.protonate(**kwargs)
-                    if not self.ligand_ref.protonated:
-                        self.ligand_ref.protonate(**kwargs)
-                else:
-                    _warnings.warn("Need to protonate all relevant ligands / "
-                                   "cofactors before any parametrisation")
+            kwargs = protonate_ligands_options
+            if protonate_ligands == "babel":
+                for ligand in self.ligands + self.cofactors:
+                    if not ligand.protonated:
+                        ligand.protonate(**kwargs)
+                if not self.ligand_ref.protonated:
+                    self.ligand_ref.protonate(**kwargs)
+            else:
+                _warnings.warn("Need to protonate all relevant ligands / "
+                               "cofactors before any parametrisation")
 
     def parametrise(self, params, reparametrise=False):
         """
