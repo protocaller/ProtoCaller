@@ -57,19 +57,23 @@ def test_MCS_EZ():
         results_rev = getMCSMap(mol, ref)
         assert all([len(x) == 28 for x in results_rev])
 
-        # test mapping a double bond and a single bond with unfavourable
+        # test mapping of a double bond to a single bond with unfavourable
         # conformation
         ref = openFileAsRdkit("EZ_ref3.mol2", removeHs=False)
         mol = openFileAsRdkit("EZ_mol3.mol2", removeHs=False)
-        results = getMCSMap(ref, mol, timeout=1)
+        results = getMCSMap(ref, mol, timeout=1, two_way_matching=True)
         assert all([len(x) == 38 for x in results])
+        results = getMCSMap(ref, mol, timeout=1, two_way_matching=False)
+        assert all([len(x) == 27 for x in results])
 
-        # test mapping a double bond and a single bond with favourable
+        # test mapping of a double bond to a single bond with favourable
         # conformation
         ref = openFileAsRdkit("EZ_ref4.mol2", removeHs=False)
         mol = openFileAsRdkit("EZ_mol4.mol2", removeHs=False)
-        results = getMCSMap(ref, mol, timeout=1)
+        results = getMCSMap(ref, mol, timeout=1, two_way_matching=True)
         assert all([len(x) == 41 for x in results])
+        results = getMCSMap(ref, mol, timeout=1, two_way_matching=False)
+        assert all([len(x) == 27 for x in results])
 
         # test the recursive algorithm for > 1 mismatching bonds
         ref = openFileAsRdkit("EZ_ref5.mol2", removeHs=False)
@@ -83,7 +87,7 @@ def test_MCS_EZ():
         # a double bond onto a single bond
         ref = openFileAsRdkit("EZ_ref6.mol2", removeHs=False)
         mol = openFileAsRdkit("EZ_mol6.mol2", removeHs=False)
-        results = getMCSMap(ref, mol, timeout=1)
+        results = getMCSMap(ref, mol, timeout=1, two_way_matching=True)
         assert all([len(x) == 17 for x in results])
 
         # test mapping of mismatching amide onto an ester

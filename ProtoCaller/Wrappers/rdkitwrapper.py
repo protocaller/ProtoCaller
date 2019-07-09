@@ -426,7 +426,8 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
     # break mismatching neighbours next to a double / amide / ester bond
     matches_new = set()
     for match in matches:
-        results = _breakEZBonds(ref, mol, *list(zip(*match)))
+        results = _breakEZBonds(ref, mol, *list(zip(*match)),
+                                ignore_single_bonds=not two_way_matching)
 
         if not len(results[0]):
             # matching is already correct
@@ -448,7 +449,7 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
             match_new |= {x for x in matches_broken
                           if _haveCommonElements(x, mcs_broken)}
 
-        matches_new |= _optimalMergedSets(*match_new, seed=mcs_broken)[0]
+            matches_new |= _optimalMergedSets(*match_new, seed=mcs_broken)[0]
     matches = matches_new
 
     # here we deal with mismatching atoms of different chirality
@@ -460,17 +461,29 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
     mol_c = _carbonify(mol)
     chiral_ref_c = dict(_Chem.FindMolChiralCenters(ref_c))
     chiral_mol_c = dict(_Chem.FindMolChiralCenters(mol_c))
+    EZ_ref_c = getEZStereochemistry(ref)
+    EZ_mol_c = getEZStereochemistry(mol)
 
     # check if both atoms are chiral and flag the atoms if this is the case
     for match in matches:
         if match == frozenset():
             continue
+        match_rev_dict = {mol_atom: ref_atom for ref_atom, mol_atom in match}
 
         # only deal with one of the molecules
-        chiral_ref_indices = [x[0] for x in match
+        chiral_ref_indices = {x[0] for x in match
                               if x[0] in chiral_ref_c.keys()
                               and x[1] in chiral_mol_c.keys()
-                              and chiral_ref_c[x[0]] != chiral_mol_c[x[1]]]
+                              and chiral_ref_c[x[0]] != chiral_mol_c[x[1]]}
+        mismatching_bonds = []
+
+        if not two_way_matching:
+            for bond_mol in EZ_mol_c.keys():
+                if set(bond_mol).issubset(set(list(match_rev_dict.keys()))):
+                    bond_ref = [match_rev_dict[x] for x in bond_mol]
+                    if frozenset(bond_ref) not in EZ_ref_c.keys():
+                        mismatching_bonds += [frozenset(bond_ref)]
+            chiral_ref_indices |= set().union(*mismatching_bonds)
 
         # delete invalid atoms
         frags_ref_total = {frozenset(list(zip(*match))[0])}
@@ -490,6 +503,8 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
                               for x in frags_ref_temp if i_ref not in x}
             frags_ref_total = frags_ref
 
+        frags_ref_total = {x.union(*[y for y in mismatching_bonds if y & x])
+                           for x in frags_ref_total}
         frags_ref_total = _onlyKeepLongest(frags_ref_total)[0]
         for frag_ref in frags_ref_total:
             matches_final |= {frozenset([x for x in match
@@ -873,7 +888,31 @@ def getMatchingAtomScore(mol1, mol2, matches):
     return matching_atoms
 
 
-def _breakEZBonds(ref, mol, match_ref, match_mol):
+def _areCompatibleSets(set1, set2):
+    """
+    Determines whether two sets of tuples are compatible.
+
+    Parameters
+    ----------
+    set1 : set
+        The first input set.
+    set2 : set
+        The second input set.
+
+    Returns
+    -------
+    are_compatible : bool
+        Whether the sets have common tuple elements.
+    """
+    set12 = set1.union(set2)
+    tuple1, tuple2 = zip(*set12)
+    if len(set(tuple1)) == len(set(tuple2)) == len(set12):
+        return True
+    else:
+        return False
+
+
+def _breakEZBonds(ref, mol, match_ref, match_mol, ignore_single_bonds=False):
     """
     Detects double bonds with mismatching E/Z stereochemistry and breaks all
     adjacent bonds one by one so that the MCS algorithm is forced to obey the
@@ -889,6 +928,8 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
         The indices of the matched reference.
     match_mol : [int]
         The indices of the matched molecule.
+    ignore_single_bonds : bool
+        Whether to ignore mappings of double bonds onto single bonds.
 
     Returns
     -------
@@ -945,7 +986,6 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
     bonds_mcs_mol = [tuple(_transformIndices(x, indices_to_delete_mol))
                      for x in bonds_mcs_mol]
 
-
     # bonds that we break in the first instance (tetrahedral bonds) that are
     # not in the MCS
     bonds_to_break_ref = []
@@ -988,6 +1028,10 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
 
             # planar bonds mapped onto tetrahedral bonds
             if frozenset(bond_ref) not in EZ_ref_mcs.keys():
+                if ignore_single_bonds:
+                    del bonds_to_break_pairs[(bond_ref, bond_mol)]
+                    continue
+
                 # get neighbouring bonds outside of MCS
                 breakbonds_ref = {frozenset(x) for x in bonds_ref.keys()
                                   if len(set(x) & set(bond_ref)) == 1}
@@ -1072,20 +1116,18 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
                 # all mappings are fine
                 del bonds_to_break_pairs[(bond_ref, bond_mol)]
 
-
     if not bonds_to_break_pairs:
         return [], [], [], [], []
 
     # now we finally break the bonds
     refs_prev, mols_prev = [_copy.deepcopy(ref)], [_copy.deepcopy(mol)]
-    mcss_prev = [list(zip(match_ref, match_mol))]
     ids_ref_prev, ids_mol_prev = [[]], [[]]
 
     for (dbond_ref_orig, dbond_mol_orig), v in bonds_to_break_pairs.items():
-        refs, mols, mcss, ids_ref, ids_mol = [], [], [], [], []
+        refs, mols, ids_ref, ids_mol = [], [], [], []
         # iterate over previously created fragments
-        for ref_prev, mol_prev, mcs_prev, id_ref_prev, id_mol_prev in \
-                zip(refs_prev, mols_prev, mcss_prev, ids_ref_prev, ids_mol_prev):
+        for ref_prev, mol_prev, id_ref_prev, id_mol_prev in \
+                zip(refs_prev, mols_prev, ids_ref_prev, ids_mol_prev):
             # continue if bond is not a part of the fragment
             if len(set(dbond_ref_orig) & set(id_ref_prev)) or \
                     len(set(dbond_mol_orig) & set(id_mol_prev)):
@@ -1118,7 +1160,8 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
                 deleted_frags_ref = list(_it.chain(
                     *[list(x) for x in ref_frags
                       if not set(dbond_ref).issubset(x)]))
-                ids_ref += [_transformIndices(deleted_frags_ref, id_ref_prev) + id_ref_prev]
+                ids_ref += [_transformIndices(deleted_frags_ref, id_ref_prev)
+                            + id_ref_prev]
                 refs += [_generateFragment(ref_copy, deleted_frags_ref)]
 
                 # break the bonds in the target molecule
@@ -1131,20 +1174,22 @@ def _breakEZBonds(ref, mol, match_ref, match_mol):
                 deleted_frags_mol = list(_it.chain(
                     *[list(x) for x in mol_frags
                       if not set(dbond_mol).issubset(x)]))
-                ids_mol += [_transformIndices(deleted_frags_mol, id_mol_prev) + id_mol_prev]
+                ids_mol += [_transformIndices(deleted_frags_mol, id_mol_prev)
+                            + id_mol_prev]
                 mols += [_generateFragment(mol_copy, deleted_frags_mol)]
 
-                # get new pruned MCS for every broken molecule
-                mcss += [[(x, y) for x, y in zip(match_ref, match_mol)
-                          if x not in ids_ref[-1] and y not in ids_mol[-1]]]
-        
         bonds_to_break_ref = []
-        
+
         # update old values
-        refs_prev, mols_prev, mcss_prev = refs, mols, mcss
+        refs_prev, mols_prev = refs, mols
         ids_ref_prev, ids_mol_prev = ids_ref, ids_mol
 
-    return refs, mols, mcss, ids_ref, ids_mol
+    # get new pruned MCS for every broken molecule
+    mcss = [[(x, y) for x, y in zip(match_ref, match_mol)
+             if x not in r and y not in m]
+             for r, m in zip(ids_ref_prev, ids_mol_prev)]
+
+    return refs_prev, mols_prev, mcss, ids_ref_prev, ids_mol_prev
 
 def _breakMismatchingBonds(ref, mol, match_ref, match_mol):
     """
@@ -1442,9 +1487,7 @@ def _optimalMergedSets(*sets, seed=None):
         set1 = sets[i]
         for j in range(i):
             set2 = sets[j]
-            set12 = set1.union(set2)
-            tuple1, tuple2 = zip(*set12)
-            if len(set(tuple1)) == len(set(tuple2)) == len(set12):
+            if _areCompatibleSets(set1, set2):
                 compatible_sets += [{i, j}]
 
     # turn compatible_sets into a dictionary as well
