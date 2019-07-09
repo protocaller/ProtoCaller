@@ -386,8 +386,15 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
 
     if break_recursively:
         # recursively break bonds to maximise MCS
+        matches_new = set()
         matches_rec_prev = {x: {x} for x in matches}
+        matches = list(sorted(matches, key=len))
+        explored_sets = set()
+        memo_dict = {(_Chem.MolToSmiles(ref, allHsExplicit=True),
+                      _Chem.MolToSmiles(mol, allHsExplicit=True)) : matches}
         for match in matches:
+            if match in explored_sets:
+                continue
             while True:
                 matches_rec = set()
                 for submatch in matches_rec_prev[match]:
@@ -399,6 +406,17 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
 
                     # get recursive matches
                     for ref_broken, mol_broken in pairs_broken:
+                        key_ref = _Chem.MolToSmiles(ref_broken,
+                                                    allHsExplicit=True)
+                        key_mol = _Chem.MolToSmiles(mol_broken,
+                                                    allHsExplicit=True)
+
+                        # memoise the MCSs
+                        if (key_ref, key_mol) in memo_dict.keys():
+                            matches_rec |= {x for x in memo_dict[(key_ref, key_mol)]
+                                            if _haveCommonElements(x, submatch)}
+                            continue
+
                         mcs_broken, matches_ref_broken, matches_mol_broken = \
                             _matchAndReturnMatches([ref_broken, mol_broken],
                                                    **kwargs)
@@ -407,21 +425,28 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
                                           for y in matches_mol_broken}
                         # only keep the matches that are connected to the
                         # original one
+                        memo_dict[(key_ref, key_mol)] = matches_broken
                         matches_rec |= {x for x in matches_broken
                                         if _haveCommonElements(x, submatch)}
 
                 # combine the new MCS's in an optimal way
-                matches_rec, max_len_rec = \
+                matches_rec_max, max_len_rec = \
                     _optimalMergedSets(*matches_rec_prev[match], *matches_rec,
                                        seed=None)
+                # don't duplicate computational effort for already explored
+                # sets
+                matches_rec_max -= explored_sets
+                explored_sets |= matches_rec | matches_rec_max
 
                 # break the recursion if the new MCS is not larger
-                if max_len_rec > len(max(matches_rec_prev[match], key=len)):
-                    matches_rec_prev[match] = matches_rec
+                if matches_rec_max and max_len_rec > len(max(
+                        matches_rec_prev[match], key=len)):
+                    matches_rec_prev[match] = matches_rec_max
                 else:
+                    matches_new |= matches_rec_prev[match]
                     break
 
-        matches = set().union(*[matches_rec_prev[x] for x in matches])
+        matches = matches_new
 
     # break mismatching neighbours next to a double / amide / ester bond
     matches_new = set()
