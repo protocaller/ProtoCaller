@@ -1345,7 +1345,7 @@ def _nonMCSDihedrals(mol, mcs=None, confId=-1):
     mol_conf = mol.GetConformer(confId)
 
     # only rotate if the bond belongs to a dihedral
-    pattern = _Chem.MolFromSmarts("[*]~[*;X3,X4]~&!@[*;X3,X4]~[*]")
+    pattern = _Chem.MolFromSmarts("[*]~[*;X2,X3,X4]~&!@[*;X2,X3,X4]~[*]")
     dihedrals_ini =  mol.GetSubstructMatches(pattern)
     dihedrals_unique = {frozenset(x[1:3]): x for x in reversed(dihedrals_ini)}
 
@@ -1388,7 +1388,7 @@ def _onlyKeepLongest(input_set):
         The length of the largest element(s).
     """
     if not input_set:
-        return {}, 0
+        return set(), 0
     max_len = max([len(x) for x in input_set])
     return {x for x in input_set if len(x) == max_len}, max_len
 
@@ -1430,7 +1430,7 @@ def _optimalMergedSets(*sets, seed=None):
         return set().union(*[sets[i] for i in number_set])
 
     if len(sets) <= 1:
-        return set([frozenset(x) for x in sets]), len(sets)
+        return _onlyKeepLongest(set([frozenset(x) for x in sets]))
 
     if seed is None:
         seed = set()
