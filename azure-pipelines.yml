@@ -27,7 +27,7 @@ steps:
     conda install -y conda-build anaconda-client
     conda build conda-recipe/meta.yaml -c michellab/label/dev -c rdkit -c conda-forge -c omnia -c bioconda --token $(anacondaToken) --user essexlab
     conda install -y -c michellab/label/dev -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab protocaller
-    conda install pytest
+    conda install -y pytest
     conda install -y -c conda-forge pytest-azurepipelines
   displayName: 'Install ProtoCaller'
 
