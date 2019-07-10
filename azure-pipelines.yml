@@ -19,7 +19,7 @@ steps:
   displayName: "Create Conda environment"
 
 - script: |
-    source activate testenv
+    source activate /usr/share/miniconda/envs/testenv
   displayName: "Activate Conda environment"
 
 - script: |
