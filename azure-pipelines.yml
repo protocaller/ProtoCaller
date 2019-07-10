@@ -15,7 +15,7 @@ steps:
   displayName: 'Use Python $(python.version)'
 
 - script: |
-    conda create -q -n test-environment python=$(python.version)
+    conda create -q -n -y test-environment python=$(python.version)
     source activate test-environment
     conda install -y conda-build anaconda-client pytest pytest-azurepipelines
     cd $(Build.SourcesDirectory)
