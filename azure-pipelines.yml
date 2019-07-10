@@ -1,0 +1,28 @@
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+strategy:
+  matrix:
+    Python37:
+      python.version: '3.7'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '$(python.version)'
+  displayName: 'Use Python $(python.version)'
+
+- script: |
+    conda create -q -n test-environment python=$(python.version)
+    source activate test-environment
+    conda install -y conda-build anaconda-client pytest pytest-azurepipelines
+    cd $(Build.SourcesDirectory)
+    conda build conda-recipe/meta.yaml -c michellab/label/dev -c rdkit -c conda-forge -c omnia -c bioconda --token $(anacondaToken) --user essexlab
+    conda install -y -c michellab/label/dev -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab protocaller
+  displayName: 'Install ProtoCaller'
+
+- script: |
+    pytest test
+  displayName: 'Testing'

@@ -3,7 +3,7 @@ package:
   version: 0.1.11
 
 source:
-  git_url: https://github.com/miroslav351/ProtoCaller.git
+  path: ../
 
 build:
   noarch: python
