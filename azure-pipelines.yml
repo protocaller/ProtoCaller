@@ -16,8 +16,10 @@ steps:
 
 - script: |
     conda create -y -q -n test-environment python=$(python.version)
+    conda init bash
     conda activate test-environment
-    conda install -y conda-build anaconda-client pytest -c conda-forge pytest-azurepipelines
+    conda install -y conda-build anaconda-client pytest
+    conda install -y -c conda-forge pytest-azurepipelines
     cd $(Build.SourcesDirectory)
     conda build conda-recipe/meta.yaml -c michellab/label/dev -c rdkit -c conda-forge -c omnia -c bioconda --token $(anacondaToken) --user essexlab
     conda install -y -c michellab/label/dev -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab protocaller
