@@ -19,8 +19,7 @@ steps:
   displayName: "Create Conda environment"
 
 - script: |
-    conda init bash
-    conda activate testenv
+    source activate testenv
   displayName: "Activate Conda environment"
 
 - script: |
