@@ -1,6 +1,5 @@
 trigger:
 - master
-- test-azure
 
 pool:
   vmImage: 'ubuntu-latest'
