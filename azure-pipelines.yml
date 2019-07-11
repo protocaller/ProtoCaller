@@ -27,7 +27,7 @@ steps:
     conda install -y -c michellab/label/dev -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab protocaller
     python -m pip install --upgrade pip
     pip install pytest pytest-azurepipelines
-    pip install -e
+    pip install -e .
   displayName: 'Install ProtoCaller'
 
 - script: |
