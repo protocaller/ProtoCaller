@@ -16,7 +16,7 @@ from ProtoCaller.IO.PDB import PDB as _PDB
 __all__ = ["PDBReader", "ligandReader", "charmmguiTransform"]
 
 
-def PDBReader(file, timeout=60):
+def PDBReader(file, timeout=3600):
     """
     Accesses http://charmm-gui.org and uses the PDB Reader.
 
@@ -60,15 +60,17 @@ def PDBReader(file, timeout=60):
 
     # could add some support for options. For now, we just go with the
     # defaults.
+    wait = _wait.WebDriverWait(driver, timeout)
+    wait.until(_EC.element_to_be_clickable((_by.By.ID, "nextBtn")))
     next_button = driver.find_element_by_id("nextBtn")
     next_button.click()
 
+    wait.until(_EC.element_to_be_clickable((_by.By.ID, "nextBtn")))
     next_button = driver.find_element_by_id("nextBtn")
     next_button.click()
 
     try:
         print("Retrieving files...")
-        wait = _wait.WebDriverWait(driver, timeout)
         wait.until(_EC.visibility_of_any_elements_located((_by.By.CLASS_NAME,
                                                            "download")))
     except TimeoutError:
