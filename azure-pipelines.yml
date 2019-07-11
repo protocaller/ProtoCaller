@@ -16,6 +16,7 @@ steps:
   displayName: 'Use Python $(python.version)'
 
 - script: |
+    sudo apt-get -y install gromacs
     conda create -y -q -n testenv python=$(python.version)
   displayName: "Create Conda environment"
 
