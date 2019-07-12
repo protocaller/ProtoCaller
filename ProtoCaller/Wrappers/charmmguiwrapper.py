@@ -34,14 +34,12 @@ def PDBReader(file, timeout=3600):
     """
     def autoClicker(elem, timeout):
         # deals with some rare cases of an unclickable element
-        while timeout > 0:
+        for i in range(timeout):
             try:
                 elem.click()
-                timeout -= 1
                 return
             except _exceptions.WebDriverException:
                 _time.sleep(1)
-                continue
         elem.click()
 
     file = _os.path.abspath(file)
