@@ -25,18 +25,18 @@ steps:
     cd $(Build.SourcesDirectory)
     conda install -y conda-build anaconda-client
 
-    if [ $(Build.SourceBranchName) -eq "master" ]
+    if [ $(Build.SourceBranchName) == "master" ]
     then
       conda build conda-recipe/meta.yaml -c michellab -c rdkit -c conda-forge -c omnia -c bioconda --token $(anacondaToken) --user essexlab
-    elif [ $(Build.SourceBranchName) -eq "devel" ]
+    elif [ $(Build.SourceBranchName) == "devel" ]
     then
       conda build conda-recipe/meta.yaml -c michellab -c rdkit -c conda-forge -c omnia -c bioconda --token $(anacondaToken) --user essexlab --label dev
     fi
 
-    if [ $(Build.SourceBranchName) -eq "master" ]
+    if [ $(Build.SourceBranchName) == "master" ]
     then
       conda install -y -c michellab -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab protocaller
-    elif [ $(Build.SourceBranchName) -eq "devel" ]
+    elif [ $(Build.SourceBranchName) == "devel" ]
     then
       conda install -y -c michellab -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab/label/dev protocaller
     fi
