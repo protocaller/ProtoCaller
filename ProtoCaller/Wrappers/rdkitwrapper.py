@@ -1376,11 +1376,29 @@ def _matchAndReturnMatches(*args, **kwargs):
     mcs_string = _MCS.FindMCS(*args, **kwargs).smarts
     if mcs_string is None:
         return None, [], []
-    mcs = _Chem.MolFromSmarts(mcs_string)
-    # fixes some issues with RDKit concerning SMARTS
-    mcs = _Chem.MolFromSmarts(_Chem.MolToSmiles(mcs, canonical=False,
-                                                allBondsExplicit=True,
-                                                allHsExplicit=True))
+    mcs_smarts = _Chem.MolFromSmarts(mcs_string)
+    results_smarts = args[0][0].GetSubstructMatches(mcs_smarts)
+    if len(results_smarts):
+        mcs_smarts_len = len(args[0][0].GetSubstructMatches(mcs_smarts)[0])
+    else:
+        mcs_smarts_len = 0
+
+    # sometimes the resulting SMARTS string is broken and we check for that
+    mcs_smiles = _Chem.MolFromSmarts(_Chem.MolToSmiles(mcs_smarts,
+                                                       canonical=False,
+                                                       allBondsExplicit=True,
+                                                       allHsExplicit=True))
+    results_smiles = args[0][0].GetSubstructMatches(mcs_smiles)
+    if len(results_smiles):
+        mcs_smiles_len = len(args[0][0].GetSubstructMatches(mcs_smiles)[0])
+    else:
+        mcs_smiles_len = 0
+    
+    if mcs_smarts_len > mcs_smiles_len:
+        mcs = mcs_smarts
+    else:
+        mcs = mcs_smiles
+
     return tuple([mcs] + [set(x.GetSubstructMatches(mcs)) for x in args[0]])
 
 

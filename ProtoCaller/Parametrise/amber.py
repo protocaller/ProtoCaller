@@ -81,7 +81,8 @@ def amberWrapper(params, filename, molecule_type, id=None, charge=None, *args, *
         # align the parametrised file to the molecule and overwrite
         # previous coordinates
         mol, mcs = _stdio.stdout_stderr()(_rdkit.alignTwoMolecules) \
-            (ref, mol, matchChiralTag=False, match="elements")
+            (ref, mol, two_way_matching=True,
+             mcs_parameters=dict(atomCompare="elements"))
         if min(mol.GetNumAtoms(), ref.GetNumAtoms()) != len(mcs):
             _warnings.warn("The cofactor {} does not perfectly match the "
                            "AMBER parameter file. Please check your "
