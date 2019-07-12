@@ -32,6 +32,18 @@ def PDBReader(file, timeout=3600):
     filename_output : str
         The absolute path to the output TGZ archive.
     """
+    def autoClicker(elem, timeout):
+        # deals with some rare cases of an unclickable element
+        while timeout > 0:
+            try:
+                elem.click()
+                timeout -= 1
+                return
+            except _exceptions.WebDriverException:
+                driver.wait(1)
+                continue
+        elem.click()
+
     file = _os.path.abspath(file)
     options = _options.Options()
     options.headless = True
@@ -63,11 +75,11 @@ def PDBReader(file, timeout=3600):
     wait = _wait.WebDriverWait(driver, timeout)
     wait.until(_EC.element_to_be_clickable((_by.By.ID, "nextBtn")))
     next_button = driver.find_element_by_id("nextBtn")
-    next_button.click()
+    autoClicker(next_button, 60)
 
     wait.until(_EC.element_to_be_clickable((_by.By.ID, "nextBtn")))
     next_button = driver.find_element_by_id("nextBtn")
-    next_button.click()
+    autoClicker(next_button, 60)
 
     try:
         print("Retrieving files...")
