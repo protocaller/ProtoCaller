@@ -40,7 +40,7 @@ def PDBReader(file, timeout=3600):
                 timeout -= 1
                 return
             except _exceptions.WebDriverException:
-                driver.wait(1)
+                _time.sleep(1)
                 continue
         elem.click()
 
