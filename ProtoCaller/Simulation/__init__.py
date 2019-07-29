@@ -425,7 +425,7 @@ class GMX_REST_FEP_Runs:
 
         return self.mbar_data
 
-    def runMBAR(self, n_points_to_ignore=1):
+    def runMBAR(self, n_points_to_ignore=1, temperature=298):
         """
         Runs pymbar and outputs to stdout.
 
@@ -433,7 +433,10 @@ class GMX_REST_FEP_Runs:
         ----------
         n_points_to_ignore : int, optional
             Number of initial points which are to be excluded in the calculation.
+        temperature : float, optional
+            The temperature at which the simulations were originally ran.
         """
+        RT = 0.008314 * temperature
         if not self.mbar_data:
             raise ValueError("No MBAR data to analyse")
 
@@ -448,12 +451,12 @@ class GMX_REST_FEP_Runs:
         N = len(mbar_data[0])
         size = len(mbar_data)
         N_k = [N / size] * size
-        u_kln = _np.reshape(mbar_data, (size, N))
+        u_kln = _np.reshape(mbar_data, (size, N)) / RT
         mbar = _pymbar.mbar.MBAR(u_kn=u_kln, N_k=N_k, verbose=True, initialize="BAR", maximum_iterations=10000)
         f, df, _ = mbar.getFreeEnergyDifferences()
 
         print()
-        print("Free Energy change from A to B in kJ/mol: ", f[0][size - 1])
-        print("Uncertainty in kJ/mol: ", df[0][size - 1])
-        print("Free Energy change from A to B in kcal/mol: ", f[0][size - 1] / 4.184)
-        print("Uncertainty in kcal/mol: ", df[0][size - 1] / 4.184)
+        print("Free Energy change from A to B in kJ/mol: ", f[0][size - 1] * RT)
+        print("Uncertainty in kJ/mol: ", df[0][size - 1] * RT)
+        print("Free Energy change from A to B in kcal/mol: ", f[0][size - 1] * RT / 4.184)
+        print("Uncertainty in kcal/mol: ", df[0][size - 1] * RT / 4.184)
