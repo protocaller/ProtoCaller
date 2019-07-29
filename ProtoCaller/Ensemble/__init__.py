@@ -1,6 +1,13 @@
+import ProtoCaller as _PC
+if not _PC.BIOSIMSPACE:
+    raise ImportError("BioSimSpace module cannot be imported")
+
 import os as _os
 import tempfile as _tempfile
 import warnings as _warnings
+
+import BioSimSpace as _BSS
+import rdkit.Chem as _Chem
 
 import ProtoCaller as _PC
 from .Ligand import Ligand
@@ -139,7 +146,9 @@ class Ensemble:
         # setter
         super(Ensemble, self).__setattr__("_" + key, value)
 
-    def prepareComplexes(self, replica_temps=None, intermediate_files=False, store_complexes=False, output_files=True):
+    def prepareComplexes(self, replica_temps=None, scale_dummy_bonds=1,
+                         dummy_bond_smarts="[*]~[*]", intermediate_files=False,
+                         store_complexes=False, output_files=True):
         """
         Batch prepares all complexes with an option to output files for REST(2).
 
@@ -181,16 +190,46 @@ class Ensemble:
 
                 with curdir:
                     print("Creating morph %s..." % morph.name)
-                    _stdio.stdout_stderr()(morph.alignAndCreateMorph)(self.protein.ligand_ref)
+                    morph_BSS, mcs = _stdio.stdout_stderr()(
+                        morph.alignAndCreateMorph)(self.protein.ligand_ref)
+                    morph_BSS = _BSS._SireWrappers.System(morph_BSS)
+                    box = self.protein.complex_template._sire_system.property(
+                        "space")
+                    morph_BSS._sire_system.setProperty("space", box)
 
-                    complexes = [self.protein.complex_template + morph.get_morph(self.protein.ligand_ref)]
+                    # here we scale the equilibrium bond lengths if needed
+                    if scale_dummy_bonds != 1:
+                        n1 = morph.ligand1.molecule.GetNumAtoms()
+                        n2 = morph.ligand2.molecule.GetNumAtoms()
+                        inv_map = {y: x for x, y in mcs}
+                        du2 = [i for i in range(n2) if i not in inv_map.keys()]
+                        inv_map = {**{x: n1 + y
+                                      for x, y in zip(du2, range(n2 - n1))},
+                                   **inv_map}
+                        mcs_smarts = _Chem.MolFromSmarts(dummy_bond_smarts)
+                        matches_lig1 = morph.ligand1.molecule.\
+                            GetSubstructMatches(mcs_smarts)
+                        matches_lig2 = morph.ligand2.molecule.\
+                            GetSubstructMatches(mcs_smarts)
+
+                        # here we take care of the index transformation
+                        matches_lig2 = [(inv_map[x[0]], inv_map[x[1]])
+                                        for x in matches_lig2
+                                        if set(x).issubset(inv_map.keys())]
+                        matches_total = [*matches_lig1, *matches_lig2]
+                        morph_BSS = _BSSwrap.rescaleBondedDummies(
+                            morph_BSS, scale_dummy_bonds,
+                            {"Merged_Molecule": matches_total}
+                        )
+
+                    complexes = [self.protein.complex_template + morph_BSS]
 
                     # solvate and save the prepared complex and morph with the appropriate box size
                     print("Solvating...")
                     complexes = [_solvate.solvate(complexes[0], self.params, box_length=self.box_length_complex,
                                                   shell=self.shell, neutralise=self.neutralise, ion_conc=self.ion_conc,
                                                   centre=self.centre, work_dir=curdir.path, filebase="complex")]
-                    morph_sol = _solvate.solvate(morph.get_morph(self.protein.ligand_ref), self.params,
+                    morph_sol = _solvate.solvate(morph_BSS, self.params,
                                                  box_length=self.box_length_morph, shell=self.shell,
                                                  neutralise=self.neutralise, ion_conc=self.ion_conc, centre=self.centre,
                                                  work_dir=curdir.path, filebase="morph")

@@ -2,7 +2,11 @@ import ProtoCaller as _PC
 if not _PC.BIOSIMSPACE:
     raise ImportError("BioSimSpace module cannot be imported")
 
+import copy as _copy
+import re as _re
+
 import BioSimSpace as _BSS
+import Sire.Error as _SireError
 import Sire.MM as _SireMM
 import Sire.Maths as _SireMaths
 import Sire.Mol as _SireMol
@@ -159,6 +163,74 @@ def rescaleSystemParams(system, scale, includelist=None, excludelist=None, neutr
             resname = mol_edit.residue().name()
             resname_new = _SireMol.ResName(resname.value() + "_")
             mol_edit = mol_edit.residue(resname).rename(resname_new)
+
+        mol._sire_molecule = mol_edit.commit()
+        mols_mod += [mol]
+
+    system_new = _BSS._SireWrappers._system.System(mols_mod)
+    box = system._sire_system.property("space")
+    system_new._sire_system.setProperty("space", box)
+
+    return system_new
+
+
+def rescaleBondedDummies(system, scale, bonds=None):
+    if scale == 1:
+        return system
+
+    mols_mod = []
+
+    for mol in system.getMolecules():
+        mol_name = mol._sire_molecule.name().value()
+        if bonds is not None and (mol_name not in bonds.keys() or not bonds[mol_name]):
+            mols_mod += [mol]
+            continue
+        if bonds is None:
+            bonds_to_incl = None
+        else:
+            bonds_to_incl = {frozenset(x) for x in bonds[mol_name]}
+
+        mol_edit = mol._sire_molecule.edit()
+
+        dummies0 = []
+        dummies1 = []
+
+        for atom in mol_edit.atoms():
+            pat = r"AtomIdx\((\d*)\)"
+            if "du" in atom.property("ambertype0"):
+                dummies0 += [int(*_re.search(pat, atom.index().toString()).groups())]
+            elif "du" in atom.property("ambertype1"):
+                dummies1 += [int(*_re.search(pat, atom.index().toString()).groups())]
+
+        for prop, dummies in zip(["bond0", "bond1"], [dummies0, dummies1]):
+            potentials = mol_edit.property(prop).potentials()
+            prop_new = _copy.copy(mol_edit.property(prop))
+            for potential in potentials:
+                pat = r"Index\((\d*)\)"
+                at0_idx = int(*_re.search(pat, potential.atom0().toString()).groups())
+                at1_idx = int(*_re.search(pat, potential.atom1().toString()).groups())
+                bond_key = {at0_idx, at1_idx}
+
+                # we ignore bonds that are not specified by the user
+                if bonds_to_incl is not None and bond_key not in bonds_to_incl:
+                    continue
+
+                # we ignore non-dummy bonds
+                if not at0_idx in dummies and not at1_idx in dummies:
+                    continue
+
+                func = potential.function()
+                func_str = func.toString()
+                pat = r"(\S*)\s*\[r - (\S*)\]"
+                k, r_eq = [float(x) for x in _re.match(pat, func_str).groups()]
+
+                # here we scale the r_eq
+                # this is a bit of a hack since it is difficult to instatiate
+                # Sire CAS from python
+                func = k * ((func / k).root(2) + (1 - scale) * r_eq).squared()
+
+                prop_new.set(potential.atom0(), potential.atom1(), func)
+            mol_edit = mol_edit.setProperty(prop, prop_new).molecule()
 
         mol._sire_molecule = mol_edit.commit()
         mols_mod += [mol]
