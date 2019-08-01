@@ -253,7 +253,7 @@ class Protocol:
 
     def __setattr__(self, name, value):
         if isinstance(value, str):
-            value = value.strip().lower()
+            value = value.strip()
 
         if "lambdas" in name:
             self.free_energy = True
