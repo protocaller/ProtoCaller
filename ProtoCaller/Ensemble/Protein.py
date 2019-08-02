@@ -403,7 +403,7 @@ class Protein:
                 for ligand in self.ligands + self.cofactors:
                     if not ligand.protonated:
                         ligand.protonate(**kwargs)
-                if not self.ligand_ref.protonated:
+                if self.ligand_ref and not self.ligand_ref.protonated:
                     self.ligand_ref.protonate(**kwargs)
             else:
                 _warnings.warn("Need to protonate all relevant ligands / "
