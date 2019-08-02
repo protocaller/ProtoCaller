@@ -4,7 +4,7 @@ import numpy as _np
 import parmed as _pmd
 
 
-def openFilesAsParmed(filelist, fix_dihedrals=True, **kwargs):
+def openFilesAsParmed(filelist, **kwargs):
     """
     Opens an input file list and returns a ParmEd Structure.
 
@@ -12,8 +12,6 @@ def openFilesAsParmed(filelist, fix_dihedrals=True, **kwargs):
     ----------
     filename : str
         The name of the input file.
-    fix_dihedrals : bool
-        Whether to identify dihedrals with multiple terms and set their type to 9. Can be slow for large systems.
     kwargs
         Keyword arguments to be supplied to parmed.load_file.
 
@@ -32,15 +30,6 @@ def openFilesAsParmed(filelist, fix_dihedrals=True, **kwargs):
                 mol = _pmd.load_file(filelist[1], xyz=filelist[0], **kwargs)
             except:
                 raise OSError("There was an error while reading the input files.")
-
-    if fix_dihedrals:
-        for i, d_i in enumerate(mol.dihedrals):
-            for j, d_j in enumerate(mol.dihedrals):
-                if i <= j:
-                    break
-                if (d_i.atom1 == d_j.atom1 and d_i.atom2 == d_j.atom2 and
-                    d_i.atom3 == d_j.atom3 and d_i.atom4 == d_j.atom4):
-                    d_i.funct, d_j.funct = 9, 9
 
     return mol
 

@@ -74,7 +74,7 @@ def amberWrapper(params, filename, molecule_type, id=None, charge=None, *args, *
 
         # convert the parametrised file into PDB and load in RDKit
         ref = _rdkit.openAsRdkit(filename, removeHs=False)
-        mol = _pmd.openFilesAsParmed(parametrised_files, fix_dihedrals=False)
+        mol = _pmd.openFilesAsParmed(parametrised_files)
         pdb_file = _pmd.saveFilesFromParmed(mol, [filename], overwrite=True)[0]
         mol = _rdkit.openAsRdkit(pdb_file, removeHs=False)
 
