@@ -1,4 +1,3 @@
-import copy as _copy
 import glob as _glob
 import os as _os
 
@@ -12,208 +11,18 @@ import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Utils.runexternal as _runexternal
 
 
-class GMXSingleRun:
+class RunGMX:
     """
-    A wrapper for a single GROMACS run.
+    A wrapper for performing a run in GROMACS.
 
     Parameters
     ----------
     name : str
         The name of the run.
-    gro_file : str
-        Path to the input GRO file.
-    top_file : str
-        Path to the input TOP file.
-    lambda_index : int
-        Initialises lambda_index.
-    work_dir : str, optional
-        Initialises the run in a custom directory.
-    replica_top_files : [str], optional
-        Initialises replica_tops.
-
-    Attributes
-    ----------
-    files : dict
-        A dictionary with extensions as keys and absolute paths to files as values.
-    lambda_index : int
-        The index of the current lambda value.
-    replica_tops : [str]
-        A list of absolute paths to additional replica topology files for REST(2).
-    """
-    def __init__(self, name, gro_file, top_file, lambda_index, work_dir=None, replica_top_files=None):
-        if work_dir is None:
-            work_dir = _os.getcwd()
-        self.files = {}
-        self.files["gro"] = _os.path.abspath(gro_file)
-        self.files["top"] = _os.path.abspath(top_file)
-        self._workdir = _fileio.Dir("%s/%s/Lambda_%d" % (work_dir, name, lambda_index))
-        self.lambda_index = lambda_index
-        self.replica_tops = []
-        if replica_top_files not in [None, []]:
-            self.replica_tops = ["%s/%s" % (_os.getcwd(), file) for file in replica_top_files]
-
-    def runSimulation(self, name, protocol, replex=None, n_cores=None, **replica_params):
-        """
-        Runs a single GROMACS simulation.
-
-        Parameters
-        ----------
-        name : str
-            The name of this simulation.
-        protocol : Protocaller.Protocol.Protocol
-            The input MD protocol.
-        replex : int or None, optional
-            Attempts replica exchange after replex number of steps. None means no replica exchange.
-        n_cores : int or None, optional
-            Number of cores used. Default: the same as the number of replicas.
-        replica_params
-            Keyword arguments specifying parameters which are to be set for each replica.
-        """
-        print("Running %s..." % name)
-        with self._workdir:
-            with _fileio.Dir(name, overwrite=True):
-                protocol.current_lambda = self.lambda_index
-                self.files["mdp"] = _os.path.abspath(protocol.write(engine="GROMACS"))
-
-                filebase = "%s_%d" % (name, self.lambda_index)
-                grompp_args = {
-                    "-f" : "mdp",
-                    "-c" : "gro",
-                    "-p" : "top",
-                    "-t" : "cpt",
-                }
-
-                if replex is None or _PC.MPIEXE is None:
-                    grompp_command = "%s grompp -maxwarn 10 -o input.tpr" % _PC.GROMACSEXE
-                    for grompp_arg, filetype in grompp_args.items():
-                        if filetype in self.files.keys():
-                            grompp_command += " %s '%s'" % (grompp_arg, self.files[filetype])
-                    _runexternal.runExternal(grompp_command, procname="gmx grompp")
-
-                    mdrun_command = "%s mdrun -s input.tpr -deffnm %s" % (_PC.GROMACSEXE, filebase)
-                else:
-                    protocol_temp = _copy.copy(protocol)
-                    n_replicas = len(self.replica_tops) + 1
-                    for key, value in replica_params.items():
-                        if isinstance(value, list) and len(value) != n_replicas:
-                            raise ValueError("Size of parameter list not the same as the number of replicas.")
-                        elif not isinstance(value, list):
-                            replica_params[key] = [value] * n_replicas
-                    for i in range(n_replicas):
-                        grompp_command = "%s grompp -maxwarn 10 -o input%d.tpr" % (_PC.GROMACSEXE, i)
-                        for grompp_arg, filetype in grompp_args.items():
-                            if filetype in self.files.keys():
-                                if filetype == "top":
-                                    grompp_command += " %s '%s'" % (grompp_arg, ([self.files["top"]] + self.replica_tops)[i])
-                                elif filetype == "mdp":
-                                    for key, value in replica_params.items():
-                                        protocol_temp.__setattr__(key, value[i])
-                                    filename_mdp = _os.path.join(_os.getcwd(), protocol.write("GROMACS", "input%d" % i))
-                                    grompp_command += " %s '%s'" % (grompp_arg, filename_mdp)
-                                else:
-                                    grompp_command += " %s '%s'" % (grompp_arg, self.files[filetype])
-                        _runexternal.runExternal(grompp_command, procname="gmx grompp")
-                    open("plumed.dat", "a").close()
-                    n_cores = n_replicas if not n_cores else n_cores
-                    # disable dynamic load balancing due to GROMACS bug
-                    mdrun_command = "%s -np %d %s mdrun -dlb no -plumed plumed.dat -multi %d -s input.tpr -deffnm %s " \
-                                    "-replex %d -hrex" % (_PC.MPIEXE, n_cores, _PC.GROMACSMPIEXE, n_replicas, filebase,
-                                                          replex)
-
-                _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
-
-                output_files = _glob.glob("%s/%s.*" % (_os.getcwd(), filebase))
-                self.files = {"top" : self.files["top"],}
-                for output_file in output_files:
-                    ext = output_file.split(".")[-1].lower()
-                    if ext == "tpr": continue
-                    self.files[ext] = output_file
-
-
-class GMXSerialRuns:
-    """
-    A wrapper for a several consecutive GROMACS runs.
-
-    Parameters
-    ----------
-    name : str
-        The name of the run.
-    gro_file : str
-        Path to the input GRO file.
-    top_file : str
-        Path to the input TOP file.
-    work_dir : str, optional
-        Initialises the run in a custom directory.
-    replica_top_files : [str], optional
-        Initialises replica_tops.
-    lambda_dict
-        Initialises lambda_dict
-
-    Attributes
-    ----------
-    lambda_dict : dict
-        A dictionary of lists of lambda values. All of them must be of the same length.
-    gmx_run_list : [ProtoCaller.Simulation.GMXSingleRun]
-        Contains an instance of GMXSingleRun for every lambda value.
-    protocols : [(str, ProtoCaller.Protocol.Protocol, dict)]
-        A list of tuples corresponding to the protocol name, the Protocol object itself and any extra run options.
-    """
-    def __init__(self, name, gro_file, top_file, work_dir=None, replica_top_files=None, **lambda_dict):
-        for key, arr in lambda_dict.items():
-            if len(arr):
-                self.lambda_size = len(arr)
-            elif len(arr) != self.lambda_size:
-                raise ValueError("Need lists of the same size")
-
-        self.lambda_dict = lambda_dict
-        self.gmx_run_list = [GMXSingleRun(name, gro_file, top_file, i, work_dir, replica_top_files)
-                             for i in range(self.lambda_size)]
-        self.protocols = []
-
-    def addProtocol(self, name, use_preset=None, run_options=None, **kwargs):
-        """
-        Adds a protocol for execution.
-
-        Parameters
-        ----------
-        name : str
-            Protocol name.
-        use_preset : str, None
-            Which default preset to use. One of: "minimisation", "equilibration_nvt", "equilibration_npt", "production"
-            "vacuum".
-        run_options : dict, optional
-            Any extra run options to be forwarded to GMXSingleRun.
-        kwargs
-            Keyword arguments to be passed on to Protocol.__init__.
-        """
-        run_options = run_options if run_options is not None else {}
-        self.protocols += [(name,
-                            _Protocol.Protocol(use_preset=use_preset, **kwargs, **self.lambda_dict),
-                            run_options)]
-
-    def runSimulations(self):
-        """Runs all protocols consecutively for each lambda value."""
-        for i, gmx_run in enumerate(self.gmx_run_list):
-            print("Running simulation %d..." % (i + 1))
-            for name, protocol, kwargs in self.protocols:
-                try:
-                    gmx_run.runSimulation(name, protocol, **kwargs)
-                except:
-                    "An error occurred. Check the log. Continuing..."
-
-
-class GMX_REST_FEP_Runs:
-    """
-    A wrapper for performing a REST2 run in GROMACS.
-
-    Parameters
-    ----------
-    name : str
-        The name of the run.
-    gro_file : str
-        Path to the input GRO file.
-    top_filse : [str]
-        Paths to the input scaled TOP files.
+    gro_files : str
+        Path(s) to the input GRO file(s).
+    top_files : [str] or str
+        Path(s) to the input TOP file(s).
     work_dir : str, optional
         Initialises the run in a custom directory.
     lambda_dict
@@ -230,16 +39,27 @@ class GMX_REST_FEP_Runs:
     mbar_data : numpy.ndarray
         Data which is to be passed to pymbar.
     """
-    def __init__(self, name, gro_file, top_files, work_dir=None, **lambda_dict):
-        for key, arr in lambda_dict.items():
-            if len(arr) and len(arr) != len(top_files):
-                raise ValueError("Need lists of the same size")
-        self.lambda_size = len(top_files)
+    def __init__(self, name, gro_files, top_files, work_dir=None, **lambda_dict):
+        try:
+            len_arr, = {len(arr) for arr in lambda_dict.values() if len(arr)}
+        except ValueError:
+            raise ValueError("Need lists of the same non-zero size")
+
+        if not isinstance(gro_files, list):
+            gro_files = [gro_files] * len_arr
+        else:
+            assert len(gro_files) == len_arr, "Number of GRO files does not match number of lambda values"
+
+        if not isinstance(top_files, list):
+            top_files = [top_files] * len_arr
+        else:
+            assert len(top_files) == len_arr, "Number of TOP files does not match number of lambda values"
+
         if work_dir is None:
             work_dir = _os.getcwd()
 
-        self.files = [{} for i in range(self.lambda_size)]
-        for f, top_file in zip(self.files, top_files):
+        self.files = [{} for _ in range(len_arr)]
+        for f, gro_file, top_file in zip(self.files, gro_files, top_files):
             f["gro"] = _os.path.abspath(gro_file)
             f["top"] = _os.path.abspath(top_file)
         self._workdir = _fileio.Dir("%s/%s" % (work_dir, name))
@@ -247,35 +67,57 @@ class GMX_REST_FEP_Runs:
         self.protocols = []
         self.mbar_data = []
 
-    def runSimulation(self, name, parallel=True, use_mpi=False, use_preset=None, replex=None, n_cores=None, n_nodes=1,
-                      **protocol_params):
+    @property
+    def lambda_size(self):
+        """Returns the number of lambda windows."""
+        return len(self.files)
+
+    def runSimulation(self, name, multi=True, single_lambda=None, use_mpi=False, use_preset=None, replex=None,
+                      n_cores_per_process=None, n_nodes=1, n_processes=None, dlb=False, **protocol_params):
         """
-        Runs a REST2 simulation in GROMACS.
+        Runs a simulation in GROMACS.
 
         Parameters
         ----------
         name : str
             The name of the simulation.
-        parallel : bool, optional
+        multi : bool, optional
             Whether to run the simulations in parallel, using -multi.
+        single_lambda : None, int, optional
+            An integer runs a simulation at a single lambda value and overrides multi and replex.
+            None runs all lambda values.
         use_mpi : bool, optional
             Whether to use ProtoCaller.GROMACSEXE or GROMACSMPIEXE.
         use_preset : str, None
             Which default preset to use. One of: "minimisation", "equilibration_nvt", "equilibration_npt", "production"
             "vacuum".
         replex : int or None, optional
-            Attempts replica exchange after replex number of steps. None means no replica exchange.
-        n_cores : int or None, optional
-            Number of cores used. Default: the same as the number of replicas.
+            Attempts replica exchange after replex number of steps using PLUMED. None means no replica exchange.
+            Overrides use_mpi and multi if not None.
+        n_cores_per_process : int or None, optional
+            Number of cores used per process. Default: let GROMACS decide.
         n_nodes : int, optional
-            Number of nodes used.
+            Number of physical nodes used.
+        n_processes : int, optional
+            Number of processes. Default: the same as the number of simulation.
+        dlb : bool
+            Whether to enable dynamic load balancing. Default is False due to some possible instabilities with
+            gmx_mpi mdrun in some cases.
         protocol_params
             Keyword arguments passed to ProtoCaller.Protocol.Protocol
         """
-        if n_cores is None: n_cores = self.lambda_size
-        ppn = n_cores // n_nodes
-        if n_nodes > 1: use_mpi = True
-        if replex is not None: parallel=True
+        if n_processes is None:
+            n_processes = 1 if single_lambda else self.lambda_size
+        ppn = n_processes // n_nodes
+        if n_nodes > 1:
+            use_mpi = True
+        if single_lambda is not None:
+            replex = None
+            multi = False
+        if replex is not None:
+            multi = True
+            use_mpi = True
+        dlb = "yes" if dlb else "no"
 
         protocol = _Protocol.Protocol(use_preset=use_preset, **protocol_params, **self.lambda_dict)
         self.protocols += [protocol]
@@ -283,15 +125,22 @@ class GMX_REST_FEP_Runs:
         print("Running %s..." % name)
         with self._workdir:
             with _fileio.Dir(name, overwrite=True):
-                for i in range(self.lambda_size):
+                # run single lambda if needed
+                if single_lambda is not None:
+                    it = [single_lambda]
+                else:
+                    it = range(self.lambda_size)
+
+                # call grompp for every lambda
+                for i in it:
                     filebase = "%s_%d" % (name, i)
                     protocol.init_lambda_state = i
                     self.files[i]["mdp"] = _os.path.abspath(protocol.write(engine="GROMACS", filebase=filebase))
                     grompp_args = {
-                        "-f" : "mdp",
-                        "-c" : "gro",
-                        "-p" : "top",
-                        "-t" : "cpt",
+                        "-f": "mdp",
+                        "-c": "gro",
+                        "-p": "top",
+                        "-t": "cpt",
                     }
 
                     grompp_command = "%s grompp -maxwarn 10 -o %s.tpr" % (_PC.GROMACSEXE, filebase)
@@ -300,47 +149,59 @@ class GMX_REST_FEP_Runs:
                             grompp_command += " %s '%s'" % (grompp_arg, self.files[i][filetype])
                     _runexternal.runExternal(grompp_command, procname="gmx grompp")
 
-                    if not parallel:
+                    # call the simulation consecutively for every lambda if multi is not specified
+                    if not multi:
                         if not use_mpi:
-                            mdrun_command = "{0} mdrun -s {1}.tpr -deffnm {1}".format(_PC.GROMACSEXE, filebase)
+                            mdrun_command = "{0} mdrun -s '{1}.tpr' -deffnm {1} -dlb {2}".format(
+                                _PC.GROMACSEXE, filebase, dlb)
                         else:
-                            # disable dynamic load balancing due to GROMACS bug
                             mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} " \
-                                            "mdrun -dlb no -s {4}.tpr -deffnm {4}".format( _PC.MPIEXE, n_cores, ppn,
-                                                                                           _PC.GROMACSMPIEXE, filebase)
+                                            "mdrun -s '{4}.tpr' -deffnm {4} -dlb {5}".format(
+                                _PC.MPIEXE, n_processes, ppn, _PC.GROMACSMPIEXE, filebase, dlb)
+
+                        if n_cores_per_process:
+                            mdrun_command += " -ntomp {}".format(n_cores_per_process)
+
                         _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
+                        # update files after the run
                         self.files[i] = {"top" : self.files[i]["top"],}
                         output_files = _glob.glob("%s.*" % filebase)
                         for output_file in output_files:
                             ext = output_file.split(".")[-1].lower()
-                            if ext == "tpr": continue
-                            self.files[i][ext] = _os.path.abspath(output_file)
+                            if ext != "tpr":
+                                self.files[i][ext] = _os.path.abspath(output_file)
 
-                if parallel:
-                    open("plumed.dat", "a").close()
+                # alternatively, run all simulations in parallel
+                if multi:
                     filebase = name + "_"
-                    # disable dynamic load balancing due to GROMACS bug
-                    mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} mdrun -dlb no -multi {4} -s {5}.tpr " \
-                                    "-deffnm {5} ".format(_PC.MPIEXE, n_cores, ppn, _PC.GROMACSMPIEXE, self.lambda_size,
-                                                          filebase)
+                    mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} mdrun -multi {4} -s {5}.tpr " \
+                                    "-deffnm {5} -dlb {6}".format(
+                        _PC.MPIEXE, n_processes, ppn, _PC.GROMACSMPIEXE, self.lambda_size, filebase, dlb)
+
+                    # run replica exchange with PLUMED if needed
                     if replex is not None:
+                        open("plumed.dat", "a").close()
                         mdrun_command += " -plumed plumed.dat -replex {} -hrex".format(replex)
+
+                    if n_cores_per_process:
+                        mdrun_command += " -ntomp {}".format(n_cores_per_process)
 
                     _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
+                    # update files after the run
                     for i in range(self.lambda_size):
                         filebase = "%s_%d" % (name, i)
                         self.files[i] = {"top": self.files[i]["top"], }
                         output_files = _glob.glob("%s.*" % filebase)
                         for output_file in output_files:
                             ext = output_file.split(".")[-1].lower()
-                            if ext == "tpr": continue
-                            self.files[i][ext] = _os.path.abspath(output_file)
+                            if ext != "tpr":
+                                self.files[i][ext] = _os.path.abspath(output_file)
 
     def generateMBARData(self, n_cores=None, n_nodes=1, cont=True):
         """
-        Generates input data for MBAR using gmx mdrun -rerun
+        Generates input data for MBAR using gmx mdrun -rerun. Doesn't work with constrained simulations.
 
         Parameters
         ----------
@@ -421,7 +282,8 @@ class GMX_REST_FEP_Runs:
 
         # restore the original environment variable
         del _os.environ["GMX_SUPPRESS_DUMP"]
-        if gmx_suppress_dump is not None: _os.environ["GMX_SUPPRESS_DUMP"] = gmx_suppress_dump
+        if gmx_suppress_dump is not None:
+            _os.environ["GMX_SUPPRESS_DUMP"] = gmx_suppress_dump
 
         return self.mbar_data
 
