@@ -34,7 +34,7 @@ def openFilesAsParmed(filelist, **kwargs):
     return mol
 
 
-def saveFilesFromParmed(system, filelist, overwrite=True):
+def saveFilesFromParmed(system, filelist, overwrite=True, **kwargs):
     """
     Saves a ParmEd Structure object to a file.
 
@@ -46,6 +46,8 @@ def saveFilesFromParmed(system, filelist, overwrite=True):
         The names of the output files.
     overwrite : bool
         Whether to overwrite existing files.
+    kwargs :
+        Additional arguments to be pased on to save()
 
     Returns
     -------
@@ -59,7 +61,7 @@ def saveFilesFromParmed(system, filelist, overwrite=True):
                 continue
             else:
                 _os.remove(filename)
-        system.save(filename)
+        system.save(filename, **kwargs)
         saved_files += [filename]
     return saved_files
 
