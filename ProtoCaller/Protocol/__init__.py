@@ -255,7 +255,7 @@ class Protocol:
         if isinstance(value, str):
             value = value.strip()
 
-        if "lambdas" in name:
+        if "lambdas" in name and value:
             self.free_energy = True
 
         if name == "_attrs":

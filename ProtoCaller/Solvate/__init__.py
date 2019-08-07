@@ -1,5 +1,6 @@
 import ProtoCaller as _PC
 
+import fileinput as _fileinput
 import os as _os
 import tempfile as _tempfile
 
@@ -9,6 +10,7 @@ if _PC.BIOSIMSPACE:
 import parmed as _pmd
 
 import ProtoCaller.Parametrise as _parametrise
+import ProtoCaller.Protocol as _protocol
 import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Utils.runexternal as _runexternal
 import ProtoCaller.Wrappers.parmedwrapper as _pmdwrap
@@ -92,28 +94,29 @@ def solvate(complex, params, box_length=8, shell=0, neutralise=True, ion_conc=0.
             elif "O" in atom.name:
                 atom.name = "O"
 
-        waters.save(filebase + "_waters.pdb")
-        waters_prep = _parametrise.parametriseAndLoadPmd(params, filebase + "_waters.pdb", "water")
-        waters_prep.box = _pmd.load_file(files[1]).box
-        for residue in waters_prep.residues:
-            residue.name = "SOL"
+        # here we only parametrise a single water molecule in order to gain performance
         waters_prep_filenames = [filebase + "_waters.top", filebase + "_waters.gro"]
-        for filename in waters_prep_filenames:
-            waters_prep.save(filename)
+        waters[":1"].save(filebase + "_single_wat.pdb")
+        water = _parametrise.parametriseAndLoadPmd(params, filebase + "_single_wat.pdb", "water")
+        _pmdwrap.saveFilesFromParmed(waters, [waters_prep_filenames[1]], combine="all")
+        _pmdwrap.saveFilesFromParmed(water, [waters_prep_filenames[0]])
+        for line in _fileinput.input(waters_prep_filenames[0], inplace=True):
+            line_new = line.split()
+            if len(line_new) == 2 and line_new == ["WAT", "1"]:
+                line = line.replace("1", "{}".format(len(waters.positions) // 3))
+            print(line, end="")
+        waters_prep = _pmdwrap.openFilesAsParmed(waters_prep_filenames)
+
+        waters_prep.box = _pmd.load_file(files[1]).box
+        if any([neutralise, ion_conc, shell]):
+            for residue in waters_prep.residues:
+                residue.name = "SOL"
+        _pmdwrap.saveFilesFromParmed(waters_prep, waters_prep_filenames)
 
         # add ions
         if any([neutralise, ion_conc, shell]):
             # write an MDP file
-            with open("ions.mdp", "w") as file:
-                file.write("; Neighbour searching\n")
-                file.write("cutoff-scheme           = Verlet\n")
-                file.write("rlist                   = 1.1\n")
-                file.write("pbc                     = xyz\n")
-                file.write("verlet-buffer-tolerance = -1\n")
-                file.write("\n; Electrostatics\n")
-                file.write("coulombtype             = cut-off\n")
-                file.write("\n; VdW\n")
-                file.write("rvdw                    = 1.0\n")
+            _protocol.Protocol(use_preset="vacuum").write("GROMACS", "ions")
 
             # neutralise if needed
             charge = chargefunc(complex) if neutralise else 0
@@ -134,18 +137,36 @@ def solvate(complex, params, box_length=8, shell=0, neutralise=True, ion_conc=0.
                 _PC.GROMACSEXE, filebase, ions_prep_filenames[1], n_Cl, n_Na)
             _runexternal.runExternal(command, procname="gmx genion")
 
-            # prepare waters for tleap and parametrise
+            # prepare waters for tleap
             ions = _pmd.load_file(ions_prep_filenames[1])
             for residue in ions.residues:
                 if residue.name == "SOL":
                     residue.name = "WAT"
 
-            ions.save(filebase + "_ions.pdb")
-            _os.remove(ions_prep_filenames[1])
-            ions_prep = _parametrise.parametriseAndLoadPmd(params, filebase + "_ions.pdb", "water")
-
-            for filename in ions_prep_filenames:
-                ions_prep.save(filename)
+            # here we only parametrise single ions to gain performance
+            ion = ions[":WAT"][":1"] + ions[":NA"][":1"] + ions[":CL"][":1"]
+            max_len = len(ion.residues)
+            ion.save(filebase + "_single_ion.pdb")
+            ion = _parametrise.parametriseAndLoadPmd(params, filebase + "_single_ion.pdb", "water")
+            _pmdwrap.saveFilesFromParmed(ions, [ions_prep_filenames[1]], combine="all")
+            _pmdwrap.saveFilesFromParmed(ion, [ions_prep_filenames[0]])
+            mol_dict = {}
+            for line in _fileinput.input(ions_prep_filenames[0], inplace=True):
+                line_new = line.split()
+                if len(line_new) == 2 and line_new[0] in ["WAT", "NA", "CL"] and line_new[1] == "1":
+                    n_mols = len(ions[":{}".format(line_new[0])].positions)
+                    if line_new[0] == "WAT":
+                        n_mols //= 3
+                    line = line.replace("1", "{}".format(n_mols))
+                    mol_dict[line_new[0]] = line
+                    # preserve the order of water, sodium and chloride
+                    if len(mol_dict) == max_len:
+                        for x in ["WAT", "NA", "CL"]:
+                            if x in mol_dict.keys():
+                                print(mol_dict[x], end="")
+                        mol_dict = {}
+                else:
+                    print(line, end="")
 
             return complex + readfunc(ions_prep_filenames)
         else:
