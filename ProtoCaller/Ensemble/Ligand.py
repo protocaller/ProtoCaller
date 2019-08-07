@@ -202,7 +202,9 @@ class Ligand:
                 print("Cannot parametrise unprotonated ligand. Protonating first with default parameters...")
                 self.protonate()
 
-            if params is None: params = _parametrise.Params()
+            if params is None:
+                params = _parametrise.Params()
+
             # we convert the protonated file into a pdb so that antechamber can read it
             filename = _babel.babelTransform(self.protonated_filename, "pdb")
             if id is None: id = self.name

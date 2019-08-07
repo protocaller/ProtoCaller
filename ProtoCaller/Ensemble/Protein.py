@@ -409,7 +409,7 @@ class Protein:
                 _warnings.warn("Need to protonate all relevant ligands / "
                                "cofactors before any parametrisation")
 
-    def parametrise(self, params, reparametrise=False):
+    def parametrise(self, params=None, reparametrise=False):
         """
         Parametrises the whole protein system.
 
@@ -423,6 +423,9 @@ class Protein:
         if self.complex_template is not None and not reparametrise:
             print("Protein complex template %s is already parametrised." % self.name)
             return
+
+        if params is None:
+            params = _parametrise.Params()
 
         with self.workdir:
             print("Parametrising original crystal system...")
