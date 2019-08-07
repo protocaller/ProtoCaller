@@ -10,12 +10,12 @@ from rdkit.Chem import rdForceFieldHelpers as _FF
 from rdkit.Chem import rdmolops as _rdmolops
 from rdkit.Chem import rdMolTransforms as _Transforms
 from rdkit.Geometry import rdGeometry as _Geom
-import parmed as _pmd
 from scipy.optimize import minimize as _minimize
 
 import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Utils.runexternal as _runexternal
 import ProtoCaller.Utils.stdio as _stdio
+import ProtoCaller.Wrappers.parmedwrapper as _pmdwrap
 with _stdio.stdout_stderr_cls():
     # Here we use the deprecated function because it is more robust TODO: fix
     from rdkit.Chem import MCS as _MCS
@@ -203,14 +203,17 @@ def saveFromRdkit(mol, filename, **kwargs):
         writer.close()
     elif extension.lower() == "mol":
         _Chem.MolToMolFile(mol, filename=filename, **kwargs)
+    elif extension.lower() == "pdb":
+        _Chem.MolToPDBFile(mol, filename=filename, **kwargs)
     else:
-        tempfilename = _os.path.splitext(filename)[0] + ".mol"
-        _Chem.MolToMolFile(mol, filename=tempfilename, **kwargs)
+        tempfilename = _os.path.splitext(filename)[0] + ".pdb"
+        _Chem.MolToPDBFile(mol, filename=tempfilename, **kwargs)
         if extension == "mol2":
             _babel.babelTransform(tempfilename, output_extension=extension,
                                   pH=None)
         else:
-            _pmd.load_file(tempfilename)[0].save(filename)
+            obj = _pmdwrap.openFilesAsParmed([tempfilename])
+            _pmdwrap.saveFilesFromParmed(obj, [filename])
 
     return _os.path.abspath(filename)
 
