@@ -197,9 +197,9 @@ def rescaleBondedDummies(system, scale, bonds=None):
 
         for atom in mol_edit.atoms():
             pat = r"AtomIdx\((\d*)\)"
-            if "du" in atom.property("ambertype0"):
+            if "dummy" in atom.property("element0").toString():
                 dummies0 += [int(*_re.search(pat, atom.index().toString()).groups())]
-            elif "du" in atom.property("ambertype1"):
+            elif "dummy" in atom.property("element1").toString():
                 dummies1 += [int(*_re.search(pat, atom.index().toString()).groups())]
 
         for prop, dummies in zip(["bond0", "bond1"], [dummies0, dummies1]):
