@@ -82,7 +82,7 @@ def solvate(complex, params, box_length=8, shell=0, neutralise=True, ion_conc=0.
         command = "{0} solvate -shell {1} -box {2} {2} {2} -cp \"{3}\" -o \"{4}\"".format(
             _PC.GROMACSEXE, shell, box_length, files[1], new_gro)
         _runexternal.runExternal(command, procname="gmx solvate")
-        complex_solvated = _pmd.load_file(new_gro)
+        complex_solvated = _pmd.load_file(new_gro, skip_bonds=True)
         waters = complex_solvated[":SOL"]
 
         # prepare waters for tleap and parametrise
@@ -107,7 +107,7 @@ def solvate(complex, params, box_length=8, shell=0, neutralise=True, ion_conc=0.
             print(line, end="")
         waters_prep = _pmdwrap.openFilesAsParmed(waters_prep_filenames)
 
-        waters_prep.box = _pmd.load_file(files[1]).box
+        waters_prep.box = _pmd.load_file(files[1], skip_bonds=True).box
         if any([neutralise, ion_conc, shell]):
             for residue in waters_prep.residues:
                 residue.name = "SOL"
@@ -138,7 +138,7 @@ def solvate(complex, params, box_length=8, shell=0, neutralise=True, ion_conc=0.
             _runexternal.runExternal(command, procname="gmx genion")
 
             # prepare waters for tleap
-            ions = _pmd.load_file(ions_prep_filenames[1])
+            ions = _pmd.load_file(ions_prep_filenames[1], skip_bonds=True)
             for residue in ions.residues:
                 if residue.name == "SOL":
                     residue.name = "WAT"
