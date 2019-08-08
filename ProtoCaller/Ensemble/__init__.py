@@ -2,6 +2,7 @@ import ProtoCaller as _PC
 if not _PC.BIOSIMSPACE:
     raise ImportError("BioSimSpace module cannot be imported")
 
+from collections.abc import Iterable as _Iterable
 import os as _os
 import tempfile as _tempfile
 import warnings as _warnings
@@ -30,9 +31,9 @@ class Ensemble:
     ----------
     engine : str
         Initialises the engine.
-    box_length_complex : float
+    box_length_complex : float, iterable
         Initialises box_length_complex.
-    box_length_morph : float
+    box_length_morph : float, iterable
         Initialises box_length_morph.
     ion_conc : float
         Initialises ion_conc.
@@ -64,9 +65,9 @@ class Ensemble:
         The working directory of the ensemble.
     engine : str
         The engine for which the input files are created. One of: "GROMACS".
-    box_length_complex : float
+    box_length_complex : float, iterable
         Size of the solvated complex box in nm. Cubic shape is assumed.
-    box_length_morph : float
+    box_length_morph : float, iterable
         Size of the solvated morph box in nm. Cubic shape is assumed.
     shell : float
         Places a layer of water of the specified thickness in nm around the solute.
@@ -134,8 +135,13 @@ class Ensemble:
             value = value.upper()
             if value not in _PC.ENGINES:
                 raise ValueError("Value %s not supported. Supported values: " % value, _PC.ENGINES)
-        elif key in ["box_length_complex", "box_length_morph", "ion_conc", "shell"]:
+        elif key in ["ion_conc", "shell"]:
             value = float(value)
+        elif key in ["box_length_complex", "box_length_morph"]:
+            if isinstance(value, _Iterable):
+                value = list(value)
+            else:
+                value = float(value)
         elif key == "morphs":
             value = PerturbationList(value) if not isinstance(value, PerturbationList) else value
         elif key == "protein":

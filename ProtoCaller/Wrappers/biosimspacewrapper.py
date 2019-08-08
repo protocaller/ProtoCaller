@@ -2,8 +2,10 @@ import ProtoCaller as _PC
 if not _PC.BIOSIMSPACE:
     raise ImportError("BioSimSpace module cannot be imported")
 
+from collections.abc import Iterable as _Iterable
 import copy as _copy
 import re as _re
+import warnings as _warnings
 
 import BioSimSpace as _BSS
 import Sire.MM as _SireMM
@@ -14,55 +16,71 @@ import Sire.Vol as _SireVol
 
 def centre(system, box_length):
     """
-    Centres the system given a box length (cubic shape is assumed).
+    Centres the system given a box length.
 
     Parameters
     ----------
     system : BioSimSpace.System
         The input system to be centred.
-    box_length : float
-        Length of the cubic box.
+    box_length : float, iterable
+        Length of the box in nm.
 
     Returns
     -------
     system : BioSimspace.System
         The centred BioSimSpace system.
-    box_length : float
+    box_length : tuple
         The new box length. Only different from the input value if the box is too small for the system.
     translation_vec: Sire.Maths.vector
         The centering translation vector.
     """
+    if not isinstance(box_length, _Iterable):
+        cubic = True
+        box_length = 3 * [box_length]
+    else:
+        cubic = (len(set(box_length)) == 1)
+
     box = system._getAABox()
     min_coords, max_coords = box.minCoords(), box.maxCoords()
     centre = (min_coords + max_coords) / 2
     difference = max_coords - min_coords
-    if any([x / 10 > box_length for x in difference]):
-        box_length = int(max(difference / 10)) + 1
-        print("Insufficient input box size. Changing to a box length of %d nm..." % box_length)
-    translation_vec = -centre + _SireMaths.Vector(3 * (box_length * 5,))
-    system.translate(tuple(translation_vec))
-    system = resize(system, box_length)
 
-    return system, box_length, translation_vec
+    box_length_new = []
+    for x, y in zip(difference, box_length):
+        box_length_new += [y] if x < 10 * y else [x / 10 + 1]
+    if cubic:
+        box_length_new = 3 * [max(box_length_new)]
+    if box_length_new != box_length:
+        _warnings.warn("Insufficient input box size. Changing to a box size of ({:.3f}, {:.3f}, {:.3f}) nm...".format(
+            *box_length_new))
+
+    translation_vec = -centre + _SireMaths.Vector([5 * x for x in box_length_new])
+    system.translate(tuple(translation_vec))
+    system = resize(system, box_length_new)
+
+    return system, tuple(box_length_new), translation_vec
 
 
 def resize(system, box_length):
     """
-    Changes the box size of the system or adds one if there is no box. Only valid for cubic boxes.
+    Changes the box size of the system or adds one if there is no box.
 
     Parameters
     ----------
     system : BioSimSpace.System
         The input system to be resized.
-    box_length : float
-        Length of the cubic box.
+    box_length : float, iterable
+        Length of the box in nm.
 
     Returns
     -------
     system : BioSimSpace.System
         The resized system.
     """
-    system._sire_object.setProperty("space", _SireVol.PeriodicBox(_SireMaths.Vector(3 * (box_length * 10,))))
+    if not isinstance(box_length, _Iterable):
+        box_length = 3 * [box_length]
+    box_length = tuple([10 * x for x in box_length])
+    system._sire_object.setProperty("space", _SireVol.PeriodicBox(_SireMaths.Vector(box_length)))
     return system
 
 

@@ -1,5 +1,6 @@
 import ProtoCaller as _PC
 
+from collections.abc import Iterable as _Iterable
 import fileinput as _fileinput
 import os as _os
 import tempfile as _tempfile
@@ -28,8 +29,8 @@ def solvate(complex, params=None, box_length=8, shell=0, neutralise=True, ion_co
         The input unsolvated system.
     params : ProtoCaller.Parametrise.Params
         The input force field parameters.
-    box_length : float
-        Size of the box in nm. Cubic shape is assumed.
+    box_length : float, iterable
+        Size of the box in nm.
     shell : float
         Places a layer of water of the specified thickness in nm around the solute.
     neutralise : bool
@@ -65,6 +66,9 @@ def solvate(complex, params=None, box_length=8, shell=0, neutralise=True, ion_co
     else:
         raise TypeError("Cannot solvate object of type %s" % type(complex))
 
+    if not isinstance(box_length, _Iterable):
+        box_length = 3 * [box_length]
+
     if work_dir is None:
         work_dir = _os.path.basename(_tempfile.TemporaryDirectory().name)
         temp = True
@@ -82,7 +86,7 @@ def solvate(complex, params=None, box_length=8, shell=0, neutralise=True, ion_co
         if isinstance(complex, _pmd.Structure):
             complex = _pmdwrap.openFilesAsParmed(files)
         new_gro = filebase + "_solvated.gro"
-        command = "{0} solvate -shell {1} -box {2} {2} {2} -cp \"{3}\" -o \"{4}\"".format(
+        command = "{0} solvate -shell {1} -box {2[0]} {2[1]} {2[2]} -cp \"{3}\" -o \"{4}\"".format(
             _PC.GROMACSEXE, shell, box_length, files[1], new_gro)
         _runexternal.runExternal(command, procname="gmx solvate")
         complex_solvated = _pmd.load_file(new_gro, skip_bonds=True)
@@ -123,7 +127,8 @@ def solvate(complex, params=None, box_length=8, shell=0, neutralise=True, ion_co
 
             # neutralise if needed
             charge = chargefunc(complex) if neutralise else 0
-            n_Na, n_Cl = [int((box_length * 10 ** -8) ** 3 * 6.022 * 10 ** 23 * ion_conc) - abs(charge) // 2] * 2
+            volume = box_length[0] * box_length[1] * box_length[2] * 10 ** -24
+            n_Na, n_Cl = [int(volume * 6.022 * 10 ** 23 * ion_conc) - abs(charge) // 2] * 2
             if neutralise:
                 if charge < 0:
                     n_Na -= charge
