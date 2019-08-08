@@ -193,9 +193,9 @@ class Ensemble:
                     morph_BSS, mcs = _stdio.stdout_stderr()(
                         morph.alignAndCreateMorph)(self.protein.ligand_ref)
                     morph_BSS = _BSS._SireWrappers.System(morph_BSS)
-                    box = self.protein.complex_template._sire_system.property(
+                    box = self.protein.complex_template._sire_object.property(
                         "space")
-                    morph_BSS._sire_system.setProperty("space", box)
+                    morph_BSS._sire_object.setProperty("space", box)
 
                     # here we scale the equilibrium bond lengths if needed
                     if scale_dummy_bonds != 1:

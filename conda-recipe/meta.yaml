@@ -20,7 +20,7 @@ requirements:
     - ambertools>=17.6
     - beautifulsoup4
     - biopython>=1.73
-    - biosimspace
+    - biosimspace>=2019.1.0>=py37h14c3975_258
     - geckodriver
     - htmd-pdb2pqr
     - libcblas

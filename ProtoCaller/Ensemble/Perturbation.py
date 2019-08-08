@@ -253,8 +253,8 @@ class Perturbation:
 
         # translate RDKit mapping into BioSimSpace mapping
         mapping = {}
-        indices_1 = [atom.index() for atom in ligand1_BSS._sire_molecule.edit().atoms()]
-        indices_2 = [atom.index() for atom in ligand2_BSS._sire_molecule.edit().atoms()]
+        indices_1 = [atom.index() for atom in ligand1_BSS._sire_object.edit().atoms()]
+        indices_2 = [atom.index() for atom in ligand2_BSS._sire_object.edit().atoms()]
         for idx1, idx2 in mcs:
             mapping[indices_1[idx1]] = indices_2[idx2]
 

@@ -6,7 +6,6 @@ import copy as _copy
 import re as _re
 
 import BioSimSpace as _BSS
-import Sire.Error as _SireError
 import Sire.MM as _SireMM
 import Sire.Maths as _SireMaths
 import Sire.Mol as _SireMol
@@ -63,7 +62,7 @@ def resize(system, box_length):
     system : BioSimSpace.System
         The resized system.
     """
-    system._sire_system.setProperty("space", _SireVol.PeriodicBox(_SireMaths.Vector(3 * (box_length * 10,))))
+    system._sire_object.setProperty("space", _SireVol.PeriodicBox(_SireMaths.Vector(3 * (box_length * 10,))))
     return system
 
 
@@ -97,28 +96,28 @@ def rescaleSystemParams(system, scale, includelist=None, excludelist=None, neutr
     if neutralise:
         if excludelist is not None:
             total_charge = round(sum([mol.charge().magnitude() for mol in system.getMolecules()
-                                      if mol._sire_molecule.name().value() not in excludelist]))
+                                      if mol._sire_object.name().value() not in excludelist]))
         elif includelist is not None:
             total_charge = round(sum([mol.charge().magnitude() for mol in system.getMolecules()
-                                      if mol._sire_molecule.name().value() in includelist]))
+                                      if mol._sire_object.name().value() in includelist]))
 
     mols_mod = []
 
     for mol in system.getMolecules():
-        if neutralise and mol._sire_molecule.name().value().lower() == "na" and total_charge < 0:
+        if neutralise and mol._sire_object.name().value().lower() == "na" and total_charge < 0:
             total_charge += 1
-        elif neutralise and mol._sire_molecule.name().value().lower() == "cl" and total_charge > 0:
+        elif neutralise and mol._sire_object.name().value().lower() == "cl" and total_charge > 0:
             total_charge -= 1
         elif excludelist is not None:
-            if mol._sire_molecule.name().value() in excludelist:
+            if mol._sire_object.name().value() in excludelist:
                 mols_mod += [mol]
                 continue
         elif includelist is not None:
-            if mol._sire_molecule.name().value() not in includelist:
+            if mol._sire_object.name().value() not in includelist:
                 mols_mod += [mol]
                 continue
 
-        mol_edit = mol._sire_molecule.edit()
+        mol_edit = mol._sire_object.edit()
 
         if scale != 1:
             for prop in ["dihedral", "dihedral0", "dihedral1", "improper", "improper0", "improper1"]:
@@ -159,17 +158,17 @@ def rescaleSystemParams(system, scale, includelist=None, excludelist=None, neutr
                     except:
                         continue
 
-        if mol._sire_molecule.name().value().lower() in ["na", "cl"]:
+        if mol._sire_object.name().value().lower() in ["na", "cl"]:
             resname = mol_edit.residue().name()
             resname_new = _SireMol.ResName(resname.value() + "_")
             mol_edit = mol_edit.residue(resname).rename(resname_new)
 
-        mol._sire_molecule = mol_edit.commit()
+        mol._sire_object = mol_edit.commit()
         mols_mod += [mol]
 
     system_new = _BSS._SireWrappers._system.System(mols_mod)
-    box = system._sire_system.property("space")
-    system_new._sire_system.setProperty("space", box)
+    box = system._sire_object.property("space")
+    system_new._sire_object.setProperty("space", box)
 
     return system_new
 
@@ -181,7 +180,7 @@ def rescaleBondedDummies(system, scale, bonds=None):
     mols_mod = []
 
     for mol in system.getMolecules():
-        mol_name = mol._sire_molecule.name().value()
+        mol_name = mol._sire_object.name().value()
         if bonds is not None and (mol_name not in bonds.keys() or not bonds[mol_name]):
             mols_mod += [mol]
             continue
@@ -190,7 +189,7 @@ def rescaleBondedDummies(system, scale, bonds=None):
         else:
             bonds_to_incl = {frozenset(x) for x in bonds[mol_name]}
 
-        mol_edit = mol._sire_molecule.edit()
+        mol_edit = mol._sire_object.edit()
 
         dummies0 = []
         dummies1 = []
@@ -232,11 +231,11 @@ def rescaleBondedDummies(system, scale, bonds=None):
                 prop_new.set(potential.atom0(), potential.atom1(), func)
             mol_edit = mol_edit.setProperty(prop, prop_new).molecule()
 
-        mol._sire_molecule = mol_edit.commit()
+        mol._sire_object = mol_edit.commit()
         mols_mod += [mol]
 
     system_new = _BSS._SireWrappers._system.System(mols_mod)
-    box = system._sire_system.property("space")
-    system_new._sire_system.setProperty("space", box)
+    box = system._sire_object.property("space")
+    system_new._sire_object.setProperty("space", box)
 
     return system_new
