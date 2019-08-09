@@ -123,7 +123,7 @@ def centre(system, box_length):
         The centred ParmEd system.
     box_length : tuple
         The new box length. Only different from the input value if the box is too small for the system.
-    translation_vec: numpy.array
+    translation_vec: numpy.ndarray
         The centering translation vector.
     """
     if not isinstance(box_length, _Iterable):

@@ -3,6 +3,7 @@ if not _PC.BIOSIMSPACE:
     raise ImportError("BioSimSpace module cannot be imported")
 
 from collections.abc import Iterable as _Iterable
+import logging as _logging
 import os as _os
 import tempfile as _tempfile
 import warnings as _warnings
@@ -195,7 +196,7 @@ class Ensemble:
                     curdir = _fileio.Dir(name, overwrite=True, temp=True)
 
                 with curdir:
-                    print("Creating morph %s..." % morph.name)
+                    _logging.info("Creating morph %s..." % morph.name)
                     morph_BSS, mcs = _stdio.stdout_stderr()(
                         morph.alignAndCreateMorph)(self.protein.ligand_ref)
                     morph_BSS = _BSS._SireWrappers.System(morph_BSS)
@@ -231,7 +232,7 @@ class Ensemble:
                     complexes = [self.protein.complex_template + morph_BSS]
 
                     # solvate and save the prepared complex and morph with the appropriate box size
-                    print("Solvating...")
+                    _logging.info("Solvating...")
                     complexes = [_solvate.solvate(complexes[0], self.params, box_length=self.box_length_complex,
                                                   shell=self.shell, neutralise=self.neutralise, ion_conc=self.ion_conc,
                                                   centre=self.centre, work_dir=curdir.path, filebase="complex")]
@@ -242,7 +243,7 @@ class Ensemble:
 
                     # rescale complexes for replica exchange if needed
                     if len(scales) != 1:
-                        print("Creating replicas...")
+                        _logging.info("Creating replicas...")
                         complexes = [_BSSwrap.rescaleSystemParams(complexes[0], scale, includelist=["Merged_Molecule"])
                                      for scale in scales]
 
@@ -263,7 +264,7 @@ class Ensemble:
         """
         if systems is None: systems = self.systems_prep
         # TODO support other engines
-        print("Saving solvated complexes as GROMACS...")
+        _logging.info("Saving solvated complexes as GROMACS...")
         with self.workdir:
             for name, (morph, complexes) in systems.items():
                 with _fileio.Dir(name):

@@ -1,4 +1,5 @@
 import glob as _glob
+import logging as _logging
 import os as _os
 
 import MDAnalysis as _MDAnalysis
@@ -122,7 +123,7 @@ class RunGMX:
         protocol = _Protocol.Protocol(use_preset=use_preset, **protocol_params, **self.lambda_dict)
         self.protocols += [protocol]
 
-        print("Running %s..." % name)
+        _logging.info("Running %s..." % name)
         with self._workdir:
             with _fileio.Dir(name, overwrite=True):
                 # run single lambda if needed
@@ -223,7 +224,7 @@ class RunGMX:
         _os.environ["GMX_SUPPRESS_DUMP"] = "1"
         self.mbar_data = []
 
-        print("Generating Energy files...")
+        _logging.info("Generating Energy files...")
         with self._workdir:
             with _fileio.Dir("MBAR"):
                 for i, file in enumerate(self.files):
@@ -289,7 +290,7 @@ class RunGMX:
 
     def runMBAR(self, n_points_to_ignore=1, temperature=298):
         """
-        Runs pymbar and outputs to stdout.
+        Runs pymbar and outputs to the logger.
 
         Parameters
         ----------
@@ -297,6 +298,13 @@ class RunGMX:
             Number of initial points which are to be excluded in the calculation.
         temperature : float, optional
             The temperature at which the simulations were originally ran.
+
+        Returns
+        -------
+        f : numpy.ndarray
+            The free energy matrix output by pymbar.
+        df : numpy.ndarray
+            The statistical uncertainty matrix output by pymbar.
         """
         RT = 0.008314 * temperature
         if not self.mbar_data:
@@ -317,8 +325,9 @@ class RunGMX:
         mbar = _pymbar.mbar.MBAR(u_kn=u_kln, N_k=N_k, verbose=True, initialize="BAR", maximum_iterations=10000)
         f, df, _ = mbar.getFreeEnergyDifferences()
 
-        print()
-        print("Free Energy change from A to B in kJ/mol: ", f[0][size - 1] * RT)
-        print("Uncertainty in kJ/mol: ", df[0][size - 1] * RT)
-        print("Free Energy change from A to B in kcal/mol: ", f[0][size - 1] * RT / 4.184)
-        print("Uncertainty in kcal/mol: ", df[0][size - 1] * RT / 4.184)
+        _logging.info("Free Energy change from A to B in kJ/mol: ", f[0][size - 1] * RT)
+        _logging.info("Uncertainty in kJ/mol: ", df[0][size - 1] * RT)
+        _logging.info("Free Energy change from A to B in kcal/mol: ", f[0][size - 1] * RT / 4.184)
+        _logging.info("Uncertainty in kcal/mol: ", df[0][size - 1] * RT / 4.184)
+
+        return f, df

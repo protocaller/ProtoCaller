@@ -1,4 +1,5 @@
 import copy as _copy
+import logging as _logging
 import os as _os
 
 # TODO support the native Morph class when it becomes viable
@@ -189,7 +190,7 @@ class Perturbation:
         """
         self.current_ref = ref
         if ref in self._ligand1_molecule.keys() and ref in self._ligand1_coords.keys() and not realign:
-            print("Morph %s is already aligned to a reference" % self.name)
+            _logging.info("Morph %s is already aligned to a reference" % self.name)
             return
 
         if output_filename is None:
@@ -226,7 +227,7 @@ class Perturbation:
             The maximum common substructure of the two molecules.
         """
         if self.current_ref in self._morph.keys() and not realign:
-            print("Morph %s is already aligned to a reference" % self.name)
+            _logging.info("Morph %s is already aligned to a reference" % self.name)
             return
 
         if output_filename is None:

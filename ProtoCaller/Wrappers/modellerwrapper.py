@@ -3,9 +3,12 @@ import ProtoCaller as _PC
 if not _PC.MODELLER:
     raise ImportError("BioSimSpace module cannot be imported")
 
+from contextlib import redirect_stdout as _redirect_stdout
 import copy as _copy
+import logging as _logging
 import os as _os
 import re as _re
+import sys as _sys
 import warnings as _warnings
 
 import modeller as _modeller
@@ -40,9 +43,10 @@ class MyLoop(_modellerautomodel.loopmodel):
                 try:
                     self.selection.add(self.residues[residue[:-2]])
                 except KeyError:
-                    print("Error while selecting missing residue: %s. "
-                          "Residue either missing from FASTA sequence or "
-                          "there is a problem with Modeller." % residue)
+                    _warnings.warn("Error while selecting missing residue: %s. "
+                                   "Residue either missing from FASTA sequence"
+                                   " or there  is a problem with Modeller." %
+                                   residue)
         return self.selection
 
     @staticmethod
@@ -71,24 +75,29 @@ def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms):
     filename_output : str
         Absolute path to the modified file.
     """
-    env = _modeller.environ()
-    pdb_code = _os.path.splitext(_os.path.basename(filename_pdb))[0]
+    _logging.basicConfig(stream=_sys.stdout)
+    _logging.write = lambda msg: _logging.info(msg.strip()) \
+        if msg.strip() else None
+    with _redirect_stdout(_logging):
+        _modeller.log.verbose()
+        env = _modeller.environ()
+        pdb_code = _os.path.splitext(_os.path.basename(filename_pdb))[0]
 
-    # convert FASTA to PIR
-    filename_pir = FASTA2PIR(filename_fasta)
+        # convert FASTA to PIR
+        filename_pir = FASTA2PIR(filename_fasta)
 
-    m = MyLoop(env=env,
-               alnfile=filename_pir,
-               knowns="PROT",
-               filename=filename_pdb,
-               sequence=pdb_code.upper(),  # code of the target
-               loop_assess_methods=_modeller.automodel.assess.DOPE)
+        m = MyLoop(env=env,
+                   alnfile=filename_pir,
+                   knowns="PROT",
+                   filename=filename_pdb,
+                   sequence=pdb_code.upper(),  # code of the target
+                   loop_assess_methods=_modeller.automodel.assess.DOPE)
 
-    m.auto_align()  # get an automatic alignment
-    m.make()
+        m.auto_align()  # get an automatic alignment
+        m.make()
 
-    return fixModellerPDB(m, add_missing_atoms,
-                          filename_output=pdb_code + "_modeller.pdb")
+        return fixModellerPDB(m, add_missing_atoms,
+                              filename_output=pdb_code + "_modeller.pdb")
 
 
 def FASTA2PIR(filename_input):

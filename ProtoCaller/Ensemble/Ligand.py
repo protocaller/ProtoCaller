@@ -1,3 +1,4 @@
+import logging as _logging
 import os as _os
 
 import rdkit.Chem.rdchem as _rdchem
@@ -173,7 +174,7 @@ class Ligand:
             if rdkit_parameters is None: rdkit_parameters = {}
 
             if self.protonated and not reprotonate:
-                print("Ligand %s is already protonated." % self.name)
+                _logging.info("Ligand %s is already protonated." % self.name)
             else:
                 filename_temp = _rdkit.saveFromRdkit(self.molecule, filename="%s.mol" % self.name)
                 # here we use PDB because of parser differences between OpenBabel and RDKit concerning mol and mol2 files
@@ -197,13 +198,13 @@ class Ligand:
             Whether to reparametrise an already parametrised ligand.
         """
         with self.workdir:
-            print("Parametrising ligand %s..." % self.name)
+            _logging.info("Parametrising ligand %s..." % self.name)
             if self._parametrised and not reparametrise:
-                print("Ligand %s is already parametrised." % self.name)
+                _logging.info("Ligand %s is already parametrised." % self.name)
                 return
 
             if not self.protonated:
-                print("Cannot parametrise unprotonated ligand. Protonating first with default parameters...")
+                _logging.warning("Cannot parametrise unprotonated ligand. Protonating first with default parameters...")
                 self.protonate()
 
             if params is None:

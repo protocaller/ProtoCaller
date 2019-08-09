@@ -45,7 +45,7 @@ else:
     GROMACSEXE = _os.path.join(GROMACSHOME, "bin/gmx")
     GROMACSMPIEXE = _os.path.join(GROMACSHOME, "bin/gmx_mpi")
     if not _os.path.isfile(GROMACSEXE) and not _os.path.isfile(GROMACSMPIEXE):
-        print("GROMACSHOME not a valid variable. Some functionality will be affected")
+        _warnings.warn("GROMACSHOME not a valid variable. Some functionality will be affected")
     else:
         GROMACSMPIEXE = GROMACSMPIEXE if _os.path.isfile(GROMACSMPIEXE) else GROMACSEXE
         GROMACSEXE = GROMACSEXE if _os.path.isfile(GROMACSEXE) else GROMACSMPIEXE

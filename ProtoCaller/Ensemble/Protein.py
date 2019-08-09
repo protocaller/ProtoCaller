@@ -1,3 +1,4 @@
+import logging as _logging
 import os as _os
 import re as _re
 import warnings as _warnings
@@ -523,14 +524,14 @@ class Protein:
             Whether to reparametrise an already parametrised complex.
         """
         if self.complex_template is not None and not reparametrise:
-            print("Protein complex template %s is already parametrised." % self.name)
+            _logging.info("Protein complex template %s is already parametrised." % self.name)
             return
 
         if params is None:
             params = _parametrise.Params()
 
         with self.workdir:
-            print("Parametrising original crystal system...")
+            _logging.info("Parametrising original crystal system...")
             # extract non-protein residues from pdb file and save them as separate pdb files
             hetatm_files, hetatm_types = self._pdb_obj.writeHetatms()
             filter = "type in ['amino_acid', 'amino_acid_modified']"

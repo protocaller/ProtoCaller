@@ -1,3 +1,4 @@
+import logging as _logging
 import os as _os
 import re as _re
 import requests as _requests
@@ -40,9 +41,10 @@ class PDBDownloader:
 
     def _download_html(self):
         if self._html: return
-        print("Attempting to access Protein Data Bank... ", end="")
+        _logging.info("Accessing Protein Data Bank... ")
         self._html = _requests.get("https://www.rcsb.org/structure/" + self.code).text
-        print("OK") if self._html else "FAILED"
+        if not self._html:
+            _logging.warning("Could not establish connection to the Protein Data Bank")
 
     def getFASTA(self):
         """
@@ -65,7 +67,7 @@ class PDBDownloader:
                 f.write(r.content)
             self._fasta = _os.path.abspath(fasta_filename)
         except:
-            print("Could not download file: %s from %s" % (fasta_filename, fasta_url))
+            _logging.warning("Could not download file: %s from %s" % (fasta_filename, fasta_url))
             return -1
 
         return self._fasta
@@ -101,8 +103,8 @@ class PDBDownloader:
                     f.write(r.content)
                 filename_list += [_os.path.abspath(ligname + ".sdf")]
             except:
-                print("Could not download file: %s.sdf from %s" % (ligname, file_url))
-        print("Finished downloading.")
+                _logging.warning("Could not download file: %s.sdf from %s" % (ligname, file_url))
+        _logging.info("Finished downloading.")
 
         self._ligands = filename_list
         return self._ligands
