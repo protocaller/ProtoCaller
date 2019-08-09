@@ -1,7 +1,9 @@
+import os as _os
 import re as _re
 import warnings as _warnings
 
 from Bio import SeqIO as _SeqIO
+import parmed as _pmd
 
 import ProtoCaller as _PC
 
@@ -70,6 +72,32 @@ class Protein:
                         simple_cations="all", complex_cations="all",
                         ligands="all", cofactors="all")
             self.ligand_ref = ligand_ref
+
+    @property
+    def complex_template(self):
+        """BioSimSpace.System: The prepared system without solvent and ligands."""
+        return self._complex_template
+
+    @complex_template.setter
+    def complex_template(self, input):
+        if isinstance(input, _BSS._SireWrappers.System):
+            self._complex_template = input
+        elif isinstance(input, _BSS._SireWrappers.Molecule):
+            self._complex_template = _BSS._SireWrappers.System(input)
+        elif isinstance(input, _pmd.Structure):
+            if _PC.BIOSIMSPACE:
+                tempfiles = ["temp.gro", "temp.top"]
+                _pmdwrap.saveFilesFromParmed(input, tempfiles)
+                self._complex_template = _BSS.IO.readMolecules(tempfiles)
+                for tempfile in tempfiles:
+                    _os.remove(tempfile)
+            else:
+                self._complex_template = input
+        else:
+            if _PC.BIOSIMSPACE:
+                self._complex_template = _BSS.IO.readMolecules(input)
+            else:
+                self._complex_template = _pmdwrap.openFilesAsParmed(input)
 
     @property
     def ligand_ref(self):
