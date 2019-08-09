@@ -84,9 +84,17 @@ class Dir:
         _os.chdir(self.initialdirnames.pop())
 
 
-def checkFileExists(file):
+def checkFileExists(files):
     """A simple wrapper around os.path.exists which throws an error if False."""
-    file = _os.path.abspath(file)
-    if not _os.path.exists(file):
-        raise ValueError("File %s does not exist. Please provide a valid filename." % file)
-    return file
+    if isinstance(files, str):
+        single_file = True
+        files = [files]
+    else:
+        single_file = False
+
+    if all(_os.path.exists(x) for x in files):
+        files = [_os.path.abspath(x) for x in files]
+    else:
+        raise ValueError("File(s) {} do(es) not exist. Please provide valid filename(s).".format(files))
+
+    return files[0] if single_file else files

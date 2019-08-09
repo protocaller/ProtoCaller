@@ -35,6 +35,8 @@ class Protein:
         The PDB code of the protein.
     pdb_file : str, optional
         Path to custom PDB file.
+    ligands : [str or Ligand], optional
+        Paths to and / or objects of custom ligands.
     ligand_ref : str or ProtoCaller.Ensemble.Ligand.Ligand or None or False
         Initialises ligand_ref from a "resSeq/iCode" (e.g. "400G") or from a Ligand or from a file or automatically
         (None) or enforces no reference ligand (False)
@@ -54,17 +56,21 @@ class Protein:
     name : str
         The protein name. Default is the PDB code thereof.
     """
-    def __init__(self, code, pdb_file=None, ligand_ref=None, fasta_file=None, complex_template=None, name=None,
-                 workdir=None):
-        self.workdir = _fileio.Dir(workdir) if workdir else _fileio.Dir(code)
+    _counter = 1
+
+    def __init__(self, code=None, pdb_file=None, ligands=None, ligand_ref=None, fasta_file=None, complex_template=None,
+                 name=None, workdir=None):
+        self.name = name if name is not None else code
+        self.workdir = _fileio.Dir(workdir) if workdir else _fileio.Dir(self.name)
         with self.workdir:
-            self.name = name if name is not None else code
-            self._downloader = _pdbconnect.PDBDownloader(code)
-            self.pdb = pdb_file
-            self.fasta = fasta_file
+            self.code = code
             self.complex_template = complex_template
-            ligands_original = _SDF.splitSDFs(self._downloader.getLigands())
-            self.ligands = [Ligand(x, name=x, workdir=".", minimise=False) for x in ligands_original]
+            if pdb_file:
+                self.pdb = pdb_file
+            else:
+                self.pdb = complex_template
+            self.fasta = fasta_file
+            self.ligands = ligands
             self.cofactors = []
             # remove ligands from PDB file and non-ligands from SDF files
             self.filter(missing_residues="all", chains="all", waters="all",
@@ -74,13 +80,29 @@ class Protein:
             self.ligand_ref = ligand_ref
 
     @property
+    def code(self):
+        """str: The PDB code of the protein."""
+        return self._code
+
+    @code.setter
+    def code(self, input):
+        try:
+            self._downloader = _pdbconnect.PDBDownloader(input)
+            self._code = input
+        except:
+            self._downloader = None
+            self._code = None
+
+    @property
     def complex_template(self):
         """BioSimSpace.System: The prepared system without solvent and ligands."""
         return self._complex_template
 
     @complex_template.setter
     def complex_template(self, input):
-        if isinstance(input, _BSS._SireWrappers.System):
+        if not input:
+            self._complex_template = None
+        elif isinstance(input, _BSS._SireWrappers.System):
             self._complex_template = input
         elif isinstance(input, _BSS._SireWrappers.Molecule):
             self._complex_template = _BSS._SireWrappers.System(input)
@@ -98,6 +120,20 @@ class Protein:
                 self._complex_template = _BSS.IO.readMolecules(input)
             else:
                 self._complex_template = _pmdwrap.openFilesAsParmed(input)
+
+    @property
+    def ligands(self):
+        """[ProtoCaller.Ensemble.Ligand.Ligand]: Additional ligands in the system."""
+        return self._ligands
+
+    @ligands.setter
+    def ligands(self, input):
+        self._ligands = []
+        if input is None and self._downloader:
+            input = _SDF.splitSDFs(self._downloader.getLigands())
+        if input:
+            self._ligands = [Ligand(x, name=x, workdir=".", minimise=False)
+                             if not isinstance(x, Ligand) else x for x in input]
 
     @property
     def ligand_ref(self):
@@ -130,20 +166,56 @@ class Protein:
                 raise TypeError("Unrecognised type of input. Need either a Ligand or a PDB ID")
 
     @property
+    def name(self):
+        """The name of the protein"""
+        return self._name
+
+    @name.setter
+    def name(self, val):
+        if val is None:
+            self._name = "protein%d" % self._counter
+            Protein._counter += 1
+        else:
+            self._name = val
+
+    @property
     def pdb(self):
         """str: The absolute path to the PDB file for the protein."""
         with self.workdir:
-            if self._pdb is None:
+            if self._pdb is None and self._downloader:
                 return self._downloader.getPDB()
             return self._pdb
 
     @pdb.setter
     def pdb(self, value):
-        if value is not None:
-            value = _fileio.checkFileExists(value)
-        self._pdb = value
-        self._pdb_obj = _PDB.PDB(self.pdb)
-        self._checkfasta()
+        with self.workdir:
+            self._pdb = "{}.pdb".format(self.name)
+            if isinstance(value, _BSS._SireWrappers.System):
+                _BSS.IO.saveMolecules(self.name, value, "pdb")
+            elif isinstance(value, _BSS._SireWrappers.Molecule):
+                _BSS.IO.saveMolecules(self.name, _BSS._SireWrappers.System(value), "pdb")
+            elif isinstance(value, _pmd.Structure):
+                _pmdwrap.saveFilesFromParmed(value, self._pdb)
+            else:
+                self._pdb = None
+                if value is not None:
+                    value = _fileio.checkFileExists(value)
+                if value:
+                    try:
+                        try:
+                            self._pdb = value
+                            self._pdb_obj = _PDB.PDB(self.pdb)
+                        except:
+                            obj = _pmdwrap.openFilesAsParmed(value)
+                            self._pdb = "{}.pdb".format(self.name)
+                            _pmdwrap.saveFilesFromParmed(obj, self._pdb)
+                            self._pdb_obj = _PDB.PDB(self.pdb)
+                        self._checkfasta()
+                    except:
+                        self._pdb = None
+
+            if not self._pdb:
+                self._pdb_obj = _PDB.PDB(self.pdb) if self.pdb else None
 
     @property
     def pdb_obj(self):
@@ -154,7 +226,7 @@ class Protein:
     def fasta(self):
         """str: The absolute path to the FASTA file for the protein."""
         with self.workdir:
-            if self._fasta is None:
+            if self._fasta is None and self._downloader:
                 return self._downloader.getFASTA()
             return self._fasta
 
@@ -163,7 +235,8 @@ class Protein:
         if value is not None:
             value = _fileio.checkFileExists(value)
         self._fasta = value
-        self._checkfasta()
+        if value:
+            self._checkfasta()
 
     def filter(self, missing_residues="middle", chains="all", waters="site", ligands="chain", cofactors="chain",
                simple_anions="chain", complex_anions="chain", simple_cations="chain", complex_cations="chain",
@@ -386,8 +459,9 @@ class Protein:
                         kwargs = {**kwargs, **missing_atom_options}
                     else:
                         atoms = False
-                    fasta = self._downloader.getFASTA()
-                    self.pdb = _modeller.modellerTransform(self.pdb, fasta,
+                    if not self.fasta:
+                        raise ValueError("No fasta file supplied.")
+                    self.pdb = _modeller.modellerTransform(self.pdb, self.fasta,
                                                            atoms, **kwargs)
                 elif add_missing_residues == "charmm-gui":
                     self.pdb = _charmmwrap.charmmguiTransform(self.pdb,

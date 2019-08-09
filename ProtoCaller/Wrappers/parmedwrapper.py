@@ -12,7 +12,7 @@ def openFilesAsParmed(filelist, **kwargs):
 
     Parameters
     ----------
-    filename : str
+    filename : str, list
         The name of the input file.
     kwargs
         Keyword arguments to be supplied to parmed.load_file.
@@ -22,6 +22,8 @@ def openFilesAsParmed(filelist, **kwargs):
     mol : parmed.structure.Structure
         The file loaded as a ParmEd Structure object.
     """
+    if isinstance(filelist, str):
+        filelist = [filelist]
     if len(filelist) == 1:
         mol = _pmd.load_file(filelist[0], **kwargs)
     else:
@@ -44,7 +46,7 @@ def saveFilesFromParmed(system, filelist, overwrite=True, **kwargs):
     ----------
     system : parmed.structure.Structure
         The input system.
-    filelist : [str]
+    filelist : str, [str]
         The names of the output files.
     overwrite : bool
         Whether to overwrite existing files.
@@ -57,6 +59,12 @@ def saveFilesFromParmed(system, filelist, overwrite=True, **kwargs):
         The absolute path to the written files.
     """
     saved_files = []
+    if isinstance(filelist, str):
+        filelist = [filelist]
+        single_file = True
+    else:
+        single_file = False
+
     for filename in filelist:
         if _os.path.isfile(filename):
             if not overwrite:
@@ -65,7 +73,8 @@ def saveFilesFromParmed(system, filelist, overwrite=True, **kwargs):
                 _os.remove(filename)
         system.save(filename, **kwargs)
         saved_files += [filename]
-    return saved_files
+
+    return saved_files[0] if single_file else saved_files
 
 
 def fixCharge(filelist):

@@ -150,8 +150,7 @@ class Ligand:
                 self._parametrised_files = None
                 self._parametrised = False
             else:
-                for i, file in enumerate(val):
-                    val[i] = _fileio.checkFileExists(file)
+                val = _fileio.checkFileExists(val)
                 self._parametrised_files = val
                 self._parametrised = True
 
