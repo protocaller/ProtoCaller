@@ -24,8 +24,9 @@ class Ligand:
         Initialises the ligand name.
     protonated : bool
         Whether the input corresponds to the protonated or deprotonated state of the molecule.
+        Ignored when parametrised files are passed.
     minimise : bool or None
-        Initialises minimise.
+        Initialises minimise. Ignored when parametrised files are passed.
     workdir : str, optional
         Initialises workdir.
 
@@ -49,7 +50,11 @@ class Ligand:
         self.protonated_filename = None
 
         with self.workdir:
-            if isinstance(input, str):
+            if parametrised_files:
+                self.molecule = _rdkit.openAsRdkit(parametrised_files, removeHs=False, minimise=False,
+                                                   template=input)
+                self.protonated_filename = _rdkit.saveFromRdkit(self.molecule, "{}.pdb".format(name))
+            elif isinstance(input, str):
                 if _os.path.exists(input):
                     if protonated:
                         self.protonated_filename = input
@@ -172,8 +177,8 @@ class Ligand:
                 print("Ligand %s is already protonated." % self.name)
             else:
                 filename_temp = _rdkit.saveFromRdkit(self.molecule, filename="%s.mol" % self.name)
-                # here we use SDF because of parser differences between OpenBabel and RDKit concerning mol and mol2 files
-                self.protonated_filename = _babel.babelTransform(filename_temp, "sdf", **babel_parameters)
+                # here we use PDB because of parser differences between OpenBabel and RDKit concerning mol and mol2 files
+                self.protonated_filename = _babel.babelTransform(filename_temp, "pdb", **babel_parameters)
                 _os.remove(filename_temp)
                 self.molecule = _rdkit.openFileAsRdkit(self.protonated_filename, removeHs=False, **rdkit_parameters)
 

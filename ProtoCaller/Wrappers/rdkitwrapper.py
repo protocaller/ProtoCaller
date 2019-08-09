@@ -2,6 +2,7 @@ import itertools as _it
 import copy as _copy
 import os as _os
 import sys as _sys
+import warnings as _warnings
 
 import numpy as _np
 from rdkit import Chem as _Chem
@@ -110,7 +111,7 @@ def openSmilesAsRdkit(smiles_str, **kwargs):
     return mol
 
 
-def openAsRdkit(val, minimise=None, **kwargs):
+def openAsRdkit(val, minimise=None, template=None, **kwargs):
     """
     A general wrapper which can convert a variety of representations for a
     molecule into an rdkit.Chem.rdchem.Mol object.
@@ -123,6 +124,9 @@ def openAsRdkit(val, minimise=None, **kwargs):
         Whether to perform a GAFF minimisation using OpenBabel. None means
         minimisation for molecules initialised from
         strings and no minimisation for molecules initialised from files.
+    template : str
+        Input value - SMILES, InChI strings or a filename for a template
+        from which bonds will be assigned. Only used when needed.
     kwargs
         Keyword arguments to be passed to the more specialsied RDKit functions.
 
@@ -160,10 +164,34 @@ def openAsRdkit(val, minimise=None, **kwargs):
     else:
         if minimise is None:
             minimise = False
+
         try:
             mol = openFileAsRdkit(val, **kwargs)
         except:
-            raise ValueError("File is not in a valid format")
+            if isinstance(val, str):
+                obj = _pmdwrap.openFilesAsParmed([val])
+            else:
+                obj = _pmdwrap.openFilesAsParmed(val)
+            val = "temp.pdb"
+            _pmdwrap.saveFilesFromParmed(obj, [val])
+
+            try:
+                mol = openFileAsRdkit(val, removeHs=False)
+            except:
+                raise ValueError("File is not in a valid format")
+            finally:
+                _os.remove("temp.pdb")
+
+            if isinstance(template, str):
+                template = openAsRdkit(template)
+            elif not isinstance(template, _Chem.Mol):
+                _warnings.warn("No template containing bond information was supplied. "
+                               "Resulting geometry might be wrong")
+                template = None
+
+            if template:
+                mol = AssignBondOrdersFromTemplate(template, mol)
+
         # minimise the molecule using obminimize / GAFF
         if minimise:
             with _fileio.Dir("Temp", temp=True):
@@ -217,6 +245,56 @@ def saveFromRdkit(mol, filename, **kwargs):
 
     return _os.path.abspath(filename)
 
+
+def AssignBondOrdersFromTemplate(ref, mol):
+    """
+    A modification of rdkit.Chem.AllChem.AssignBondOrdersFromTemplate()
+
+    Parameters
+    ----------
+    ref : rdkit.Chem.rdchem.Mol
+        The template molecule.
+    mol : rdkit.Chem.rdchem.Mol
+        The input molecule.
+
+    Returns
+    -------
+    mol : rdkit.Chem.rdchem.Mol
+        The new molecule.
+    """
+    mol = _copy.copy(mol)
+    _, match_ref, match_mol = _matchAndReturnMatches([ref, mol], bondCompare='any', atomCompare='elements')
+
+    if match_ref:
+        if len(match_ref) > 1 or len(match_mol) > 1:
+            _warnings.warn("More than one matching pattern found - picking one")
+        match_ref = list(match_ref)[0]
+        match_mol = list(match_mol)[0]
+        match = {x: y for x, y in zip(match_ref, match_mol)}
+    else:
+        raise ValueError("No matching found")
+
+    # apply matching: set bond properties
+    for b in ref.GetBonds():
+        atom1 = match[b.GetBeginAtomIdx()]
+        atom2 = match[b.GetEndAtomIdx()]
+        b2 = mol.GetBondBetweenAtoms(atom1, atom2)
+        b2.SetBondType(b.GetBondType())
+        b2.SetIsAromatic(b.GetIsAromatic())
+
+    # apply matching: set atom properties
+    for a in ref.GetAtoms():
+        a2 = mol.GetAtomWithIdx(match[a.GetIdx()])
+        a2.SetHybridization(a.GetHybridization())
+        a2.SetIsAromatic(a.GetIsAromatic())
+        a2.SetFormalCharge(a.GetFormalCharge())
+
+    _Chem.SanitizeMol(mol)
+    _Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
+    if hasattr(mol, '__sssAtoms'):
+        mol.__sssAtoms = None  # we don't want all bonds highlighted
+
+    return mol
 
 def translateMolecule(mol, vector):
     """
