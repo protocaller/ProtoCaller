@@ -317,23 +317,33 @@ class Protein:
 
             # filter missing residues
             if missing_residues == "middle":
-                fasta = next(_SeqIO.parse(open(self.fasta), 'fasta'))
-                seq = fasta.seq.tomutable()
-                missing_residue_list = self._pdb_obj.totalResidueList()
-                for i in range(2):
-                    missing_residue_list.reverse()
-                    seq.reverse()
-                    current_chain = None
-                    for j in reversed(range(0, len(missing_residue_list))):
-                        res = missing_residue_list[j]
-                        if type(res) is _PDB.Missing.MissingResidue and current_chain != res.chainID:
-                            del missing_residue_list[j]
-                            del seq[j]
-                        else:
-                            current_chain = res.chainID
-                fasta.seq = seq
-                _SeqIO.write(fasta, self.fasta, "fasta")
-                missing_residue_list = [x for x in missing_residue_list if type(x) == _PDB.MissingResidue]
+                fastas = list(_SeqIO.parse(open(self.fasta), 'fasta'))
+                missing_reslist = self._pdb_obj.totalResidueList()
+                missing_reslist_new = []
+
+                for fasta in fastas:
+                    chainID = fasta.id[5]
+                    seq = fasta.seq.tomutable()
+                    curr_missing = [x for x in missing_reslist
+                                    if x.chainID == chainID]
+
+                    for i in range(2):
+                        curr_missing.reverse()
+                        seq.reverse()
+                        current_chain = None
+                        for j in reversed(range(0, len(curr_missing))):
+                            res = curr_missing[j]
+                            if type(res) is _PDB.Missing.MissingResidue and current_chain != res.chainID:
+                                del curr_missing[j]
+                                del seq[j]
+                            else:
+                                break
+                    fasta.seq = seq
+                    missing_reslist_new += curr_missing
+
+                _SeqIO.write(fastas, self.fasta, "fasta")
+                missing_residue_list = [x for x in missing_reslist_new
+                                        if type(x) == _PDB.MissingResidue]
                 filter += missing_residue_list
             else:
                 filter += self._pdb_obj.missing_residues
@@ -569,7 +579,7 @@ class Protein:
 
     def _checkfasta(self):
         if hasattr(self, "_fasta") and hasattr(self, "_pdb_obj"):
-            seqlen = len(next(_SeqIO.parse(open(self.fasta), 'fasta')).seq)
+            seqlen = sum(len(_SeqIO.parse(open(self.fasta), 'fasta').seq))
             reslen = len(self._pdb_obj.totalResidueList())
             if seqlen != reslen:
                 _warnings.warn("Length of FASTA sequence ({}) does not match "

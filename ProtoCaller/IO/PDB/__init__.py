@@ -99,7 +99,7 @@ class PDB(Chain, _CondList.ConditionalList):
                 mask = "chainID=='{}'&resSeq=={}&iCode=='{}'".format(chainID, resSeq, iCode)
                 self.modified_residues += self.filter(mask)
             else:
-                match = _re.findall(r"^REMARK 465\s*([\w]{3})\s*([\w])\s*([\d]+)([\D|\S]?)\s*$", line)
+                match = _re.findall(r"^REMARK 465\s*([\w]{3})\s*([\w])\s*([-]?[\d]+)([\D|\S]?)\s*$", line)
                 if len(match) != 0:
                     self.missing_residues += [MissingResidue(*match[0])]
                     continue
@@ -335,5 +335,5 @@ class PDB(Chain, _CondList.ConditionalList):
         if not isinstance(residuelist, list):
             raise TypeError("Need to input a list of Residues")
 
-        sortingfunc = lambda res: "{}{:5d}{}".format(res.chainID, res.resSeq, res.iCode)
+        sortingfunc = lambda res: (res.chainID, res.resSeq, res.iCode)
         residuelist.sort(key=sortingfunc)
