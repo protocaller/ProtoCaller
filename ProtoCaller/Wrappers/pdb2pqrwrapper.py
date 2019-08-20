@@ -5,6 +5,7 @@ from contextlib import redirect_stdout as _redirect_stdout
 import logging as _logging
 import os as _os
 import sys as _sys
+import warnings as _warnings
 
 from pdb2pqr.main import runPDB2PQR as _runPDB2PQR
 from pdb2pqr.src.pdb import readPDB as _readPDB
@@ -95,6 +96,15 @@ def fixPdb2pqrPDB(filename_modified, filename_original, filename_output=None):
             for attr in ["occupancy", "tempFactor", "element", "charge"]:
                 setattr(atom, attr, "")
     pdb_original.missing_atoms = []
+
+    for bond in pdb_original.disulfide_bonds:
+        for res in bond:
+            if res.resName != "CYX":
+                _warnings.warn("Disulfide bond found at a residue not labelled "
+                               "as CYX ({} {}{}{}). Please check your "
+                               "structure. Correcting residue to CYX...".format(
+                    res.resName, res.chainID, res.resSeq, res.iCode))
+                res.resName = "CYX"
 
     pdb_original.reNumberAtoms()
     if filename_output is None:
