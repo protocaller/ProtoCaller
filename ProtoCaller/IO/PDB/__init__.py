@@ -252,7 +252,8 @@ class PDB(Chain, _CondList.ConditionalList):
                     add(chain)
 
             all_sets += [frozenset(curr_list)]
-            mask = mask.replace(condition, "all_sets[%d]" % i)
+            mask = _re.sub(r"(\A|{0})({1})(\Z|{0})".format("[\(\)&|]+", _re.escape(condition)),
+                           r"\1all_sets[%d]\3" % i, mask)
 
         total_set = eval(mask, globals(), locals())
         return [x for x in all_elems if x in total_set]

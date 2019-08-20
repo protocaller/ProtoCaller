@@ -27,9 +27,9 @@ def runExternal(*commands, procname=None, output_filebase=None):
     stderr = open("%s.err" % output_filebase, "a")
     try:
         _logging.info("Running %s... " % procname)
-        _sys.stdout.flush()
         _subprocess.check_call(commands, shell=True, stdout=stdout, stderr=stderr)
     except _subprocess.CalledProcessError:
+        _logging.debug("Process failed with command(s) {}".format(commands))
         raise OSError("Error while calling command '%s'" % procname)
     stdout.close()
     stderr.close()
