@@ -579,7 +579,7 @@ class Protein:
 
     def _checkfasta(self):
         if hasattr(self, "_fasta") and hasattr(self, "_pdb_obj"):
-            seqlen = sum(len(_SeqIO.parse(open(self.fasta), 'fasta').seq))
+            seqlen = sum(len(x.seq) for x in _SeqIO.parse(open(self.fasta), 'fasta'))
             reslen = len(self._pdb_obj.totalResidueList())
             if seqlen != reslen:
                 _warnings.warn("Length of FASTA sequence ({}) does not match "
