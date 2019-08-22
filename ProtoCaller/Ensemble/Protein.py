@@ -154,8 +154,9 @@ class Protein:
             self._ligand_ref = input
         elif isinstance(input, str):
             for i, ligand in enumerate(self.ligands):
-                _, _, _, resSeq = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", ligand.name).groups()
-                if resSeq == input:
+                _, _, chainID, resSeq = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", ligand.name).groups()
+                chainID_inp, resSeq_inp, iCode_inp = self._residTransform(input)
+                if chainID == chainID_inp and resSeq == (str(resSeq_inp) + iCode_inp).strip():
                     self._ligand_ref = ligand
                     del self.ligands[i]
                     return
@@ -290,7 +291,7 @@ class Protein:
                 for param, name in zip([ligands, cofactors], ["ligand", "cofactor"]):
                     # turn the ligand into a pseudo-residue
                     _, resname, chainID, resSeq_iCode = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", filename).groups()
-                    resSeq, iCode = self._residTransform(resSeq_iCode)
+                    _, resSeq, iCode = self._residTransform(resSeq_iCode)
 
                     # filter
                     if _PC.RESIDUETYPE(resname) == name and resSeq_iCode not in exclude_mols:
@@ -364,9 +365,10 @@ class Protein:
 
             # include extra molecules / residues
             for include_mol in include_mols:
-                resSeq, iCode = self._residTransform(include_mol)
-                filter_str = "resSeq=={}&iCode=='{}'&type not in ['ligand', " \
-                             "'cofactor']".format(resSeq, iCode)
+                chainID, resSeq, iCode = self._residTransform(include_mol)
+                filter_str = "chainID=='{}'&resSeq=={}&iCode=='{}'&type not in " \
+                             "['ligand', 'cofactor']".format(chainID, resSeq,
+                                                             iCode)
                 residue = self._pdb_obj.filter(filter_str)
                 if not len(residue):
                     _warnings.warn("Could not find residue {}.".format(include_mol))
@@ -376,8 +378,9 @@ class Protein:
             excl_filter = []
             for exclude_mol in exclude_mols:
                 resSeq, iCode = self._residTransform(exclude_mol)
-                filter_str = "resSeq=={}&iCode=='{}'&type not in ['ligand', " \
-                             "'cofactor']".format(resSeq, iCode)
+                filter_str = "chainID=='{}'&resSeq=={}&iCode=='{}'&type not in " \
+                             "['ligand', 'cofactor']".format(chainID, resSeq,
+                                                             iCode)
                 residue = self._pdb_obj.filter(filter_str)
                 if not len(residue):
                     _warnings.warn(
@@ -597,14 +600,21 @@ class Protein:
 
         Returns
         -------
+        chainID : str
         resSeq : int
         iCode : str
         """
         id = id.strip()
+        if id[0].isalpha():
+            chainID = id[0]
+            id = id[1:]
+        else:
+            chainID = "A"
+
         if id[-1].isalpha():
             iCode = id[-1]
-            resSeq = int(float(id[:-1]))
+            id = id[:-1]
         else:
             iCode = " "
-            resSeq = int(float(id))
-        return resSeq, iCode
+
+        return chainID, int(float(id)), iCode
