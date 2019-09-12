@@ -73,7 +73,7 @@ class RunGMX:
         """Returns the number of lambda windows."""
         return len(self.files)
 
-    def runSimulation(self, name, multi=True, single_lambda=None, use_mpi=False, use_preset=None, replex=None,
+    def runSimulation(self, name, multi=False, single_lambda=None, use_mpi=False, use_preset=None, replex=None,
                       n_cores_per_process=None, n_nodes=1, n_processes=None, dlb=False, **protocol_params):
         """
         Runs a simulation in GROMACS.
