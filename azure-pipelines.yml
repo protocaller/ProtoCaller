@@ -1,51 +1,111 @@
 trigger:
 - master
 - devel
+- feature-mac
 
-pool:
-  vmImage: 'ubuntu-latest'
-strategy:
-  matrix:
-    Python37:
-      python.version: '3.7'
+jobs:
+- job: macOS_Test
+  pool:
+    vmImage: 'macOS-latest'
+  strategy:
+    matrix:
+      Python37:
+        python.version: '3.7'
 
-steps:
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '$(python.version)'
-  displayName: 'Use Python $(python.version)'
+  steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(python.version)'
+    displayName: 'Use Python $(python.version)'
 
-- script: |
-    sudo apt-get -y install gromacs
-    conda create -y -q -n testenv python=$(python.version)
-  displayName: "Create Conda environment"
+  - script: |
+      sudo chown -R $USER $CONDA/bin
+      $CONDA/bin/conda create -y -q -n testenv python=$(python.version)
+    displayName: "Create Conda environment"
 
-- script: |
-    source /usr/share/miniconda/bin/activate testenv
-    cd $(Build.SourcesDirectory)
-    conda install -y conda-build anaconda-client
+  - script: |
+      /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+      brew install gromacs
+    displayName: "Install Homebrew and GROMACS"
 
-    if [ $(Build.SourceBranchName) == "master" ]
-    then
-      conda build conda-recipe/meta.yaml -c michellab -c rdkit -c conda-forge -c omnia -c bioconda --token $(anacondaToken) --user essexlab
-    elif [ $(Build.SourceBranchName) == "devel" ]
-    then
-      conda build conda-recipe/meta.yaml -c michellab -c rdkit -c conda-forge -c omnia -c bioconda --token $(anacondaToken) --user essexlab --label dev
-    fi
+  - script: |
+      source $CONDA/bin/activate testenv
+      cd $(Build.SourcesDirectory)
+      $CONDA/bin/conda install -y conda-build anaconda-client
 
-    if [ $(Build.SourceBranchName) == "master" ]
-    then
-      conda install -y -c michellab -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab protocaller
-    elif [ $(Build.SourceBranchName) == "devel" ]
-    then
-      conda install -y -c michellab -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab/label/dev protocaller
-    fi
+      if [ $(Build.SourceBranchName) == "master" ]
+      then
+        $CONDA/bin/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab
+      elif [ $(Build.SourceBranchName) == "devel" ]
+      then
+        $CONDA/bin/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
+      fi
 
-    python -m pip install --upgrade pip
-    pip install pytest pytest-azurepipelines
-  displayName: 'Install ProtoCaller'
+      if [ $(Build.SourceBranchName) == "master" ]
+      then
+        $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller
+      elif [ $(Build.SourceBranchName) == "devel" ]
+      then
+        $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
+      fi
 
-- script: |
-    source /usr/share/miniconda/bin/activate testenv
-    python -m pytest test/
-  displayName: 'Test ProtoCaller'
+      python -m pip install --upgrade pip
+      pip install pytest pytest-azurepipelines
+    displayName: 'Install ProtoCaller'
+
+  - script: |
+      $CONDA/bin/source activate testenv
+      python -m pytest test/
+    displayName: 'Test ProtoCaller'
+
+- job: Ubuntu_Test
+  pool:
+    vmImage: 'ubuntu-latest'
+  strategy:
+    matrix:
+      Python37:
+        python.version: '3.7'
+
+  steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(python.version)'
+    displayName: 'Use Python $(python.version)'
+
+  - script: |
+      sudo apt-get -y install gromacs
+      echo "##vso[task.prependpath]$CONDA/bin/bin"
+      conda create -y -q -n testenv python=$(python.version)
+    displayName: "Create Conda environment and install GROMACS"
+
+  - script: |
+      echo "##vso[task.prependpath]$CONDA/bin/bin"
+      source activate testenv
+      cd $(Build.SourcesDirectory)
+      conda install -y conda-build anaconda-client
+
+      if [ $(Build.SourceBranchName) == "master" ]
+      then
+        conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab
+      elif [ $(Build.SourceBranchName) == "devel" ]
+      then
+        conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
+      fi
+
+      if [ $(Build.SourceBranchName) == "master" ]
+      then
+        conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller
+      elif [ $(Build.SourceBranchName) == "devel" ]
+      then
+        conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
+      fi
+
+      python -m pip install --upgrade pip
+      pip install pytest pytest-azurepipelines
+    displayName: 'Install ProtoCaller'
+
+  - script: |
+      echo "##vso[task.prependpath]$CONDA/bin/bin"
+      source activate testenv
+      python -m pytest test/
+    displayName: 'Test ProtoCaller'

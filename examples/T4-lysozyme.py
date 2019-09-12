@@ -1,6 +1,8 @@
 # import os
 # add an alternative default version for GROMACS. Otherwise, use bash default
 # os.environ["GROMACSHOME"] = os.path.expanduser("~/gromacs-2018.4")
+import logging
+logging.basicConfig(level=logging.INFO)
 
 from ProtoCaller.Utils.fileio import Dir
 from ProtoCaller.Ensemble import Ligand, Protein, Ensemble

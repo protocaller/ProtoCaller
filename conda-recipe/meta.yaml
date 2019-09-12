@@ -1,6 +1,6 @@
 package:
   name: protocaller
-  version: 1.0.0
+  version: 1.1.0
 
 source:
   path: ../
@@ -14,18 +14,18 @@ build:
 requirements:
   build:
     - python>=3.7
-    - numpy>=1.15.4
+    - numpy
   run:
     - python>=3.7
     - ambertools>=17.6
     - beautifulsoup4
     - biopython>=1.73
-    - biosimspace
+    - biosimspace>=2019.2.0
     - geckodriver
     - htmd-pdb2pqr
     - libcblas
     - mdanalysis
-    - numpy==1.15.4
+    - numpy
     - openbabel
     - parmed>=3.1.0
     - pdbfixer>=1.5

@@ -33,9 +33,9 @@ def test_align():
                 (-33.869, 5.013, 2.112),
             }
 
-            vec1 = mol._sire_molecule.property("coordinates0").toVector()
+            vec1 = mol._sire_object.property("coordinates0").toVector()
             positions_A = {(x[0], x[1], x[2]) for x in vec1}
-            vec2 = mol._sire_molecule.property("coordinates1").toVector()
+            vec2 = mol._sire_object.property("coordinates1").toVector()
             positions_B = {(x[0], x[1], x[2]) for x in vec2}
 
             assert positions.issubset(positions_A)

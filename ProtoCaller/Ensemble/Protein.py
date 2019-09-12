@@ -1,7 +1,10 @@
+import logging as _logging
+import os as _os
 import re as _re
 import warnings as _warnings
 
 from Bio import SeqIO as _SeqIO
+import parmed as _pmd
 
 import ProtoCaller as _PC
 
@@ -33,6 +36,8 @@ class Protein:
         The PDB code of the protein.
     pdb_file : str, optional
         Path to custom PDB file.
+    ligands : [str or Ligand], optional
+        Paths to and / or objects of custom ligands.
     ligand_ref : str or ProtoCaller.Ensemble.Ligand.Ligand or None or False
         Initialises ligand_ref from a "resSeq/iCode" (e.g. "400G") or from a Ligand or from a file or automatically
         (None) or enforces no reference ligand (False)
@@ -52,17 +57,21 @@ class Protein:
     name : str
         The protein name. Default is the PDB code thereof.
     """
-    def __init__(self, code, pdb_file=None, ligand_ref=None, fasta_file=None, complex_template=None, name=None,
-                 workdir=None):
-        self.workdir = _fileio.Dir(workdir) if workdir else _fileio.Dir(code)
+    _counter = 1
+
+    def __init__(self, code=None, pdb_file=None, ligands=None, ligand_ref=None, fasta_file=None, complex_template=None,
+                 name=None, workdir=None):
+        self.name = name if name is not None else code
+        self.workdir = _fileio.Dir(workdir) if workdir else _fileio.Dir(self.name)
         with self.workdir:
-            self.name = name if name is not None else code
-            self._downloader = _pdbconnect.PDBDownloader(code)
-            self.pdb = pdb_file
-            self.fasta = fasta_file
+            self.code = code
             self.complex_template = complex_template
-            ligands_original = _SDF.splitSDFs(self._downloader.getLigands())
-            self.ligands = [Ligand(x, name=x, workdir=".", minimise=False) for x in ligands_original]
+            if pdb_file:
+                self.pdb = pdb_file
+            else:
+                self.pdb = complex_template
+            self.fasta = fasta_file
+            self.ligands = ligands
             self.cofactors = []
             # remove ligands from PDB file and non-ligands from SDF files
             self.filter(missing_residues="all", chains="all", waters="all",
@@ -70,6 +79,62 @@ class Protein:
                         simple_cations="all", complex_cations="all",
                         ligands="all", cofactors="all")
             self.ligand_ref = ligand_ref
+
+    @property
+    def code(self):
+        """str: The PDB code of the protein."""
+        return self._code
+
+    @code.setter
+    def code(self, input):
+        try:
+            self._downloader = _pdbconnect.PDBDownloader(input)
+            self._code = input
+        except:
+            self._downloader = None
+            self._code = None
+
+    @property
+    def complex_template(self):
+        """BioSimSpace.System: The prepared system without solvent and ligands."""
+        return self._complex_template
+
+    @complex_template.setter
+    def complex_template(self, input):
+        if not input:
+            self._complex_template = None
+        elif isinstance(input, _BSS._SireWrappers.System):
+            self._complex_template = input
+        elif isinstance(input, _BSS._SireWrappers.Molecule):
+            self._complex_template = _BSS._SireWrappers.System(input)
+        elif isinstance(input, _pmd.Structure):
+            if _PC.BIOSIMSPACE:
+                tempfiles = ["temp.gro", "temp.top"]
+                _pmdwrap.saveFilesFromParmed(input, tempfiles)
+                self._complex_template = _BSS.IO.readMolecules(tempfiles)
+                for tempfile in tempfiles:
+                    _os.remove(tempfile)
+            else:
+                self._complex_template = input
+        else:
+            if _PC.BIOSIMSPACE:
+                self._complex_template = _BSS.IO.readMolecules(input)
+            else:
+                self._complex_template = _pmdwrap.openFilesAsParmed(input)
+
+    @property
+    def ligands(self):
+        """[ProtoCaller.Ensemble.Ligand.Ligand]: Additional ligands in the system."""
+        return self._ligands
+
+    @ligands.setter
+    def ligands(self, input):
+        self._ligands = []
+        if input is None and self._downloader:
+            input = _SDF.splitSDFs(self._downloader.getLigands())
+        if input:
+            self._ligands = [Ligand(x, name=x, workdir=".", minimise=False)
+                             if not isinstance(x, Ligand) else x for x in input]
 
     @property
     def ligand_ref(self):
@@ -89,8 +154,9 @@ class Protein:
             self._ligand_ref = input
         elif isinstance(input, str):
             for i, ligand in enumerate(self.ligands):
-                _, _, _, resSeq = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", ligand.name).groups()
-                if resSeq == input:
+                _, _, chainID, resSeq = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", ligand.name).groups()
+                chainID_inp, resSeq_inp, iCode_inp = self._residTransform(input)
+                if chainID == chainID_inp and resSeq == (str(resSeq_inp) + iCode_inp).strip():
                     self._ligand_ref = ligand
                     del self.ligands[i]
                     return
@@ -102,20 +168,56 @@ class Protein:
                 raise TypeError("Unrecognised type of input. Need either a Ligand or a PDB ID")
 
     @property
+    def name(self):
+        """The name of the protein"""
+        return self._name
+
+    @name.setter
+    def name(self, val):
+        if val is None:
+            self._name = "protein%d" % self._counter
+            Protein._counter += 1
+        else:
+            self._name = val
+
+    @property
     def pdb(self):
         """str: The absolute path to the PDB file for the protein."""
         with self.workdir:
-            if self._pdb is None:
+            if self._pdb is None and self._downloader:
                 return self._downloader.getPDB()
             return self._pdb
 
     @pdb.setter
     def pdb(self, value):
-        if value is not None:
-            value = _fileio.checkFileExists(value)
-        self._pdb = value
-        self._pdb_obj = _PDB.PDB(self.pdb)
-        self._checkfasta()
+        with self.workdir:
+            self._pdb = "{}.pdb".format(self.name)
+            if isinstance(value, _BSS._SireWrappers.System):
+                _BSS.IO.saveMolecules(self.name, value, "pdb")
+            elif isinstance(value, _BSS._SireWrappers.Molecule):
+                _BSS.IO.saveMolecules(self.name, _BSS._SireWrappers.System(value), "pdb")
+            elif isinstance(value, _pmd.Structure):
+                _pmdwrap.saveFilesFromParmed(value, self._pdb)
+            else:
+                self._pdb = None
+                if value is not None:
+                    value = _fileio.checkFileExists(value)
+                if value:
+                    try:
+                        try:
+                            self._pdb = value
+                            self._pdb_obj = _PDB.PDB(self.pdb)
+                        except:
+                            obj = _pmdwrap.openFilesAsParmed(value)
+                            self._pdb = "{}.pdb".format(self.name)
+                            _pmdwrap.saveFilesFromParmed(obj, self._pdb)
+                            self._pdb_obj = _PDB.PDB(self.pdb)
+                        self._checkfasta()
+                    except:
+                        self._pdb = None
+
+            if not self._pdb:
+                self._pdb_obj = _PDB.PDB(self.pdb) if self.pdb else None
 
     @property
     def pdb_obj(self):
@@ -126,7 +228,7 @@ class Protein:
     def fasta(self):
         """str: The absolute path to the FASTA file for the protein."""
         with self.workdir:
-            if self._fasta is None:
+            if self._fasta is None and self._downloader:
                 return self._downloader.getFASTA()
             return self._fasta
 
@@ -135,7 +237,8 @@ class Protein:
         if value is not None:
             value = _fileio.checkFileExists(value)
         self._fasta = value
-        self._checkfasta()
+        if value:
+            self._checkfasta()
 
     def filter(self, missing_residues="middle", chains="all", waters="site", ligands="chain", cofactors="chain",
                simple_anions="chain", complex_anions="chain", simple_cations="chain", complex_cations="chain",
@@ -188,7 +291,7 @@ class Protein:
                 for param, name in zip([ligands, cofactors], ["ligand", "cofactor"]):
                     # turn the ligand into a pseudo-residue
                     _, resname, chainID, resSeq_iCode = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", filename).groups()
-                    resSeq, iCode = self._residTransform(resSeq_iCode)
+                    _, resSeq, iCode = self._residTransform(resSeq_iCode)
 
                     # filter
                     if _PC.RESIDUETYPE(resname) == name and resSeq_iCode not in exclude_mols:
@@ -215,23 +318,33 @@ class Protein:
 
             # filter missing residues
             if missing_residues == "middle":
-                fasta = next(_SeqIO.parse(open(self.fasta), 'fasta'))
-                seq = fasta.seq.tomutable()
-                missing_residue_list = self._pdb_obj.totalResidueList()
-                for i in range(2):
-                    missing_residue_list.reverse()
-                    seq.reverse()
-                    current_chain = None
-                    for j in reversed(range(0, len(missing_residue_list))):
-                        res = missing_residue_list[j]
-                        if type(res) is _PDB.Missing.MissingResidue and current_chain != res.chainID:
-                            del missing_residue_list[j]
-                            del seq[j]
-                        else:
-                            current_chain = res.chainID
-                fasta.seq = seq
-                _SeqIO.write(fasta, self.fasta, "fasta")
-                missing_residue_list = [x for x in missing_residue_list if type(x) == _PDB.MissingResidue]
+                fastas = list(_SeqIO.parse(open(self.fasta), 'fasta'))
+                missing_reslist = self._pdb_obj.totalResidueList()
+                missing_reslist_new = []
+
+                for fasta in fastas:
+                    chainID = fasta.id[5]
+                    seq = fasta.seq.tomutable()
+                    curr_missing = [x for x in missing_reslist
+                                    if x.chainID == chainID]
+
+                    for i in range(2):
+                        curr_missing.reverse()
+                        seq.reverse()
+                        current_chain = None
+                        for j in reversed(range(0, len(curr_missing))):
+                            res = curr_missing[j]
+                            if type(res) is _PDB.Missing.MissingResidue and current_chain != res.chainID:
+                                del curr_missing[j]
+                                del seq[j]
+                            else:
+                                break
+                    fasta.seq = seq
+                    missing_reslist_new += curr_missing
+
+                _SeqIO.write(fastas, self.fasta, "fasta")
+                missing_residue_list = [x for x in missing_reslist_new
+                                        if type(x) == _PDB.MissingResidue]
                 filter += missing_residue_list
             else:
                 filter += self._pdb_obj.missing_residues
@@ -252,9 +365,10 @@ class Protein:
 
             # include extra molecules / residues
             for include_mol in include_mols:
-                resSeq, iCode = self._residTransform(include_mol)
-                filter_str = "resSeq=={}&iCode=='{}'&type not in ['ligand', " \
-                             "'cofactor']".format(resSeq, iCode)
+                chainID, resSeq, iCode = self._residTransform(include_mol)
+                filter_str = "chainID=='{}'&resSeq=={}&iCode=='{}'&type not in " \
+                             "['ligand', 'cofactor']".format(chainID, resSeq,
+                                                             iCode)
                 residue = self._pdb_obj.filter(filter_str)
                 if not len(residue):
                     _warnings.warn("Could not find residue {}.".format(include_mol))
@@ -264,8 +378,9 @@ class Protein:
             excl_filter = []
             for exclude_mol in exclude_mols:
                 resSeq, iCode = self._residTransform(exclude_mol)
-                filter_str = "resSeq=={}&iCode=='{}'&type not in ['ligand', " \
-                             "'cofactor']".format(resSeq, iCode)
+                filter_str = "chainID=='{}'&resSeq=={}&iCode=='{}'&type not in " \
+                             "['ligand', 'cofactor']".format(chainID, resSeq,
+                                                             iCode)
                 residue = self._pdb_obj.filter(filter_str)
                 if not len(residue):
                     _warnings.warn(
@@ -358,8 +473,9 @@ class Protein:
                         kwargs = {**kwargs, **missing_atom_options}
                     else:
                         atoms = False
-                    fasta = self._downloader.getFASTA()
-                    self.pdb = _modeller.modellerTransform(self.pdb, fasta,
+                    if not self.fasta:
+                        raise ValueError("No fasta file supplied.")
+                    self.pdb = _modeller.modellerTransform(self.pdb, self.fasta,
                                                            atoms, **kwargs)
                 elif add_missing_residues == "charmm-gui":
                     self.pdb = _charmmwrap.charmmguiTransform(self.pdb,
@@ -403,13 +519,13 @@ class Protein:
                 for ligand in self.ligands + self.cofactors:
                     if not ligand.protonated:
                         ligand.protonate(**kwargs)
-                if not self.ligand_ref.protonated:
+                if self.ligand_ref and not self.ligand_ref.protonated:
                     self.ligand_ref.protonate(**kwargs)
             else:
                 _warnings.warn("Need to protonate all relevant ligands / "
                                "cofactors before any parametrisation")
 
-    def parametrise(self, params, reparametrise=False):
+    def parametrise(self, params=None, reparametrise=False):
         """
         Parametrises the whole protein system.
 
@@ -421,11 +537,14 @@ class Protein:
             Whether to reparametrise an already parametrised complex.
         """
         if self.complex_template is not None and not reparametrise:
-            print("Protein complex template %s is already parametrised." % self.name)
+            _logging.info("Protein complex template %s is already parametrised." % self.name)
             return
 
+        if params is None:
+            params = _parametrise.Params()
+
         with self.workdir:
-            print("Parametrising original crystal system...")
+            _logging.info("Parametrising original crystal system...")
             # extract non-protein residues from pdb file and save them as separate pdb files
             hetatm_files, hetatm_types = self._pdb_obj.writeHetatms()
             filter = "type in ['amino_acid', 'amino_acid_modified']"
@@ -463,7 +582,7 @@ class Protein:
 
     def _checkfasta(self):
         if hasattr(self, "_fasta") and hasattr(self, "_pdb_obj"):
-            seqlen = len(next(_SeqIO.parse(open(self.fasta), 'fasta')).seq)
+            seqlen = sum(len(x.seq) for x in _SeqIO.parse(open(self.fasta), 'fasta'))
             reslen = len(self._pdb_obj.totalResidueList())
             if seqlen != reslen:
                 _warnings.warn("Length of FASTA sequence ({}) does not match "
@@ -481,14 +600,21 @@ class Protein:
 
         Returns
         -------
+        chainID : str
         resSeq : int
         iCode : str
         """
         id = id.strip()
+        if id[0].isalpha():
+            chainID = id[0]
+            id = id[1:]
+        else:
+            chainID = "A"
+
         if id[-1].isalpha():
             iCode = id[-1]
-            resSeq = int(float(id[:-1]))
+            id = id[:-1]
         else:
             iCode = " "
-            resSeq = int(float(id))
-        return resSeq, iCode
+
+        return chainID, int(float(id)), iCode

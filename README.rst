@@ -17,7 +17,7 @@ This package is distributed via Conda. To install it, run the following command:
 
 .. code-block:: bash
 
-    conda install -c michellab/label/dev -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab protocaller
+    conda install -c michellab -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab protocaller
 
 ProtoCaller depends on BioSimSpace. If it is run on MacOS, there is a known
 issue with BioSimSpace which means that instead of python one has to run

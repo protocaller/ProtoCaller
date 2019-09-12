@@ -1,19 +1,19 @@
+from collections.abc import Iterable as _Iterable
 import os as _os
+import warnings as _warnings
 
 import numpy as _np
 import parmed as _pmd
 
 
-def openFilesAsParmed(filelist, fix_dihedrals=True, **kwargs):
+def openFilesAsParmed(filelist, **kwargs):
     """
     Opens an input file list and returns a ParmEd Structure.
 
     Parameters
     ----------
-    filename : str
+    filename : str, list
         The name of the input file.
-    fix_dihedrals : bool
-        Whether to identify dihedrals with multiple terms and set their type to 9. Can be slow for large systems.
     kwargs
         Keyword arguments to be supplied to parmed.load_file.
 
@@ -22,6 +22,8 @@ def openFilesAsParmed(filelist, fix_dihedrals=True, **kwargs):
     mol : parmed.structure.Structure
         The file loaded as a ParmEd Structure object.
     """
+    if isinstance(filelist, str):
+        filelist = [filelist]
     if len(filelist) == 1:
         mol = _pmd.load_file(filelist[0], **kwargs)
     else:
@@ -33,19 +35,10 @@ def openFilesAsParmed(filelist, fix_dihedrals=True, **kwargs):
             except:
                 raise OSError("There was an error while reading the input files.")
 
-    if fix_dihedrals:
-        for i, d_i in enumerate(mol.dihedrals):
-            for j, d_j in enumerate(mol.dihedrals):
-                if i <= j:
-                    break
-                if (d_i.atom1 == d_j.atom1 and d_i.atom2 == d_j.atom2 and
-                    d_i.atom3 == d_j.atom3 and d_i.atom4 == d_j.atom4):
-                    d_i.funct, d_j.funct = 9, 9
-
     return mol
 
 
-def saveFilesFromParmed(system, filelist, overwrite=True):
+def saveFilesFromParmed(system, filelist, overwrite=True, **kwargs):
     """
     Saves a ParmEd Structure object to a file.
 
@@ -53,10 +46,12 @@ def saveFilesFromParmed(system, filelist, overwrite=True):
     ----------
     system : parmed.structure.Structure
         The input system.
-    filelist : [str]
+    filelist : str, [str]
         The names of the output files.
     overwrite : bool
         Whether to overwrite existing files.
+    kwargs :
+        Additional arguments to be pased on to save()
 
     Returns
     -------
@@ -64,15 +59,22 @@ def saveFilesFromParmed(system, filelist, overwrite=True):
         The absolute path to the written files.
     """
     saved_files = []
+    if isinstance(filelist, str):
+        filelist = [filelist]
+        single_file = True
+    else:
+        single_file = False
+
     for filename in filelist:
         if _os.path.isfile(filename):
             if not overwrite:
                 continue
             else:
                 _os.remove(filename)
-        system.save(filename)
+        system.save(filename, **kwargs)
         saved_files += [filename]
-    return saved_files
+
+    return saved_files[0] if single_file else saved_files
 
 
 def fixCharge(filelist):
@@ -106,57 +108,72 @@ def fixCharge(filelist):
 
 def centre(system, box_length):
     """
-    Centres the system given a box length (cubic shape is assumed).
+    Centres the system given a box length.
 
     Parameters
     ----------
     system : parmed.structure.Structure
         The input system to be centred.
-    box_length : float
-        Length of the cubic box.
+    box_length : float, iterable
+        Length of the box.
 
     Returns
     -------
     system : parmed.structure.Structure
         The centred ParmEd system.
-    box_length : float
+    box_length : tuple
         The new box length. Only different from the input value if the box is too small for the system.
-    translation_vec: numpy.array
+    translation_vec: numpy.ndarray
         The centering translation vector.
     """
+    if not isinstance(box_length, _Iterable):
+        cubic = True
+        box_length = 3 * [box_length]
+    else:
+        cubic = (len(set(box_length)) == 1)
+
     coords = system.coordinates
     min_coords, max_coords = _np.amin(coords, axis=0), _np.amax(coords, axis=0)
     centre = (min_coords + max_coords) / 2
     difference = max_coords - min_coords
-    if any([x / 10 > box_length for x in difference]):
-        box_length = int(max(difference / 10)) + 1
-        print("Insufficient input box size. Changing to a box length of %d nm..." % box_length)
-    translation_vec = -centre + _np.asarray(3 * [5 * box_length])
+
+    box_length_new = []
+    for x, y in zip(difference, box_length):
+        box_length_new += [y] if x < 10 * y else [x / 10 + 1]
+    if cubic:
+        box_length_new = 3 * [max(box_length_new)]
+    if box_length_new != box_length:
+        _warnings.warn("Insufficient input box size. Changing to a box size of ({:.3f}, {:.3f}, {:.3f}) nm...".format(
+            *box_length_new))
+
+    translation_vec = -centre + _np.asarray([5 * x for x in box_length_new])
     for atom in system.atoms:
         atom.xx += translation_vec[0]
         atom.xy += translation_vec[1]
         atom.xz += translation_vec[2]
-    system = resize(system, box_length)
+    system = resize(system, box_length_new)
 
-    return system, box_length, translation_vec
+    return system, tuple(box_length_new), translation_vec
 
 
 def resize(system, box_length):
     """
-    Changes the box size of the system or adds one if there is no box. Only valid for cubic boxes.
+    Changes the box size of the system or adds one if there is no box.
 
     Parameters
     ----------
     system : parmed.structure.Structure
         The input system to be resized.
-    box_length : float
-        Length of the cubic box.
+    box_length : float, iterable
+        Length of the box.
 
     Returns
     -------
     system : parmed.structure.Structure
         The resized system.
     """
-    system.box = 3 * [10 * box_length] + 3 * [90]
-    system.box[0] = system.box[1] = system.box[2] = 10 * box_length
+    if not isinstance(box_length, _Iterable):
+        box_length = 3 * [box_length]
+    box_length = [10 * x for x in box_length]
+    system.box = box_length + 3 * [90]
     return system

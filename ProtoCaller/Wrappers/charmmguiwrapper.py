@@ -1,4 +1,5 @@
 import copy as _copy
+import logging as _logging
 import os as _os
 import tarfile as _tarfile
 import time as _time
@@ -57,7 +58,7 @@ def PDBReader(file, timeout=3600):
             raise SystemError("Need either Chrome or Firefox for CHARMM-GUI "
                               "functionality.")
 
-    print("Accessing http://www.charmm-gui.org ...")
+    _logging.info("Accessing http://www.charmm-gui.org ...")
     driver.get("http://www.charmm-gui.org/?doc=input/pdbreader")
 
     pdb_element = driver.find_element_by_name("file")
@@ -79,14 +80,14 @@ def PDBReader(file, timeout=3600):
     autoClicker("nextBtn", 60)
 
     try:
-        print("Retrieving files...")
+        _logging.info("Retrieving files...")
         wait.until(_EC.visibility_of_any_elements_located((_by.By.CLASS_NAME,
                                                            "download")))
     except TimeoutError:
         raise ConnectionError("Could not retrieve any files. Please increase "
                               "the maximum timeout or try again later.")
 
-    print("Downloading TGZ archive...")
+    _logging.info("Downloading TGZ archive...")
     filebase = _os.path.splitext(file)[0]
     tgz_file = driver.find_elements_by_partial_link_text(".tgz")[0]
     response = driver.request('POST', tgz_file.get_attribute("href"),
@@ -129,7 +130,7 @@ def ligandReader(file, timeout=60, find_similar_residues=False):
             raise SystemError("Need either Chrome or Firefox for CHARMM-GUI "
                               "functionality.")
 
-    print("Accessing http://www.charmm-gui.org ...")
+    _logging.info("Accessing http://www.charmm-gui.org ...")
     driver.get("http://www.charmm-gui.org/?doc=input/ligandrm")
 
     pdb_element = driver.find_element_by_name("file2")
@@ -156,7 +157,7 @@ def ligandReader(file, timeout=60, find_similar_residues=False):
     next_button.click()
 
     try:
-        print("Retrieving files...")
+        _logging.info("Retrieving files...")
         wait = _wait.WebDriverWait(driver, timeout)
         wait.until(_EC.visibility_of_any_elements_located((_by.By.CLASS_NAME,
                                                            "download")))
@@ -164,7 +165,7 @@ def ligandReader(file, timeout=60, find_similar_residues=False):
         raise ConnectionError("Could not retrieve any files. Please increase "
                               "the maximum timeout or try again later.")
 
-    print("Downloading TGZ archive...")
+    _logging.info("Downloading TGZ archive...")
     filebase = _os.path.splitext(file)[0]
     tgz_file = driver.find_elements_by_partial_link_text(".tgz")[0]
     response = driver.request('POST', tgz_file.get_attribute("href"),

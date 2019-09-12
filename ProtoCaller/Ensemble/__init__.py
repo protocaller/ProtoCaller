@@ -1,6 +1,15 @@
+import ProtoCaller as _PC
+if not _PC.BIOSIMSPACE:
+    raise ImportError("BioSimSpace module cannot be imported")
+
+from collections.abc import Iterable as _Iterable
+import logging as _logging
 import os as _os
 import tempfile as _tempfile
 import warnings as _warnings
+
+import BioSimSpace as _BSS
+import rdkit.Chem as _Chem
 
 import ProtoCaller as _PC
 from .Ligand import Ligand
@@ -23,9 +32,9 @@ class Ensemble:
     ----------
     engine : str
         Initialises the engine.
-    box_length_complex : float
+    box_length_complex : float, iterable
         Initialises box_length_complex.
-    box_length_morph : float
+    box_length_morph : float, iterable
         Initialises box_length_morph.
     ion_conc : float
         Initialises ion_conc.
@@ -57,9 +66,9 @@ class Ensemble:
         The working directory of the ensemble.
     engine : str
         The engine for which the input files are created. One of: "GROMACS".
-    box_length_complex : float
+    box_length_complex : float, iterable
         Size of the solvated complex box in nm. Cubic shape is assumed.
-    box_length_morph : float
+    box_length_morph : float, iterable
         Size of the solvated morph box in nm. Cubic shape is assumed.
     shell : float
         Places a layer of water of the specified thickness in nm around the solute.
@@ -127,8 +136,13 @@ class Ensemble:
             value = value.upper()
             if value not in _PC.ENGINES:
                 raise ValueError("Value %s not supported. Supported values: " % value, _PC.ENGINES)
-        elif key in ["box_length_complex", "box_length_morph", "ion_conc", "shell"]:
+        elif key in ["ion_conc", "shell"]:
             value = float(value)
+        elif key in ["box_length_complex", "box_length_morph"]:
+            if isinstance(value, _Iterable):
+                value = list(value)
+            else:
+                value = float(value)
         elif key == "morphs":
             value = PerturbationList(value) if not isinstance(value, PerturbationList) else value
         elif key == "protein":
@@ -139,7 +153,9 @@ class Ensemble:
         # setter
         super(Ensemble, self).__setattr__("_" + key, value)
 
-    def prepareComplexes(self, replica_temps=None, intermediate_files=False, store_complexes=False, output_files=True):
+    def prepareComplexes(self, replica_temps=None, scale_dummy_bonds=1,
+                         dummy_bond_smarts="[*]~[*]", intermediate_files=False,
+                         store_complexes=False, output_files=True):
         """
         Batch prepares all complexes with an option to output files for REST(2).
 
@@ -180,24 +196,54 @@ class Ensemble:
                     curdir = _fileio.Dir(name, overwrite=True, temp=True)
 
                 with curdir:
-                    print("Creating morph %s..." % morph.name)
-                    _stdio.stdout_stderr()(morph.alignAndCreateMorph)(self.protein.ligand_ref)
+                    _logging.info("Creating morph %s..." % morph.name)
+                    morph_BSS, mcs = _stdio.stdout_stderr()(
+                        morph.alignAndCreateMorph)(self.protein.ligand_ref)
+                    morph_BSS = _BSS._SireWrappers.System(morph_BSS)
+                    box = self.protein.complex_template._sire_object.property(
+                        "space")
+                    morph_BSS._sire_object.setProperty("space", box)
 
-                    complexes = [self.protein.complex_template + morph.get_morph(self.protein.ligand_ref)]
+                    # here we scale the equilibrium bond lengths if needed
+                    if scale_dummy_bonds != 1:
+                        n1 = morph.ligand1.molecule.GetNumAtoms()
+                        n2 = morph.ligand2.molecule.GetNumAtoms()
+                        inv_map = {y: x for x, y in mcs}
+                        du2 = [i for i in range(n2) if i not in inv_map.keys()]
+                        inv_map = {**{x: n1 + y
+                                      for x, y in zip(du2, range(n2 - n1))},
+                                   **inv_map}
+                        mcs_smarts = _Chem.MolFromSmarts(dummy_bond_smarts)
+                        matches_lig1 = morph.ligand1.molecule.\
+                            GetSubstructMatches(mcs_smarts)
+                        matches_lig2 = morph.ligand2.molecule.\
+                            GetSubstructMatches(mcs_smarts)
+
+                        # here we take care of the index transformation
+                        matches_lig2 = [(inv_map[x[0]], inv_map[x[1]])
+                                        for x in matches_lig2
+                                        if set(x).issubset(inv_map.keys())]
+                        matches_total = [*matches_lig1, *matches_lig2]
+                        morph_BSS = _BSSwrap.rescaleBondedDummies(
+                            morph_BSS, scale_dummy_bonds,
+                            {"Merged_Molecule": matches_total}
+                        )
+
+                    complexes = [self.protein.complex_template + morph_BSS]
 
                     # solvate and save the prepared complex and morph with the appropriate box size
-                    print("Solvating...")
+                    _logging.info("Solvating...")
                     complexes = [_solvate.solvate(complexes[0], self.params, box_length=self.box_length_complex,
                                                   shell=self.shell, neutralise=self.neutralise, ion_conc=self.ion_conc,
                                                   centre=self.centre, work_dir=curdir.path, filebase="complex")]
-                    morph_sol = _solvate.solvate(morph.get_morph(self.protein.ligand_ref), self.params,
+                    morph_sol = _solvate.solvate(morph_BSS, self.params,
                                                  box_length=self.box_length_morph, shell=self.shell,
                                                  neutralise=self.neutralise, ion_conc=self.ion_conc, centre=self.centre,
                                                  work_dir=curdir.path, filebase="morph")
 
                     # rescale complexes for replica exchange if needed
                     if len(scales) != 1:
-                        print("Creating replicas...")
+                        _logging.info("Creating replicas...")
                         complexes = [_BSSwrap.rescaleSystemParams(complexes[0], scale, includelist=["Merged_Molecule"])
                                      for scale in scales]
 
@@ -218,7 +264,7 @@ class Ensemble:
         """
         if systems is None: systems = self.systems_prep
         # TODO support other engines
-        print("Saving solvated complexes as GROMACS...")
+        _logging.info("Saving solvated complexes as GROMACS...")
         with self.workdir:
             for name, (morph, complexes) in systems.items():
                 with _fileio.Dir(name):
