@@ -4,7 +4,7 @@ trigger:
 - feature-mac
 
 jobs:
-- job: macOS Test
+- job: macOS_Test
   pool:
     vmImage: 'macOS-latest'
   strategy:
@@ -54,7 +54,7 @@ jobs:
       python -m pytest test/
     displayName: 'Test ProtoCaller'
 
-- job: Ubuntu Test
+- job: Ubuntu_Test
   pool:
     vmImage: 'ubuntu-latest'
   strategy:
