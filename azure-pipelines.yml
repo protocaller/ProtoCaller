@@ -27,18 +27,18 @@ steps:
 
     if [ $(Build.SourceBranchName) == "master" ]
     then
-      conda build conda-recipe/meta.yaml -c michellab/label/main -c rdkit -c conda-forge -c omnia -c bioconda --token $(anacondaToken) --user essexlab
+      conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab
     elif [ $(Build.SourceBranchName) == "devel" ]
     then
-      conda build conda-recipe/meta.yaml -c michellab/label/dev -c rdkit -c conda-forge -c omnia -c bioconda --token $(anacondaToken) --user essexlab --label dev
+      conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
     fi
 
     if [ $(Build.SourceBranchName) == "master" ]
     then
-      conda install -y -c michellab/label/main -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab protocaller
+      conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller
     elif [ $(Build.SourceBranchName) == "devel" ]
     then
-      conda install -y -c michellab/label/dev -c rdkit -c conda-forge -c omnia -c bioconda -c essexlab/label/dev protocaller
+      conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
     fi
 
     python -m pip install --upgrade pip
