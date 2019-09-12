@@ -14,7 +14,7 @@ build:
 requirements:
   build:
     - python>=3.7
-    - numpy>=1.15.4
+    - numpy
   run:
     - python>=3.7
     - ambertools>=17.6
@@ -25,7 +25,7 @@ requirements:
     - htmd-pdb2pqr
     - libcblas
     - mdanalysis
-    - numpy==1.15.4
+    - numpy
     - openbabel
     - parmed>=3.1.0
     - pdbfixer>=1.5
