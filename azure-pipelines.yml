@@ -19,7 +19,7 @@ jobs:
     displayName: 'Use Python $(python.version)'
 
   - script: |
-      /usr/bin/echo "##vso[task.prependpath]$CONDA/bin"
+      /bin/echo "##vso[task.prependpath]$CONDA/bin"
       sudo chown -R $USER $CONDA
       conda create -y -q -n testenv python=$(python.version)
     displayName: "Create Conda environment"
@@ -30,7 +30,7 @@ jobs:
     displayName: "Install Homebrew and GROMACS"
 
   - script: |
-      /usr/bin/echo "##vso[task.prependpath]$CONDA/bin"
+      /bin/echo "##vso[task.prependpath]$CONDA/bin"
       source activate testenv
       cd $(Build.SourcesDirectory)
       conda install -y conda-build anaconda-client
@@ -56,7 +56,7 @@ jobs:
     displayName: 'Install ProtoCaller'
 
   - script: |
-      /usr/bin/echo "##vso[task.prependpath]$CONDA/bin"
+      /bin/echo "##vso[task.prependpath]$CONDA/bin"
       source activate testenv
       python -m pytest test/
     displayName: 'Test ProtoCaller'
