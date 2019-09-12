@@ -19,12 +19,16 @@ jobs:
     displayName: 'Use Python $(python.version)'
 
   - script: |
-      /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-      brew install gromacs
       echo "##vso[task.prependpath]$CONDA/bin"
       sudo chown -R $USER $CONDA
+      which conda
       conda create -y -q -n testenv python=$(python.version)
     displayName: "Create Conda environment"
+
+  - script: |
+      /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+      brew install gromacs
+    displayName: "Install Homebrew and GROMACS"
 
   - script: |
       echo "##vso[task.prependpath]$CONDA/bin"
@@ -76,7 +80,7 @@ jobs:
       sudo apt-get -y install gromacs
       echo "##vso[task.prependpath]$CONDA/bin"
       conda create -y -q -n testenv python=$(python.version)
-    displayName: "Create Conda environment"
+    displayName: "Create Conda environment and install GROMACS"
 
   - script: |
       echo "##vso[task.prependpath]$CONDA/bin"
