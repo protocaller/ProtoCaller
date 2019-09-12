@@ -21,11 +21,14 @@ jobs:
   - script: |
       /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
       brew install gromacs
+      echo "##vso[task.prependpath]$CONDA/bin"
+      sudo chown -R $USER $CONDA
       conda create -y -q -n testenv python=$(python.version)
     displayName: "Create Conda environment"
 
   - script: |
-      source /usr/share/miniconda/bin/activate testenv
+      echo "##vso[task.prependpath]$CONDA/bin"
+      source activate testenv
       cd $(Build.SourcesDirectory)
       conda install -y conda-build anaconda-client
 
@@ -50,7 +53,8 @@ jobs:
     displayName: 'Install ProtoCaller'
 
   - script: |
-      source /usr/share/miniconda/bin/activate testenv
+      echo "##vso[task.prependpath]$CONDA/bin"
+      source activate testenv
       python -m pytest test/
     displayName: 'Test ProtoCaller'
 
@@ -70,11 +74,13 @@ jobs:
 
   - script: |
       sudo apt-get -y install gromacs
+      echo "##vso[task.prependpath]$CONDA/bin"
       conda create -y -q -n testenv python=$(python.version)
     displayName: "Create Conda environment"
 
   - script: |
-      source /usr/share/miniconda/bin/activate testenv
+      echo "##vso[task.prependpath]$CONDA/bin"
+      source activate testenv
       cd $(Build.SourcesDirectory)
       conda install -y conda-build anaconda-client
 
@@ -99,6 +105,7 @@ jobs:
     displayName: 'Install ProtoCaller'
 
   - script: |
-      source /usr/share/miniconda/bin/activate testenv
+      echo "##vso[task.prependpath]$CONDA/bin"
+      source activate testenv
       python -m pytest test/
     displayName: 'Test ProtoCaller'
