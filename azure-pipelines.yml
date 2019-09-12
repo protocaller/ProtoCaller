@@ -19,8 +19,8 @@ jobs:
     displayName: 'Use Python $(python.version)'
 
   - script: |
-      sudo chown -R $USER $CONDA
-      $CONDA/conda create -y -q -n testenv python=$(python.version)
+      sudo chown -R $USER $CONDA/bin
+      $CONDA/bin/conda create -y -q -n testenv python=$(python.version)
     displayName: "Create Conda environment"
 
   - script: |
@@ -29,24 +29,24 @@ jobs:
     displayName: "Install Homebrew and GROMACS"
 
   - script: |
-      source $CONDA/activate testenv
+      source $CONDA/bin/activate testenv
       cd $(Build.SourcesDirectory)
-      $CONDA/conda install -y conda-build anaconda-client
+      $CONDA/bin/conda install -y conda-build anaconda-client
 
       if [ $(Build.SourceBranchName) == "master" ]
       then
-        $CONDA/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab
+        $CONDA/bin/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab
       elif [ $(Build.SourceBranchName) == "devel" ]
       then
-        $CONDA/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
+        $CONDA/bin/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
       fi
 
       if [ $(Build.SourceBranchName) == "master" ]
       then
-        $CONDA/conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller
+        $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller
       elif [ $(Build.SourceBranchName) == "devel" ]
       then
-        $CONDA/conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
+        $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
       fi
 
       python -m pip install --upgrade pip
@@ -54,7 +54,7 @@ jobs:
     displayName: 'Install ProtoCaller'
 
   - script: |
-      $CONDA/source activate testenv
+      $CONDA/bin/source activate testenv
       python -m pytest test/
     displayName: 'Test ProtoCaller'
 
@@ -74,12 +74,12 @@ jobs:
 
   - script: |
       sudo apt-get -y install gromacs
-      echo "##vso[task.prependpath]$CONDA/bin"
+      echo "##vso[task.prependpath]$CONDA/bin/bin"
       conda create -y -q -n testenv python=$(python.version)
     displayName: "Create Conda environment and install GROMACS"
 
   - script: |
-      echo "##vso[task.prependpath]$CONDA/bin"
+      echo "##vso[task.prependpath]$CONDA/bin/bin"
       source activate testenv
       cd $(Build.SourcesDirectory)
       conda install -y conda-build anaconda-client
@@ -105,7 +105,7 @@ jobs:
     displayName: 'Install ProtoCaller'
 
   - script: |
-      echo "##vso[task.prependpath]$CONDA/bin"
+      echo "##vso[task.prependpath]$CONDA/bin/bin"
       source activate testenv
       python -m pytest test/
     displayName: 'Test ProtoCaller'
