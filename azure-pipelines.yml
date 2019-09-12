@@ -19,9 +19,8 @@ jobs:
     displayName: 'Use Python $(python.version)'
 
   - script: |
-      /bin/echo "##vso[task.prependpath]$CONDA/bin"
       sudo chown -R $USER $CONDA
-      conda create -y -q -n testenv python=$(python.version)
+      $CONDA/conda create -y -q -n testenv python=$(python.version)
     displayName: "Create Conda environment"
 
   - script: |
@@ -30,25 +29,24 @@ jobs:
     displayName: "Install Homebrew and GROMACS"
 
   - script: |
-      /bin/echo "##vso[task.prependpath]$CONDA/bin"
-      source activate testenv
+      source $CONDA/activate testenv
       cd $(Build.SourcesDirectory)
-      conda install -y conda-build anaconda-client
+      $CONDA/conda install -y conda-build anaconda-client
 
       if [ $(Build.SourceBranchName) == "master" ]
       then
-        conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab
+        $CONDA/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab
       elif [ $(Build.SourceBranchName) == "devel" ]
       then
-        conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
+        $CONDA/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
       fi
 
       if [ $(Build.SourceBranchName) == "master" ]
       then
-        conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller
+        $CONDA/conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller
       elif [ $(Build.SourceBranchName) == "devel" ]
       then
-        conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
+        $CONDA/conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
       fi
 
       python -m pip install --upgrade pip
@@ -56,8 +54,7 @@ jobs:
     displayName: 'Install ProtoCaller'
 
   - script: |
-      /bin/echo "##vso[task.prependpath]$CONDA/bin"
-      source activate testenv
+      $CONDA/source activate testenv
       python -m pytest test/
     displayName: 'Test ProtoCaller'
 
