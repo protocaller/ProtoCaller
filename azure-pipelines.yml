@@ -26,7 +26,8 @@ jobs:
   - script: |
       /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
       brew install gromacs
-    displayName: "Install Homebrew and GROMACS"
+      brew cask install chromedriver
+    displayName: "Install Homebrew, GROMACS and chromedriver"
 
   - script: |
       source $CONDA/bin/activate testenv
