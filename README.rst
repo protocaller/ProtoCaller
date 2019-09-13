@@ -19,9 +19,11 @@ This package is distributed via Conda. To install it, run the following command:
 
     conda install -c conda-forge -c omnia -c michellab -c essexlab protocaller
 
-ProtoCaller depends on BioSimSpace. If it is run on MacOS, there is a known
-issue with BioSimSpace which means that instead of python one has to run
-the sire_python interpreter instead.
+The development version can be installed with this command (use with caution):
+
+.. code-block:: bash
+
+    conda install -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
 
 
 Getting Started
