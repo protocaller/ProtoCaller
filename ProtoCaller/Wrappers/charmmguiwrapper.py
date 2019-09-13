@@ -17,7 +17,7 @@ from ProtoCaller.IO.PDB import PDB as _PDB
 __all__ = ["PDBReader", "ligandReader", "charmmguiTransform"]
 
 
-def PDBReader(file, timeout=3600):
+def PDBReader(file, timeout=600):
     """
     Accesses http://charmm-gui.org and uses the PDB Reader.
 
