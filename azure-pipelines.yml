@@ -1,7 +1,7 @@
 trigger:
 - master
 - devel
-- feature-mac
+- feature-parametrize
 
 jobs:
 - job: macOS_Test
@@ -38,16 +38,14 @@ jobs:
       if [ $(Build.SourceBranchName) == "master" ]
       then
         $CONDA/bin/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab
-      elif [ $(Build.SourceBranchName) == "devel" ]
-      then
+      else
         $CONDA/bin/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
       fi
 
       if [ $(Build.SourceBranchName) == "master" ]
       then
         $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller
-      elif [ $(Build.SourceBranchName) == "devel" ]
-      then
+      else
         $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
       fi
 
@@ -89,16 +87,14 @@ jobs:
       if [ $(Build.SourceBranchName) == "master" ]
       then
         conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab
-      elif [ $(Build.SourceBranchName) == "devel" ]
-      then
+      else
         conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
       fi
 
       if [ $(Build.SourceBranchName) == "master" ]
       then
         conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller
-      elif [ $(Build.SourceBranchName) == "devel" ]
-      then
+      else
         conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
       fi
 
