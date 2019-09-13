@@ -19,7 +19,7 @@ jobs:
     displayName: 'Use Python $(python.version)'
 
   - script: |
-      sudo chown -R $USER $CONDA/bin
+      sudo chown -R $USER $CONDA
       $CONDA/bin/conda create -y -q -n testenv python=$(python.version)
     displayName: "Create Conda environment"
 
@@ -74,12 +74,12 @@ jobs:
 
   - script: |
       sudo apt-get -y install gromacs
-      echo "##vso[task.prependpath]$CONDA/bin/bin"
+      echo "##vso[task.prependpath]$CONDA/bin"
       conda create -y -q -n testenv python=$(python.version)
     displayName: "Create Conda environment and install GROMACS"
 
   - script: |
-      echo "##vso[task.prependpath]$CONDA/bin/bin"
+      echo "##vso[task.prependpath]$CONDA/bin"
       source activate testenv
       cd $(Build.SourcesDirectory)
       conda install -y conda-build anaconda-client
@@ -105,7 +105,7 @@ jobs:
     displayName: 'Install ProtoCaller'
 
   - script: |
-      echo "##vso[task.prependpath]$CONDA/bin/bin"
+      echo "##vso[task.prependpath]$CONDA/bin"
       source activate testenv
       python -m pytest test/
     displayName: 'Test ProtoCaller'
