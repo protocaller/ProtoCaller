@@ -54,7 +54,7 @@ jobs:
     displayName: 'Install ProtoCaller'
 
   - script: |
-      $CONDA/bin/source activate testenv
+      source $CONDA/bin/activate testenv
       python -m pytest test/
     displayName: 'Test ProtoCaller'
 
