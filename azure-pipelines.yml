@@ -1,7 +1,6 @@
 trigger:
 - master
 - devel
-- feature-mac
 
 jobs:
 - job: macOS_Test
