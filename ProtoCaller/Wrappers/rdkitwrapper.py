@@ -199,7 +199,7 @@ def openAsRdkit(val, minimise=None, template=None, **kwargs):
                 _runexternal.runExternal("obminimize -sd -c 1e-6 -n 10000 -ff "
                                          "GAFF -osdf molecule.sdf > "
                                          "minimised.sdf")
-                mol = openFileAsRdkit("minimised.sdf")
+                mol = openFileAsRdkit("minimised.sdf", removeHs=False)
 
     return mol
 
