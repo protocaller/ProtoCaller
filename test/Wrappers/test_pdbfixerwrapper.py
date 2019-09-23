@@ -12,7 +12,7 @@ def test_model_3zg0():
             copyfile("../3ZG0.pdb", "3ZG0.pdb")
 
             obj = PDB.PDB("3ZG0.pdb")
-            obj_mod = PDB.PDB(pdbfixerTransform("3ZG0.pdb", True, True))
+            obj_mod = PDB.PDB(pdbfixerTransform("3ZG0.pdb", False, True, True))
 
             assert len(obj.missing_atoms) == len(obj_mod.missing_atoms) == 0
             assert len(obj.missing_residues) == 7
