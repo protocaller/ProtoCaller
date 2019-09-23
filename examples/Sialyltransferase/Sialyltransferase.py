@@ -7,10 +7,24 @@ logging.basicConfig(level=logging.INFO)
 from ProtoCaller.Utils.fileio import Dir
 from ProtoCaller.Ensemble import Ligand, Protein, Ensemble
 
-with Dir("Sialyltransferase", overwrite=True):
-    # create a protein from its PDB code and the residue number of the ligand
-    # we are going to use for mapping
-    protein = Protein("2WNB", ligand_ref="1344")
+with Dir("Sialyltransferase", overwrite=False):
+    # create a protein and ligands using coustom files
+    lig_ref = Ligand("../../lig.sdf", protonated=True,
+                                   workdir="Ligands", name="lig_ref")
+    lig1 = Ligand("../../in1.sdf", protonated=True,
+                                   workdir="Ligands", name="lig1")
+    lig2 = Ligand("../../in2.sdf", protonated=True,
+                                   workdir="Ligands", name="lig2")
+    protein = Protein("2WNB", pdb_file="../../pro.pdb", ligand_ref=lig_ref)
+    protein.pdb_obj[0].chainID = "A"
+
+    # change the selenomethionine residues to methionine
+    for residue in protein.pdb_obj.modified_residues:
+        residue.resName = "MET"
+        for atom in residue:
+            if atom.name == "SE":
+                atom.name = "SD"
+                atom.element = "S"
 
     # delete any atoms with altLoc B
     for chain in protein.pdb_obj:
@@ -19,13 +33,6 @@ with Dir("Sialyltransferase", overwrite=True):
             residue.purgeAtoms(atoms_to_purge, "discard")
     protein.pdb_obj.writePDB()
 
-    # create two ligands from SMILES strings
-    lig1 = Ligand("O([P@]([O-])(=O)CC[C@@]1(C(=O)N)C[C@@H]([C@H]([C@H]([C@@H]"
-                  "([C@@H](CO)O)O)O1)NC(=O)C)O)C[C@H]1O[C@@H](n2c(=O)nc(N)cc2)"
-                  "[C@H](O)[C@@H]1O", workdir="Ligands")
-    lig2 = Ligand("[P@]([O-])(=O)(OC[C@H]1O[C@@H](n2ccc(nc2=O)N)[C@H](O)[C@@H]"
-                  "1O)CC[C@]1(CO)O[C@H]([C@@H]([C@H](C1)O)NC(=O)C)[C@H](O)"
-                  "[C@H](O)CO", workdir="Ligands")
 
     # create the morphs from the ligands
     morphs = [[lig1, lig2], [lig2, lig1]]
@@ -38,11 +45,9 @@ with Dir("Sialyltransferase", overwrite=True):
     # only keep the reference ligand and keep all crystallographic waters
     system.protein.filter(ligands=None, waters="all")
     # add missing residues with Modeller and add missing atoms and protonate
-    # with PDB2PQR. We also replace the nonstandard selenomethionine residues
-    # with methionine.
+    # with PDB2PQR
     system.protein.prepare(add_missing_residues="modeller",
-                           add_missing_atoms="pdb2pqr",
-                           replace_nonstandard_residues=True)
+                           add_missing_atoms="pdb2pqr")
     # prepare the complex and solvated leg starting structures and save them as
     # GROMACS input. Parametrisation here will be very slow. Be patient
     system.prepareComplexes()
