@@ -88,6 +88,8 @@ def solvate(complex, params=None, box_length=8, shell=0, neutralise=True, ion_co
         new_gro = filebase + "_solvated.gro"
         command = "{0} solvate -shell {1} -box {2[0]} {2[1]} {2[2]} -cp \"{3}\" -o \"{4}\"".format(
             _PC.GROMACSEXE, shell, box_length, files[1], new_gro)
+        if params.water_points == 4:
+            command += " -cs tip4p.gro"
         _runexternal.runExternal(command, procname="gmx solvate")
         complex_solvated = _pmd.load_file(new_gro, skip_bonds=True)
         waters = complex_solvated[":SOL"]
@@ -100,6 +102,8 @@ def solvate(complex, params=None, box_length=8, shell=0, neutralise=True, ion_co
                 atom.name = atom.name[0] + atom.name[2]
             elif "O" in atom.name:
                 atom.name = "O"
+            else:
+                atom.name = "EPW"
 
         # here we only parametrise a single water molecule in order to gain performance
         waters_prep_filenames = [filebase + "_waters.top", filebase + "_waters.gro"]
@@ -110,7 +114,7 @@ def solvate(complex, params=None, box_length=8, shell=0, neutralise=True, ion_co
         for line in _fileinput.input(waters_prep_filenames[0], inplace=True):
             line_new = line.split()
             if len(line_new) == 2 and line_new == ["WAT", "1"]:
-                line = line.replace("1", "{}".format(len(waters.positions) // 3))
+                line = line.replace("1", "{}".format(len(waters.positions) // params.water_points))
             print(line, end="")
         waters_prep = _pmdwrap.openFilesAsParmed(waters_prep_filenames)
 
@@ -164,7 +168,7 @@ def solvate(complex, params=None, box_length=8, shell=0, neutralise=True, ion_co
                 if len(line_new) == 2 and line_new[0] in ["WAT", "NA", "CL"] and line_new[1] == "1":
                     n_mols = len(ions[":{}".format(line_new[0])].positions)
                     if line_new[0] == "WAT":
-                        n_mols //= 3
+                        n_mols //= params.water_points
                     line = line.replace("1", "{}".format(n_mols))
                     mol_dict[line_new[0]] = line
                     # preserve the order of water, sodium and chloride

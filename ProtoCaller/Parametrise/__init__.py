@@ -77,6 +77,16 @@ class Params:
                 _PC.WATERFFS)
         self._water_ff = val
 
+    @property
+    def water_points(self):
+        """How many points the water model has."""
+        if self.water_ff in ["tip3p", "spce", "spceb", "fb3"]:
+            return 3
+        elif self._water_ff in ["tip4pew", "opc", "fb4"]:
+            return 4
+        else:
+            return None
+
 
 def parametriseAndLoadPmd(params, *args, **kwargs):
     """

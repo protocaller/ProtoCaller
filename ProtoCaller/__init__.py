@@ -85,9 +85,9 @@ AMINOACIDNAMES = ["ALA", "ARG", "ASH", "ASN", "ASP", "CYM", "CYS", "CYX", "GLH",
 MODIFIEDAMINOACIDNAMES = ["MSE"]
 COFACTORNAMES = ["ATP", "ADP", "GTP", "GDP", "FMN", "FAD", "HEM", "HEME", "NAD", "NAI", "NAP", "NDP"]
 
-AMBERPROTEINFFS = ["ff14SB", "ff99SB", " ff15ipq", "fb15", "ff03.r1", "ff03ua"]
+AMBERPROTEINFFS = ["ff14SB", "ff14SBonlysc", "ff99SB", "ff15ipq", "ff15ipq-vac", "fb15", "ff03.r1"]
 AMBERLIGANDFFS = ["gaff2", "gaff"]
-AMBERWATERFFS = ["tip3p", "tip4pew"]
+AMBERWATERFFS = ["tip3p", "tip4pew", "opc", "spce", "spceb", "fb3", "fb4"]
 AMBERFFS = AMBERPROTEINFFS + AMBERLIGANDFFS + AMBERWATERFFS
 AMBEROLDFFS = ["ff99SB"]
 AMBERDEFAULTPROTEINFF = "ff14SB"
