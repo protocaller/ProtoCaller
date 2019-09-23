@@ -57,7 +57,8 @@ class MyLoop(_modellerautomodel.loopmodel):
         return modified_id_list
 
 
-def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms):
+def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms,
+                      pdb_code=None):
     """
     Adds missing residues and (optionally) missing atoms to a PDB file.
 
@@ -69,19 +70,22 @@ def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms):
         Name of the input sequence FASTA file.
     add_missing_atoms : bool
         Whether to add missing atoms.
+    pdb_code : bool
+        The PDB code of the PDB file. Default: the PDB filename.
 
     Returns
     -------
     filename_output : str
         Absolute path to the modified file.
     """
+    if not pdb_code:
+        pdb_code = _os.path.splitext(_os.path.basename(filename_pdb))[0]
     _logging.basicConfig(stream=_sys.stdout)
     _logging.write = lambda msg: _logging.info(msg.strip()) \
         if msg.strip() else None
     with _redirect_stdout(_logging):
         _modeller.log.verbose()
         env = _modeller.environ()
-        pdb_code = _os.path.splitext(_os.path.basename(filename_pdb))[0]
 
         # convert FASTA to PIR
         filename_pir = FASTA2PIR(filename_fasta)

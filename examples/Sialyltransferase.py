@@ -12,14 +12,6 @@ with Dir("Sialyltransferase", overwrite=True):
     # we are going to use for mapping
     protein = Protein("2WNB", ligand_ref="1344")
 
-    # change the selenomethionine residues to methionine
-    for residue in protein.pdb_obj.modified_residues:
-        residue.resName = "MET"
-        for atom in residue:
-            if atom.name == "SE":
-                atom.name = "SD"
-                atom.element = "S"
-
     # delete any atoms with altLoc B
     for chain in protein.pdb_obj:
         for residue in chain:
@@ -46,9 +38,11 @@ with Dir("Sialyltransferase", overwrite=True):
     # only keep the reference ligand and keep all crystallographic waters
     system.protein.filter(ligands=None, waters="all")
     # add missing residues with Modeller and add missing atoms and protonate
-    # with PDB2PQR
+    # with PDB2PQR. We also replace the nonstandard selenomethionine residues
+    # with methionine.
     system.protein.prepare(add_missing_residues="modeller",
-                           add_missing_atoms="pdb2pqr")
+                           add_missing_atoms="pdb2pqr",
+                           replace_nonstandard_residues=True)
     # prepare the complex and solvated leg starting structures and save them as
     # GROMACS input. Parametrisation here will be very slow. Be patient
     system.prepareComplexes()

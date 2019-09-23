@@ -395,7 +395,7 @@ class Protein:
                 add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
                 protonate_ligands="babel", missing_residues_options=None,
                 missing_atom_options=None, protonate_proteins_options=None,
-                protonate_ligands_options=None):
+                protonate_ligands_options=None, replace_nonstandard_residues=True):
         """
         Adds missing residues / atoms to the protein and protonates it and the
         relevant ligands.
@@ -426,6 +426,9 @@ class Protein:
         protonate_ligands_options : dict
             Keyword arguments to pass on to the relevant wrapper responsible
             for ligand protonation.
+        replace_nonstandard_residues : bool
+            Whether to replace nonstandard residues with their standard
+            equivalents.
         """
         with self.workdir:
             add_missing_residues = add_missing_residues.strip().lower() \
@@ -464,6 +467,10 @@ class Protein:
                                "PDB2PQR...")
                 add_missing_atoms = "pdb2pqr"
 
+            # convert modified residues to normal ones
+            if replace_nonstandard_residues and self.pdb_obj.modified_residues:
+                self.pdb = _pdbfix.pdbfixerTransform(self.pdb, True, False, False)
+
             # add missing residues
             if len(self._pdb_obj.missing_residues):
                 kwargs = missing_residues_options
@@ -475,15 +482,15 @@ class Protein:
                         atoms = False
                     if not self.fasta:
                         raise ValueError("No fasta file supplied.")
-                    self.pdb = _modeller.modellerTransform(self.pdb, self.fasta,
-                                                           atoms, **kwargs)
+                    self.pdb = _modeller.modellerTransform(
+                        self.pdb, self.fasta, atoms, self.code, **kwargs)
                 elif add_missing_residues == "charmm-gui":
-                    self.pdb = _charmmwrap.charmmguiTransform(self.pdb,
-                                                              **kwargs)
+                    self.pdb = _charmmwrap.charmmguiTransform(
+                        self.pdb, **kwargs)
                 elif add_missing_residues == "pdbfixer":
                     atoms = True if add_missing_atoms == "pdbfixer" else False
-                    self.pdb = _pdbfix.pdbfixerTransform(self.pdb, True,
-                                                         atoms, **kwargs)
+                    self.pdb = _pdbfix.pdbfixerTransform(
+                        self.pdb, False, True, atoms, **kwargs)
                 else:
                     _warnings.warn("Protein has missing residues. Please check"
                                    " your PDB file or choose a valid "
@@ -501,8 +508,8 @@ class Protein:
                     add_missing_atoms = "pdb2pqr"
                 elif add_missing_atoms == "pdbfixer" and \
                          add_missing_residues != "pdbfixer":
-                    self.pdb = _pdbfix.pdbfixerTransform(self.pdb, False, True,
-                                                         **kwargs)
+                    self.pdb = _pdbfix.pdbfixerTransform(
+                        self.pdb, False, False, True, **kwargs)
 
             # protonate proteins
             if "pdb2pqr" in [add_missing_atoms, protonate_proteins]:

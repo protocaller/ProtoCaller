@@ -19,6 +19,3 @@ missing residues in the PDB file.
 
 .. literalinclude:: ../../examples/Sialyltransferase.py
     :language: python
-
-We can see that ProtoCaller provides us with an opportunity to edit our system
-inside Python in a scenario where an ordinary black box approach would fail.
