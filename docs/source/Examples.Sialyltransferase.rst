@@ -17,5 +17,13 @@ to the documentation.
 NOTE: You will need a Modeller license to run this example, since there are
 missing residues in the PDB file.
 
-.. literalinclude:: ../../examples/Sialyltransferase.py
+.. literalinclude:: ../../examples/Sialyltransferase_1.py
+    :language: python
+
+Alternatively, we can use a custom PDB file and ligand files to avoid some
+troubles with the preparation. In this case we don't need Modeller and we
+get better alignment. Note that in this case the original files may be
+overwritten by ProtoCaller during the workflow.
+
+.. literalinclude:: ../../examples/Sialyltransferase_2.py
     :language: python
