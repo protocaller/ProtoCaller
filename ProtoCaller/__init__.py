@@ -90,7 +90,7 @@ COFACTORNAMES = ["ATP", "ADP", "GTP", "GDP", "FMN", "FAD", "HEM", "HEME", "NAD",
 
 AMBERPROTEINFFS = ["ff14SB", "ff14SBonlysc", "ff99SB", "ff15ipq", "ff15ipq-vac", "fb15", "ff03.r1"]
 AMBERLIGANDFFS = ["gaff2", "gaff"]
-AMBERWATERFFS = ["tip3p", "tip4pew", "opc", "spce", "spceb", "fb3", "fb4"]
+AMBERWATERFFS = ["tip3p"]
 AMBERFFS = AMBERPROTEINFFS + AMBERLIGANDFFS + AMBERWATERFFS
 AMBEROLDFFS = ["ff99SB"]
 AMBERDEFAULTPROTEINFF = "ff14SB"
