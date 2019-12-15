@@ -39,12 +39,15 @@ release = '1.1'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'autoapi.extension',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.autosectionlabel',
     'sphinx.ext.napoleon',
     'sphinx.ext.mathjax',
 ]
+
+autoapi_dirs = ['../../ProtoCaller']
 
 autodoc_default_flags = ['members']
 autosummary_generate = True

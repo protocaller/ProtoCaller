@@ -1,9 +1,0 @@
-name: protocaller
-channels:
-  - essexlab
-  - michellab
-  - omnia
-  - conda-forge
-  - defaults
-dependencies:
-  - protocaller
