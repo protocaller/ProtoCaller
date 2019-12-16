@@ -1,4 +1,6 @@
 channels:
-  -omnia
+  - omnia
+  - conda-forge
+  - defaults
 dependencies:
-  -pdbfixer
+  - pdbfixer
