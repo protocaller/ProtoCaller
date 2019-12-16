@@ -1,0 +1,4 @@
+channels:
+  -omnia
+dependencies:
+  -pdbfixer

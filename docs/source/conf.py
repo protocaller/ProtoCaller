@@ -39,7 +39,6 @@ release = '1.1'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'autoapi.extension',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.autosectionlabel',
@@ -47,9 +46,9 @@ extensions = [
     'sphinx.ext.mathjax',
 ]
 
-autoapi_dirs = ['../../ProtoCaller']
-
 autodoc_default_flags = ['members']
+autodoc_mock_imports = ["Bio", "BioSimSpace", "MDAnalysis", "modeller", "numpy", "parmed", "pdb2pqr", "propka",
+                        "pymbar", "pypdb", "rdkit", "scipy", "selenium", "seleniumrequests", "simtk", "Sire"]
 autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
