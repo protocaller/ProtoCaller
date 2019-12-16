@@ -11,7 +11,7 @@ class Protocol:
     Parameters
     ----------
     use_preset : str, None
-        Which default preset to use. One of: "minimisation", "equilibration_nvt", "equilibration_npt", "production"
+        Which default preset to use. Allowed values: "minimisation", "equilibration_nvt", "equilibration_npt", "production"
         "vacuum".
     extra_params : dict
         Used to set custom attributes with illegal Python characters in them.
@@ -22,7 +22,7 @@ class Protocol:
     ----------
 
     integrator : string
-        Which integrator to use.
+        Which integrator to use. Allowed values: "leapfrog", "velocity_verlet", "steep", "l-bfgs", "stochastic".
     timestep : float
         What timestep to use in ps.
     n_steps : int
@@ -42,19 +42,19 @@ class Protocol:
     neighbour_frequency : int
         How often to update the neighbour list in timesteps.
     coulomb_type : string
-        What type of Coulomb interactions to use.
+        What type of Coulomb interactions to use. Allowed values: "cutoff", "ewald", "pme".
     pme_order : int
         What order of PME to use. Ignored if coulomb_type is not PME.
     coulomb_cutoff : float
         Cutoff in nm for electrostatics.
     vdw_type : string
-        What type of van der Waals interactions to use.
+        What type of van der Waals interactions to use. Allowed values: "cutoff", "pme"
     vdw_corr : string
-        What type of long-distance correction to apply.
+        What type of long-distance correction to apply. Allowed values: "no", "energy", "energy_pressure".
     vdw_cutoff : float
         Cutoff in nm for van der Waals interactions.
     thermostat : string
-        What thermostat to use.
+        What thermostat to use. Allowed values: "no", "berendsen", "nose-hoover", "andersen".
     temp_frequency : int
         Thermostat friction coefficient / collision frequency in THz.
     temp_time_coupling : float
@@ -62,9 +62,9 @@ class Protocol:
     temperature : int
         Simulation temperature.
     temp_groups : string
-        Which parts of the system to heat up.
+        Which parts of the system to heat up. Allowed values: "all"
     barostat : string
-        What barostat to use.
+        What barostat to use. Allowed values: "no", "berendsen", "parrinello-rahman", "mttk".
     pres_frequency : int
         Barostat friction coefficient / collision frequency in THz.
     pres_time_coupling : float
@@ -80,9 +80,9 @@ class Protocol:
     random_velocities_seed : int
         Seed for random velocity sampling. -1 is random seed.
     constraint : string
-        Which constraints to apply.
+        Which constraints to apply. Allowed values: "no", "h_bonds", "h_angles", "all_bonds", "all_angles".
     constraint_type : string
-        Which constraint algorithm to use.
+        Which constraint algorithm to use. Allowed values: "lincs", "shake".
     free_energy : bool
         Whether this is a free energy calculation.
     current_lambda : int
@@ -282,7 +282,7 @@ class Protocol:
         Parameters
         ----------
         engine : str
-            Determines the format of the file. One of: "GROMACS".
+            Determines the format of the file. Allowed values: "GROMACS".
         filebase : str, optional
             The base of the output file.
 
