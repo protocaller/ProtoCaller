@@ -42,12 +42,14 @@ jobs:
         $CONDA/bin/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
       fi
 
+      PCVERSION=$(less conda-recipe/meta.yaml | grep -Po '(?<=version: )\d.\d.\d')
+
       if [ $(Build.SourceBranchName) == "master" ]
       then
-        $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller
+        $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller=$PCVERSION
       elif [ $(Build.SourceBranchName) == "devel" ]
       then
-        $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
+        $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller=$PCVERSION
       fi
 
       $CONDA_PREFIX/bin/python -m pip install --upgrade pip
@@ -56,7 +58,7 @@ jobs:
 
   - script: |
       source $CONDA/bin/activate testenv
-      $CONDA_PREFIX/bin/sire_python -m pytest test/
+      $CONDA_PREFIX/bin/python -m pytest test/
     displayName: 'Test ProtoCaller'
 
 - job: Ubuntu_Test
@@ -93,12 +95,14 @@ jobs:
         conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
       fi
 
+      PCVERSION=$(less conda-recipe/meta.yaml | grep -Po '(?<=version: )\d.\d.\d')
+
       if [ $(Build.SourceBranchName) == "master" ]
       then
-        conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller
+        conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller=$PCVERSION
       elif [ $(Build.SourceBranchName) == "devel" ]
       then
-        conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
+        conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller=$PCVERSION
       fi
 
       $CONDA_PREFIX/bin/python -m pip install --upgrade pip
