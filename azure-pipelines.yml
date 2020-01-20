@@ -27,7 +27,8 @@ jobs:
       brew install gromacs
       brew cask install firefox
       brew cask install chromedriver
-    displayName: "Install Homebrew, GROMACS, firefox and chromedriver"
+      brew install ggrep
+    displayName: "Install Homebrew, GROMACS, firefox, chromedriver and ggrep"
 
   - script: |
       source $CONDA/bin/activate testenv
@@ -42,7 +43,7 @@ jobs:
         $CONDA/bin/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
       fi
 
-      PCVERSION=$(less conda-recipe/meta.yaml | grep -Po '(?<=version: )\d.\d.\d')
+      PCVERSION=$(less conda-recipe/meta.yaml | ggrep -Po '(?<=version: )\d.\d.\d')
 
       if [ $(Build.SourceBranchName) == "master" ]
       then
