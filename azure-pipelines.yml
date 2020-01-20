@@ -56,7 +56,7 @@ jobs:
 
   - script: |
       source $CONDA/bin/activate testenv
-      $CONDA_PREFIX/bin/python -m pytest test/
+      $CONDA_PREFIX/bin/sire_python -m pytest test/
     displayName: 'Test ProtoCaller'
 
 - job: Ubuntu_Test
