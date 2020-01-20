@@ -1,0 +1,6 @@
+channels:
+  - omnia
+  - conda-forge
+  - defaults
+dependencies:
+  - pdbfixer

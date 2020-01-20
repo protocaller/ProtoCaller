@@ -12,10 +12,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
-
+import os
+import sys
+#Location of Sphinx files
+sys.path.insert(0, os.path.abspath('./../..'))
 
 # -- Project information -----------------------------------------------------
 
@@ -26,7 +26,7 @@ author = 'Miroslav Suruzhon'
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
-release = '0.1dev'
+release = '1.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -47,6 +47,8 @@ extensions = [
 ]
 
 autodoc_default_flags = ['members']
+autodoc_mock_imports = ["Bio", "BioSimSpace", "MDAnalysis", "modeller", "numpy", "parmed", "pdb2pqr", "propka",
+                        "pymbar", "pypdb", "rdkit", "scipy", "selenium", "seleniumrequests", "Sire"]
 autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
