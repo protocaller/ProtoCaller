@@ -1,3 +1,5 @@
+from Bio.Data.IUPACData import protein_letters_3to1 as _3_to_1
+
 import ProtoCaller.Utils.ConditionalList as _CondList
 from . import Missing as _Missing
 
@@ -56,6 +58,15 @@ class Residue(_Missing.MissingResidue, _CondList.ConditionalList):
     def numberOfAtoms(self):
         """int: Returns the number of atoms."""
         return len(self)
+
+    @property
+    def sequence(self):
+        """str: Returns the single-character code of the amino acid residue."""
+        try:
+            code = _3_to_1[self.resName.capitalize()]
+        except:
+            code = "-"
+        return code
 
     def reNumberAtoms(self, start=1, custom_serials=None):
         """

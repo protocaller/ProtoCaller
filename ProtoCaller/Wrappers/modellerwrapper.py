@@ -58,7 +58,7 @@ class MyLoop(_modellerautomodel.loopmodel):
 
 
 def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms,
-                      pdb_code=None):
+                      pdb_code=None, refinement="very_fast"):
     """
     Adds missing residues and (optionally) missing atoms to a PDB file.
 
@@ -72,6 +72,9 @@ def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms,
         Whether to add missing atoms.
     pdb_code : bool
         The PDB code of the PDB file. Default: the PDB filename.
+    refinement : str, None
+        Level of MD refinement. Allowed values are: None, "very_fast", "fast",
+        "slow", "very_slow", "slow_large".
 
     Returns
     -------
@@ -88,7 +91,7 @@ def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms,
         env = _modeller.environ()
 
         # convert FASTA to PIR
-        filename_pir = FASTA2PIR(filename_fasta)
+        filename_pir = FASTA2PIR(filename_pdb, filename_fasta)
 
         m = MyLoop(env=env,
                    alnfile=filename_pir,
@@ -97,6 +100,24 @@ def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms,
                    sequence=pdb_code.upper(),  # code of the target
                    loop_assess_methods=_modeller.automodel.assess.DOPE)
 
+        refinement_dict = {
+            "very_fast": _modeller.automodel.refine.very_fast,
+            "fast": _modeller.automodel.refine.fast,
+            "slow": _modeller.automodel.refine.slow,
+            "very_slow": _modeller.automodel.refine.very_slow,
+            "slow_large": _modeller.automodel.refine.slow_large,
+        }
+
+        if refinement and refinement not in refinement_dict.keys():
+            _warnings.warn("Refinement option {} not supported. Valid "
+                           "refinement options: {}. Continuing with very fast "
+                           "refinement...".format(refinement,
+                                                  list(refinement_dict.keys())))
+        if refinement:
+            m.loop.md_level = refinement_dict[refinement]
+        else:
+            m.loop.md_level = None
+
         m.auto_align()  # get an automatic alignment
         m.make()
 
@@ -104,13 +125,15 @@ def modellerTransform(filename_pdb, filename_fasta, add_missing_atoms,
                               filename_output=pdb_code + "_modeller.pdb")
 
 
-def FASTA2PIR(filename_input):
+def FASTA2PIR(filename_pdb, filename_fasta):
     """
-    Converts a FASTA file into a PIR file.
+    Converts a FASTA file into a PIR file using a PDB sequence.
 
     Parameters
     ----------
-    filename_input : str
+    filename_pdb : str
+        Name of the input PDB file.
+    filename_fasta : str
         Name of the input FASTA file.
 
     Returns
@@ -118,7 +141,9 @@ def FASTA2PIR(filename_input):
     filename_output : str
         Name of the output PIR file.
     """
-    file = open(filename_input).readlines()
+    sequence = _IO.PDB.PDB(filename_pdb).sequence.replace("/", "-")
+    sequence_lines = [sequence[i:i+80] for i in range(0, len(sequence), 80)]
+    file = open(filename_fasta).readlines()
     pdb_code = ""
     new_file = []
 
@@ -136,8 +161,13 @@ def FASTA2PIR(filename_input):
 
     filename_output = pdb_code + ".pir"
     with open(filename_output, "w") as file:
-        file.write(">P1;PROT\nstructureX:%s:FIRST:@ END::::::\n*\n\n" %
+        file.write(">P1;PROT\nstructureX:%s:FIRST:@:::::-1.00:-1.00\n" %
                    pdb_code)
+        for i, line in enumerate(sequence_lines):
+            file.write(line)
+            if i != len(sequence_lines) - 1:
+                file.write("\n")
+        file.write("*\n\n")
         for i, line in enumerate(new_file):
             if i != len(new_file) - 1:
                 file.write(line)

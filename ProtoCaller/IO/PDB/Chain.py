@@ -34,8 +34,21 @@ class Chain(_Residue, _CondList.ConditionalList):
         return "<Chain of {} residues>".format(len(self))
 
     @property
+    def sequence(self):
+        """str: Returns the single-character sequence of the amino acids in
+                the chain. Missing amino acids are not taken into account."""
+        try:
+            seq = "".join([residue.sequence for residue in self
+                           if residue.type in ["amino_acid",
+                                               "amino_acid_modified"]])
+        except:
+            seq = ""
+        return seq
+
+    @property
     def type(self):
-        """Returns the type of the chain: "chain" if it has amino acid residues and "molecules" otherwise."""
+        """str: Returns the type of the chain: "chain" if it has amino acid
+                residues and "molecules" otherwise."""
         if not len(self):
             return None
         else:

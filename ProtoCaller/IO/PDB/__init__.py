@@ -33,7 +33,8 @@ class PDB(Chain, _CondList.ConditionalList):
 
     @property
     def type(self):
-        """str: Returns "protein". A potentially useful placeholder for more functionality in the future."""
+        """str: Returns "protein". A potentially useful placeholder for more
+                functionality in the future."""
         return "protein"
 
     @property
@@ -309,6 +310,22 @@ class PDB(Chain, _CondList.ConditionalList):
         for chain in self:
             chain.purgeResidues([residue for residue in residues if residue in chain], mode=mode)
         self.purgeEmpty()
+
+    @property
+    def sequence(self):
+        """str: Returns the single-character sequence of all amino acids in
+                the protein."""
+        try:
+            residues = self.totalResidueList()
+            seq = {}
+            for res in residues:
+                if res.chainID not in seq.keys():
+                    seq[res.chainID] = []
+                seq[res.chainID] += [res.sequence]
+            seq = "/".join(["".join(seq[k]) for k in sorted(seq.keys())])
+        except:
+            seq = ""
+        return seq
 
     def totalResidueList(self, sort=True):
         """
