@@ -27,7 +27,7 @@ jobs:
       brew install gromacs
       brew cask install firefox
       brew cask install chromedriver
-      brew install ggrep
+      brew install grep
     displayName: "Install Homebrew, GROMACS, firefox, chromedriver and ggrep"
 
   - script: |
