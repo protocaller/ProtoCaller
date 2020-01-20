@@ -50,13 +50,13 @@ jobs:
         $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
       fi
 
-      python -m pip install --upgrade pip
-      pip install pytest pytest-azurepipelines
+      CONDA_PREFIX/bin/python -m pip install --upgrade pip
+      CONDA_PREFIX/bin/pip install pytest pytest-azurepipelines
     displayName: 'Install ProtoCaller'
 
   - script: |
       source $CONDA/bin/activate testenv
-      python -m pytest test/
+      CONDA_PREFIX/bin/python -m pytest test/
     displayName: 'Test ProtoCaller'
 
 - job: Ubuntu_Test
@@ -101,12 +101,12 @@ jobs:
         conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
       fi
 
-      python -m pip install --upgrade pip
-      pip install pytest pytest-azurepipelines
+      CONDA_PREFIX/bin/python -m pip install --upgrade pip
+      CONDA_PREFIX/bin/pip install pytest pytest-azurepipelines
     displayName: 'Install ProtoCaller'
 
   - script: |
       echo "##vso[task.prependpath]$CONDA/bin"
       source activate testenv
-      python -m pytest test/
+      CONDA_PREFIX/bin/python -m pytest test/
     displayName: 'Test ProtoCaller'
