@@ -12,6 +12,7 @@ Welcome to ProtoCaller's documentation!
 
    readme
    ProtoCaller
+   Changelog
    Examples
 
 Indices and tables

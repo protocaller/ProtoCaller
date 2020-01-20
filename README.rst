@@ -4,10 +4,12 @@ ProtoCaller
 About
 -----
 
+ProtoCaller is a Python library which enables controlled automation of relative protein-ligand binding free energy
+calculations in GROMACS. ProtoCaller uses a variety of tools to automate the free energy calculation process,
+such as: Biopython, BioSimSpace, CHARMM-GUI, (optionally) Modeller, Open Babel, Parmed, PDB2PQR, pdbfixer, RDKit.
 
-Fully automates high-throughput relative protein-ligand binding free energy calculations
-
-This tool uses a variety of tools to automate the free energy calculation process.
+ProtoCaller can be run on both Linux and macOS. Installation is easy and performed through Conda. Please check the
+other sections for further information.
 
 
 Installation
@@ -29,4 +31,7 @@ The development version can be installed with this command (use with caution):
 Getting Started
 ---------------
 
-There are a few examples which you can find either in the examples/ subfolder or in the "Examples" section of the documentation which you can run to see how ProtoCaller works.
+Full docstring documentation can be found `here <https://protocaller.readthedocs.io/en/latest/ProtoCaller.html>`_.
+
+There are also a few `examples <https://protocaller.readthedocs.io/en/latest/Examples.html>`_ which you can run to
+see how ProtoCaller works.
