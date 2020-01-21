@@ -48,7 +48,7 @@ class Protocol:
     coulomb_cutoff : float
         Cutoff in nm for electrostatics.
     vdw_type : string
-        What type of van der Waals interactions to use. Allowed values: "cutoff", "pme"
+        What type of van der Waals interactions to use. Allowed values: "cutoff", "pme".
     vdw_corr : string
         What type of long-distance correction to apply. Allowed values: "no", "energy", "energy_pressure".
     vdw_cutoff : float
@@ -62,7 +62,7 @@ class Protocol:
     temperature : int
         Simulation temperature.
     temp_groups : string
-        Which parts of the system to heat up. Allowed values: "all"
+        Which parts of the system to heat up. Allowed values: "all".
     barostat : string
         What barostat to use. Allowed values: "no", "berendsen", "parrinello-rahman", "mttk".
     pres_frequency : int

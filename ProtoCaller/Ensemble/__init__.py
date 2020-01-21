@@ -164,12 +164,16 @@ class Ensemble:
         replica_temps : [float] or None
             A list of replica temperatures. Everything is normalised with respect to the lowest temperature. None
             means only output the normal files.
+        scale_dummy_bonds : float
+            Sets the dummy bond length distance as a fraction of the real bond length distance.
+        dummy_bond_smarts : str
+            SMARTS string which indicates which dummy bonds are to be affected by scale_dummy_bonds.
         intermediate_files : bool
             Whether to store all intermediate files.
         store_complexes : bool
             Whether to store the final complexes as a dictionary of BioSimSpace System objects.
         output_files : bool
-            Whether to write output files immediately or later via saveSystems
+            Whether to write output files immediately or later via saveSystems.
         """
         # make sure the proteins / ligands are parametrised before proceeding
         with self.workdir:
