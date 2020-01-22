@@ -27,7 +27,7 @@ class RunGMX:
     work_dir : str, optional
         Initialises the run in a custom directory.
     lambda_dict
-        Initialises lambda_dict
+        Initialises lambda_dict.
 
     Attributes
     ----------
@@ -70,7 +70,7 @@ class RunGMX:
 
     @property
     def lambda_size(self):
-        """Returns the number of lambda windows."""
+        """int: Returns the number of lambda windows."""
         return len(self.files)
 
     def runSimulation(self, name, multi=False, single_lambda=None, use_mpi=False, use_preset=None, replex=None,
@@ -105,7 +105,7 @@ class RunGMX:
             Whether to enable dynamic load balancing. Default is False due to some possible instabilities with
             gmx_mpi mdrun in some cases.
         protocol_params
-            Keyword arguments passed to ProtoCaller.Protocol.Protocol
+            Keyword arguments passed to ProtoCaller.Protocol.Protocol.
         """
         if n_processes is None:
             n_processes = 1 if single_lambda else self.lambda_size
@@ -296,9 +296,10 @@ class RunGMX:
     def runMBAR(self, n_points_to_ignore=1, temperature=298):
         """
         Runs pymbar and outputs to the logger. Note that this option is only
-        valid after running :func:`~ProtoCaller.Simulation.RunGMX.\
-        generateMBARData`. For regular data output by GROMACS one should
-        use external scripts such as `alchemical_analysis
+        valid after running
+        :func:`~ProtoCaller.Simulation.RunGMX.generateMBARData`.
+        For regular data output by GROMACS one should
+        use external scripts such as `alchemical_analysis\
          <https://github.com/MobleyLab/alchemical-analysis>`_.
 
         Parameters

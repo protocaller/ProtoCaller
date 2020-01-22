@@ -3,8 +3,8 @@ import sys as _sys
 import warnings as _warnings
 
 class stdout_stderr_cls:
-    """Same as the `~ProtoCaller.Utils.stdio.stdout_stderr decorator but in a
-    class form."""
+    """Same as the :func:`~ProtoCaller.Utils.stdio.stdout_stderr` decorator
+    but in a class form."""
     def __init__(self, stdout=_os.devnull, stderr=_os.devnull):
         _sys.stdout.flush()
         _sys.stderr.flush()

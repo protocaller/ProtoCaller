@@ -24,7 +24,7 @@ bin/ directory is located. Alternatively, one can set the
 :const:`ProtoCaller.GROMACSEXE` and/or the :const:`ProtoCaller.GROMACSMPIEXE`
 variables to the absolute path of the desired binary.
 
-A useful example of this module in action can be found :doc:`here <Examples.run>`.
+A useful example of this module in action can be found :doc:`here <Examples.Run>`.
 
 Module contents
 ---------------
