@@ -4,6 +4,3 @@ channels:
   - defaults
 dependencies:
   - pdbfixer
-  - pip
-  - pip:
-      graphviz
