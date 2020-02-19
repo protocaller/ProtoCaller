@@ -48,8 +48,9 @@ extensions = [
 ]
 
 autodoc_default_flags = ['members']
-autodoc_mock_imports = ["Bio", "BioSimSpace", "MDAnalysis", "modeller", "numpy", "parmed", "pdb2pqr", "propka",
-                        "pymbar", "pypdb", "rdkit", "scipy", "selenium", "seleniumrequests", "Sire"]
+autodoc_mock_imports = ["Bio", "BioSimSpace", "MDAnalysis", "modeller", "numpy", "parmed", "pdbfixer",
+                        "pdb2pqr", "propka", "pymbar", "pypdb", "rdkit", "scipy", "selenium",
+                        "seleniumrequests", "Sire"]
 autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.

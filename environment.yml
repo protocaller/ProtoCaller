@@ -1,6 +1,5 @@
 channels:
-  - omnia
   - conda-forge
   - defaults
 dependencies:
-  - pdbfixer
+  - python=3.7
