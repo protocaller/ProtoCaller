@@ -1,6 +1,8 @@
 channels:
   - omnia
+  - anaconda
   - conda-forge
   - defaults
 dependencies:
+  - graphviz
   - pdbfixer

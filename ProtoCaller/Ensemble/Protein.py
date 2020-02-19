@@ -36,15 +36,15 @@ class Protein:
         The PDB code of the protein.
     pdb_file : str, optional
         Path to custom PDB file.
-    ligands : [str or Ligand], optional
+    ligands : [str or ProtoCaller.Ensemble.Ligand.Ligand], optional
         Paths to and / or objects of custom ligands.
     ligand_ref : str or ProtoCaller.Ensemble.Ligand.Ligand or None or False
         Initialises ligand_ref from a "resSeq/iCode" (e.g. "400G") or from a Ligand or from a file or automatically
-        (None) or enforces no reference ligand (False)
+        (None) or enforces no reference ligand (False).
     fasta_file : str, optional
         Path to custom FASTA file.
     complex_template : BioSimSpace.System
-        Initialises the complex from an already created complex_template
+        Initialises the complex from an already created complex_template.
     name  optional : str
         Initialises the protein name.
     workdir : str, optional
@@ -55,7 +55,7 @@ class Protein:
     workdir : ProtoCaller.Utils.fileio.Dir
         The working directory of the protein.
     name : str
-        The protein name. Default is the PDB code thereof.
+        The protein name. Default value is the PDB code of the protein.
     """
     _counter = 1
 

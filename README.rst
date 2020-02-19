@@ -32,6 +32,5 @@ Getting Started
 ---------------
 
 Full docstring documentation can be found `here <https://protocaller.readthedocs.io/en/latest/ProtoCaller.html>`_.
-
 There are also a few `examples <https://protocaller.readthedocs.io/en/latest/Examples.html>`_ which you can run to
 see how ProtoCaller works.

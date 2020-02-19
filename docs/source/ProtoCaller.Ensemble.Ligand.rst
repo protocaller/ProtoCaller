@@ -5,7 +5,7 @@ The :class:`~ProtoCaller.Ensemble.Ligand.Ligand` class keeps track of ligand
 instantiation, minimisation, protonation and parametrisation. It consists of
 an RDKit object and, when parametrised, a link to the parameter files.
 
-This means that this class has to be provided with compelte atom and bond
+This means that this class has to be provided with complete atom and bond
 information. This can be done using: SMILES strings, InChI strings, files
 which keep track of bond connectivity (such as SDF, MOL, MOL2) or an RDKit
 object. It is also highly advisable to not use SMILES/InChI strings when

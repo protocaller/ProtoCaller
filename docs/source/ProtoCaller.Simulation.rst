@@ -6,8 +6,8 @@ created from :mod:`~ProtoCaller.Ensemble`. The module currently consists of
 a single class: :class:`~ProtoCaller.Simulation.RunGMX`. Through this class,
 it is possible to streamline free energy calculations in an accessible way.
 One can either instantiate this class with a single GRO and TOP file or
-with several topologies and/or positions. In any case the lambda values
-have to be passed to the initialiser.
+with several topologies and/or initial coordinates. In any case the lambda
+values have to be passed to the initialiser.
 
 The main function of the method is :func:`~ProtoCaller.Simulation.RunGMX.\
 runSimulation`. It enables running simulations based on protocols generated
