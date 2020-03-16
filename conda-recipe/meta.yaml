@@ -37,6 +37,7 @@ requirements:
     - requests
     - selenium
     - selenium-requests
+    - sire=2019.2.0
     - tldextract
     - xmltodict
 
