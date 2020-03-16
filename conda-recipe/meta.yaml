@@ -24,6 +24,7 @@ requirements:
     - geckodriver
     - htmd-pdb2pqr
     - libcblas
+    - libnetcdf=4.6.2
     - mdanalysis
     - numpy
     - openbabel<=2.4.1
@@ -37,6 +38,7 @@ requirements:
     - requests
     - selenium
     - selenium-requests
+    - sire=2019.2.0
     - tldextract
     - xmltodict
 
