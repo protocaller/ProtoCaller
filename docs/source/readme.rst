@@ -27,6 +27,9 @@ The development version can be installed with this command (use with caution):
 
     conda install -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller
 
+The newest version (1.1.1) is highly recommended due to some compatibility issues with the most recent versions of
+BioSimSpace and Modeller.
+
 
 Getting Started
 ---------------
