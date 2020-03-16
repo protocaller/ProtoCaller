@@ -192,6 +192,28 @@ def rescaleSystemParams(system, scale, includelist=None, excludelist=None, neutr
 
 
 def rescaleBondedDummies(system, scale, bonds=None):
+    """
+    Rescales bonds which are connected to the dummy atoms
+
+    Parameters
+    ----------
+    system : BioSimSpace.System
+        Input system to be modified.
+    scale : float
+        Multiplication factor for the bond length. 0.5 < scale < 1 for best
+        performance. If scale is too low, the user might encounter numerical
+        stability problems in the simulation.
+    bonds : {str: [(int, int)]}
+        A dictionary which contains all of the bonds to be rescaled. Its keys
+        contain the name of the molecule, and the values are lists of tuples
+        which contain the bond indices to be rescaled. Default: all dummy bonds
+        in the system are rescaled.
+
+    Returns
+    -------
+    system_new : BioSimSpace.System
+        The rescaled system.
+    """
     if scale == 1:
         return system
 
@@ -242,7 +264,7 @@ def rescaleBondedDummies(system, scale, bonds=None):
                 k, r_eq = [float(x) for x in _re.match(pat, func_str).groups()]
 
                 # here we scale the r_eq
-                # this is a bit of a hack since it is difficult to instatiate
+                # this is a bit of a hack since it is difficult to instantiate
                 # Sire CAS from python
                 func = k * ((func / k).root(2) + (1 - scale) * r_eq).squared()
 

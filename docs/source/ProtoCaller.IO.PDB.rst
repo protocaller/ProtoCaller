@@ -22,9 +22,12 @@ ProtoCaller when the input PDB file is not readily usable and manually editing
 it would be non-trivial. An example would be the preparation of :doc:`Examples\
 .Sialyltransferase`, where the PDB file contains a modified selenomethionine
 residues which the user might want to convert into methionine residues due to
-lack of parameters. This example also shows that in the case where the same
-atom might have two alternative positions, the user could choose one of them
-from inside ProtoCaller.
+lack of parameters. Although this is currently achieved automatically in
+recent versions of ProtoCaller, one can easily imagine other situations where
+they might want to edit the PDB file. Such an example is :doc:`Examples\
+.DHFR` where it is shown that when the same atom might have two alternative
+positions suggested in the PDB file, the user could choose one of them
+from inside ProtoCaller without needing to manually edit the PDB file.
 
 Submodules
 ----------

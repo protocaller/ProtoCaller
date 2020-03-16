@@ -3,6 +3,8 @@ import sys as _sys
 import warnings as _warnings
 
 class stdout_stderr_cls:
+    """Same as the :func:`~ProtoCaller.Utils.stdio.stdout_stderr` decorator
+    but in a class form."""
     def __init__(self, stdout=_os.devnull, stderr=_os.devnull):
         _sys.stdout.flush()
         _sys.stderr.flush()
@@ -24,7 +26,8 @@ class stdout_stderr_cls:
         _os.dup2(self.stderr_prev, 2)
 
 def stdout_stderr(stdout=_os.devnull, stderr=_os.devnull):
-    """A decorator which redirects the stdout and stderr to a custom stream. Default is suppression of all output."""
+    """A decorator which redirects the stdout and stderr to a custom stream.
+    Default is suppression of all output."""
     def decorator(f):
         def f_mod(*args, **kwargs):
             _sys.stdout.flush()

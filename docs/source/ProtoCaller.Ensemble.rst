@@ -6,7 +6,7 @@ This package is the core of ProtoCaller. Here you will find the
 protonation and parametrisation, the :class:`~ProtoCaller.Ensemble.Protein.\
 Protein` class, which handles the complicated and multi-faceted process of
 protein preparation, the :class:`~ProtoCaller.Ensemble.Perturbation.\
-Perturbation` and :class:`~ProtoCaller.Ensemble.PerturbationList.
+Perturbation` and :class:`~ProtoCaller.Ensemble.PerturbationList.\
 PerturbationList` classes, which handle ligand mapping and
 ligand alignment and finally the :class:`~ProtoCaller.Ensemble.Ensemble` class,
 which bundles all of the above together to enable

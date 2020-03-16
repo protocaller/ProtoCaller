@@ -16,8 +16,6 @@ from ProtoCaller.IO.PDB import PDB as _PDB
 __all__ = ["pdb2pqrTransform"]
 
 
-# all options can be found here:
-# https://apbs-pdb2pqr.readthedocs.io/en/latest/pdb2pqr/invoking.html
 def pdb2pqrTransform(filename, **kwargs):
     """
     A thin wrapper around PDB2PQR which protonates an input PDB file.
@@ -27,9 +25,32 @@ def pdb2pqrTransform(filename, **kwargs):
     filename : str
         Name of input file.
     kwargs:
-        Keyword arguments to be passed on to PDB2PQR. All options can be found
-        here:
-        https://apbs-pdb2pqr.readthedocs.io/en/latest/pdb2pqr/invoking.html
+        Keyword arguments to be passed on to PDB2PQR. Supported arguments are:
+
+        ph:
+            The desired ph of the system (float).
+        verbose:
+            Whether all information is output to the logger.
+        ph_calc_method:
+            pKa calculation method (None, "propka","propka31","pdb2pka").
+        ph_calc_options:
+            optionParser like option object for propka30.
+        neutraln:
+            Make the N-terminus of this protein neutral
+        neutralc:
+            Make the C-terminus of this protein neutral
+        assign_only:
+            Only assign charges and radii - do not add atoms, debump, or optimize.
+        drop_water:
+            Remove water molecules from output.
+        debump:
+            When 1, debump heavy atoms (int).
+        opt:
+            When 1, run hydrogen optimization (int).
+        include_old_header:
+            Include most of the PDB header in output.
+        holdlist:
+            A list of residues not to be optimized, as [(resid, chain, icode)].
 
     Returns
     -------

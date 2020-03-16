@@ -83,8 +83,12 @@ COMPLEXCATIONNAMES = ["FE", "CU", "NI", "CO", "MN", "CD"]
 AMINOACIDNAMES = ["ALA", "ARG", "ASH", "ASN", "ASP", "CYM", "CYS", "CYX", "GLH", "GLN", "GLU", "GLY", "HID", "HIE",
                  "HIS", "HIP", "ILE", "LEU", "LYN", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL"]
 
-import pdbfixer as _pdbfixer
-MODIFIEDAMINOACIDNAMES = [x for x in _pdbfixer.pdbfixer.substitutions.keys()]
+# we add this so that we can build the documentation without pdbfixer
+try:
+    import pdbfixer as _pdbfixer
+    MODIFIEDAMINOACIDNAMES = [x for x in _pdbfixer.pdbfixer.substitutions.keys()]
+except ImportError:
+    MODIFIEDAMINOACIDNAMES = []
 
 COFACTORNAMES = ["ATP", "ADP", "GTP", "GDP", "FMN", "FAD", "HEM", "HEME", "NAD", "NAI", "NAP", "NDP"]
 

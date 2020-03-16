@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath('./../..'))
 # -- Project information -----------------------------------------------------
 
 project = 'ProtoCaller'
-copyright = '2019, Miroslav Suruzhon'
+copyright = '2019-2020, Miroslav Suruzhon'
 author = 'Miroslav Suruzhon'
 
 # The short X.Y version
@@ -42,13 +42,15 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.autosectionlabel',
+    'sphinx.ext.graphviz',
     'sphinx.ext.napoleon',
     'sphinx.ext.mathjax',
 ]
 
 autodoc_default_flags = ['members']
-autodoc_mock_imports = ["Bio", "BioSimSpace", "MDAnalysis", "modeller", "numpy", "parmed", "pdb2pqr", "propka",
-                        "pymbar", "pypdb", "rdkit", "scipy", "selenium", "seleniumrequests", "Sire"]
+autodoc_mock_imports = ["Bio", "BioSimSpace", "MDAnalysis", "modeller", "numpy", "parmed", "pdbfixer",
+                        "pdb2pqr", "propka", "pymbar", "pypdb", "rdkit", "scipy", "selenium",
+                        "seleniumrequests", "simtk", "Sire"]
 autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
