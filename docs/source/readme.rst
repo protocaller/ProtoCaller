@@ -30,6 +30,15 @@ The development version can be installed with this command (use with caution):
 The newest version (1.1.1) is highly recommended due to some compatibility issues with the most recent versions of
 BioSimSpace and Modeller.
 
+IMPORTANT: Please note that some recent (10.04.2020) changes to the Protein Data Bank broke compatibility with
+ProtoCaller. As there seem to be some unresolved issues with the database, there is a temporary hotfix for
+ProtoCaller that will be subject to change as the matter progresses further. Until then, please use the current
+development version:
+
+.. code-block:: bash
+
+    conda install -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller=1.1.2
+
 
 Getting Started
 ---------------

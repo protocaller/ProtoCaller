@@ -7,4 +7,4 @@ def test_pdbconnect():
         downloader = PDBDownloader("1BJI")
         downloader.getPDB()
         downloader.getFASTA()
-        assert len(downloader.getLigands()) == 5
+        assert len(downloader.getLigands()) == 11

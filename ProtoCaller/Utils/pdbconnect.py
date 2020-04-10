@@ -1,9 +1,10 @@
 import logging as _logging
 import os as _os
-import re as _re
 import requests as _requests
 
 import pypdb as _pypdb
+
+from ProtoCaller.IO.PDB import PDB as _PDB
 
 
 class PDBDownloader:
@@ -29,7 +30,6 @@ class PDBDownloader:
 
     @code.setter
     def code(self, val):
-        self._html = []
         self._fasta = None
         self._ligands = []
         self._pdb = None
@@ -38,13 +38,6 @@ class PDBDownloader:
             self._code = val.upper()
         except AssertionError:
             raise ValueError("Need to pass a valid PDB code")
-
-    def _download_html(self):
-        if self._html: return
-        _logging.info("Accessing Protein Data Bank... ")
-        self._html = _requests.get("https://www.rcsb.org/structure/" + self.code).text
-        if not self._html:
-            _logging.warning("Could not establish connection to the Protein Data Bank")
 
     def getFASTA(self):
         """
@@ -55,13 +48,13 @@ class PDBDownloader:
         pdb : str
             Returns the absolute path to the FASTA file downloaded from the Protein Data Bank.
         """
-        self._download_html()
-        if self._fasta: return self._fasta
-        fasta_url = _re.search(r'"/pdb/[\S]*downloadFasta[\S]*"', self._html).group(0)
+        if self._fasta:
+            return self._fasta
+        fasta_url = "https://www.rcsb.org/pdb/download/downloadFastaFiles.do?structureIdList={}&" \
+                    "compressionType=uncompressed".format(self.code.lower())
         fasta_filename = self._code + ".fasta"
 
         try:
-            fasta_url = "https://www.rcsb.org" + fasta_url[1:-1].replace("&amp;", "&")
             r = _requests.get(fasta_url)
             with open(fasta_filename, "wb") as f:
                 f.write(r.content)
@@ -86,17 +79,21 @@ class PDBDownloader:
         ligands : [str]
             A list of the absolute paths of all ligands.
         """
-        self._download_html()
-        if self._ligands: return self._ligands
-        raw_file_url_list = _re.findall(r'"/pdb/download/downloadLigandFiles.do\?ligandIdList=[^"]*"', self._html)
+        if self._ligands:
+            return self._ligands
+        ligand_metadata = _pypdb.get_ligands(self.code)
+        ligand_names = [x["@chemicalID"] for x in ligand_metadata["ligandInfo"]["ligand"]]
+        pdb_obj = _PDB(self.getPDB())
+        matches = pdb_obj.filter("|".join(["resName=='{}'".format(x) for x in ligand_names]))
+        full_ligand_names = ["{}_{}_{}_{}_NO_H.sdf".format(
+            self.code.lower(), x.resName, x.chainID, x.resSeq) for x in matches]
         if ligands != "all":
-            for ligand in ligands:
-                raw_file_url_list = [x for x in raw_file_url_list if "ligandIdList=%s&" % ligand in x]
+            full_ligand_names = list(set(full_ligand_names) & set(ligands))
 
         filename_list = []
-        for raw_file_url in raw_file_url_list:
-            ligname = _re.search(r'ligandIdList=([\w\d]*)', raw_file_url).group(1)
-            file_url = "https://www.rcsb.org" + raw_file_url[1:-1].replace("&amp;", "&")
+        _logging.info("Downloading ligand files from the Protein Data Bank...")
+        for ligname in full_ligand_names:
+            file_url = "https://files.rcsb.org/cci/view/" + ligname
             try:
                 r = _requests.get(file_url)
                 with open(ligname + ".sdf", "wb") as f:
@@ -104,7 +101,6 @@ class PDBDownloader:
                 filename_list += [_os.path.abspath(ligname + ".sdf")]
             except:
                 _logging.warning("Could not download file: %s.sdf from %s" % (ligname, file_url))
-        _logging.info("Finished downloading.")
 
         self._ligands = filename_list
         return self._ligands
@@ -118,7 +114,8 @@ class PDBDownloader:
         pdb : str
             Returns the absolute path to the PDB file downloaded from the Protein Data Bank.
         """
-        if self._pdb: return self._pdb
+        if self._pdb:
+            return self._pdb
         try:
             pdb_string = _pypdb.get_pdb_file(self._code, filetype="pdb", compression=False)
         except:
