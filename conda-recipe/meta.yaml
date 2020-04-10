@@ -1,12 +1,13 @@
 package:
   name: protocaller
-  version: 1.1.1
+  version: 1.1.2
 
 source:
   path: ../
 
 build:
   noarch: python
+  string: {{ environ.get('GIT_BUILD_STR', '') }}
   script:
     - mkdir -p $PREFIX/site-packages
     - cp -r $RECIPE_DIR/../ProtoCaller $PREFIX/site-packages/ProtoCaller

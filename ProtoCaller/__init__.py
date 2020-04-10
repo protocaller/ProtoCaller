@@ -40,7 +40,6 @@ if not GROMACSHOME:
     else:
         GROMACSMPIEXE = GROMACSMPIEXE if GROMACSMPIEXE else GROMACSEXE
         GROMACSEXE = GROMACSEXE if GROMACSEXE else GROMACSMPIEXE
-        GROMACSHOME = _re.match(r"([\S]*)/bin/gmx", GROMACSEXE).group(1)
 else:
     GROMACSEXE = _os.path.join(GROMACSHOME, "bin/gmx")
     GROMACSMPIEXE = _os.path.join(GROMACSHOME, "bin/gmx_mpi")
@@ -52,7 +51,6 @@ else:
 
 
 _os.environ["SIRE_SILENT_PHONEHOME"] = "1"
-#AMBERHOME = _os.environ["AMBERHOME"]
 
 ENGINES = ["GROMACS"]
 

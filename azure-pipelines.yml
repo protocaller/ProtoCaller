@@ -35,6 +35,8 @@ jobs:
       cd $(Build.SourcesDirectory)
       $CONDA/bin/conda install -y conda-build anaconda-client
 
+      export GIT_BUILD_STR=$(git rev-parse --short HEAD)
+
       if [ $(Build.SourceBranchName) == "master" ]
       then
         $CONDA/bin/conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab
@@ -87,6 +89,8 @@ jobs:
       source activate testenv
       cd $(Build.SourcesDirectory)
       conda install -y conda-build anaconda-client
+
+      export GIT_BUILD_STR=$(git rev-parse --short HEAD)
 
       if [ $(Build.SourceBranchName) == "master" ]
       then
