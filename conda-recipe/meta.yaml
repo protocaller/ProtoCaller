@@ -6,7 +6,6 @@ source:
   path: ../
 
 build:
-  noarch: python
   string: {{ environ.get('GIT_BUILD_STR', '') }}
   script:
     - mkdir -p $PREFIX/site-packages
