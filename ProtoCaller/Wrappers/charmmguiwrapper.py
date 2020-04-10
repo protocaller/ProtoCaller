@@ -12,6 +12,7 @@ from selenium.webdriver.support import expected_conditions as _EC
 from selenium.webdriver.support import wait as _wait
 import seleniumrequests as _seleniumrequests
 
+import ProtoCaller as _PC
 from ProtoCaller.IO.PDB import PDB as _PDB
 
 __all__ = ["PDBReader", "ligandReader", "charmmguiTransform"]
@@ -47,7 +48,7 @@ def PDBReader(file, timeout=600):
 
     file = _os.path.abspath(file)
     options = _options.Options()
-    options.headless = True
+    options.headless = _PC.HEADLESS_CHARMMGUI
 
     try:
         driver = _seleniumrequests.Chrome(options=options)
@@ -73,14 +74,17 @@ def PDBReader(file, timeout=600):
     # could add some support for options. For now, we just go with the
     # defaults.
     wait = _wait.WebDriverWait(driver, timeout)
+    wait.until(lambda driver: driver.current_url == "http://www.charmm-gui.org/?doc=input/pdbreader&step=1")
     wait.until(_EC.element_to_be_clickable((_by.By.ID, "nextBtn")))
     autoClicker("nextBtn", 60)
 
+    wait.until(lambda driver: driver.current_url == "http://www.charmm-gui.org/?doc=input/pdbreader&step=2")
     wait.until(_EC.element_to_be_clickable((_by.By.ID, "nextBtn")))
     autoClicker("nextBtn", 60)
 
     try:
         _logging.info("Retrieving files...")
+        wait.until(lambda driver: driver.current_url == "http://www.charmm-gui.org/?doc=input/pdbreader&step=3")
         wait.until(_EC.visibility_of_any_elements_located((_by.By.CLASS_NAME,
                                                            "download")))
     except TimeoutError:
@@ -119,7 +123,7 @@ def ligandReader(file, timeout=60, find_similar_residues=False):
     """
     file = _os.path.abspath(file)
     options = _options.Options()
-    options.headless = True
+    options.headless = _PC.HEADLESS_CHARMMGUI
 
     try:
         driver = _seleniumrequests.Chrome(options=options)
