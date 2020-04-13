@@ -6,6 +6,8 @@ source:
   path: ../
 
 build:
+  noarch: python
+  number: 0
   string: {{ environ.get('GIT_BUILD_STR', '') }}
   script:
     - mkdir -p $PREFIX/site-packages
@@ -47,7 +49,7 @@ test:
     - pytest
 
 about:
-  home: https://github.com/miroslav351/protocaller
+  home: https://github.com/protocaller/protocaller
   summary: Full automation of high-throughput relative binding free energy simulations.
   license: GPL-3.0
   license_file: LICENSE
