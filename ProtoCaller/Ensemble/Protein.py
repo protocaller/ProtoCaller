@@ -313,7 +313,7 @@ class Protein:
             filter = []
             mask = "type in ['amino_acid', 'amino_acid_modified']"
             if chains != "all":
-                mask += "&chainID in %s" % str(chains)
+                mask += "&chainID in %s" % str(list(chains))
             filter += self._pdb_obj.filter(mask)
 
             # filter missing residues
@@ -355,12 +355,12 @@ class Protein:
                 if param == "all" or (param == "chain" and chains == "all"):
                     filter += self._pdb_obj.filter("type=='%s'" % name)
                 elif param == "chain":
-                    filter += self._pdb_obj.filter("type=='%s'|chainID in %s" % (name, str(chains)))
+                    filter += self._pdb_obj.filter("type=='%s'|chainID in %s" % (name, str(list(chains))))
                 elif param == "site":
                     if chains == "all":
                         filter_temp = self._pdb_obj.filter("type=='%s'" % name)
                     else:
-                        filter_temp = self._pdb_obj.filter("type=='%s'|chainID in %s" % (name, str(chains)))
+                        filter_temp = self._pdb_obj.filter("type=='%s'|chainID in %s" % (name, str(list(chains))))
                     filter += [res for res in filter_temp if res in self._pdb_obj.site_residues]
 
             # include extra molecules / residues
