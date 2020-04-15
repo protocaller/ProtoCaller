@@ -82,7 +82,16 @@ class PDBDownloader:
         if self._ligands:
             return self._ligands
         ligand_metadata = _pypdb.get_ligands(self.code)
-        ligand_names = [x["@chemicalID"] for x in ligand_metadata["ligandInfo"]["ligand"]]
+        try:
+            ligand_metadata = ligand_metadata["ligandInfo"]["ligand"]
+        except KeyError:
+            return []
+
+        if not isinstance(ligand_metadata, list):
+            ligand_names = [ligand_metadata["@chemicalID"]]
+        else:
+            ligand_names = [x["@chemicalID"] for x in ligand_metadata]
+
         pdb_obj = _PDB(self.getPDB())
         matches = pdb_obj.filter("|".join(["resName=='{}'".format(x) for x in ligand_names]))
         full_ligand_names = ["{}_{}_{}_{}_NO_H.sdf".format(
