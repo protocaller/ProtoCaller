@@ -240,7 +240,7 @@ class Protein:
         if value:
             self._checkfasta()
 
-    def filter(self, missing_residues="middle", chains="all", waters="site", ligands="chain", cofactors="chain",
+    def filter(self, missing_residues="middle", chains="all", waters="chain", ligands="chain", cofactors="chain",
                simple_anions="chain", complex_anions="chain", simple_cations="chain", complex_cations="chain",
                include_mols=None, exclude_mols=None):
         """
@@ -342,12 +342,16 @@ class Protein:
                     fasta.seq = seq
                     missing_reslist_new += curr_missing
 
-                _SeqIO.write(fastas, self.fasta, "fasta")
                 missing_residue_list = [x for x in missing_reslist_new
                                         if type(x) == _PDB.MissingResidue]
-                filter += missing_residue_list
+                missing_residues_filter = missing_residue_list
             else:
-                filter += self._pdb_obj.missing_residues
+                fastas = list(_SeqIO.parse(open(self.fasta), 'fasta'))
+                missing_residues_filter = self._pdb_obj.missing_residues
+            _SeqIO.write([x for x in fastas if chains == "all" or x.id[5] in chains], self.fasta, "fasta")
+            if chains != "all":
+                missing_residues_filter = [x for x in missing_residues_filter if x.chainID in chains]
+            filter += missing_residues_filter
 
             # filter by waters / anions / cations
             for param, name in zip([waters, simple_anions, complex_anions, simple_cations, complex_cations],
@@ -355,12 +359,12 @@ class Protein:
                 if param == "all" or (param == "chain" and chains == "all"):
                     filter += self._pdb_obj.filter("type=='%s'" % name)
                 elif param == "chain":
-                    filter += self._pdb_obj.filter("type=='%s'|chainID in %s" % (name, str(list(chains))))
+                    filter += self._pdb_obj.filter("type=='%s'&chainID in %s" % (name, str(list(chains))))
                 elif param == "site":
                     if chains == "all":
                         filter_temp = self._pdb_obj.filter("type=='%s'" % name)
                     else:
-                        filter_temp = self._pdb_obj.filter("type=='%s'|chainID in %s" % (name, str(list(chains))))
+                        filter_temp = self._pdb_obj.filter("type=='%s'&chainID in %s" % (name, str(list(chains))))
                     filter += [res for res in filter_temp if res in self._pdb_obj.site_residues]
 
             # include extra molecules / residues
@@ -377,7 +381,7 @@ class Protein:
             # exclude extra molecules / residues
             excl_filter = []
             for exclude_mol in exclude_mols:
-                resSeq, iCode = self._residTransform(exclude_mol)
+                chainID, resSeq, iCode = self._residTransform(exclude_mol)
                 filter_str = "chainID=='{}'&resSeq=={}&iCode=='{}'&type not in " \
                              "['ligand', 'cofactor']".format(chainID, resSeq,
                                                              iCode)
@@ -483,7 +487,7 @@ class Protein:
                 if made_changes:
                     purge_str = "|".join(["(resName=='{}'&chainID=='{}'&resSeq=={}&iCode=='{}')".format(*x)
                                           for x in purge_list])
-                    self._pdb_obj.purgeResidues(self._pdb_obj.filter(purge_str, type="residues"), mode="discard")
+                    self._pdb_obj.purgeResidues(self._pdb_obj.filter(purge_str, type="residues"), "discard")
                     self._pdb_obj.missing_residues += [_PDB.MissingResidue(*x) for x in purge_list]
                     _PDB.PDB.sortResidueList(self._pdb_obj.missing_residues)
                     self._pdb_obj.writePDB(self.pdb)

@@ -296,6 +296,17 @@ class PDB(Chain, _CondList.ConditionalList):
 
     def purgeResidues(self, residues, mode):
         assert mode in ["keep", "discard"]
+
+        if self.missing_atoms:
+            data_residues = [(x.resName, x.chainID, x.resSeq, x.iCode) for x in residues]
+            data_missing_atoms = [(x.resName, x.chainID, x.resSeq, x.iCode) for x in self.missing_atoms]
+            if mode == "keep":
+                self.missing_atoms = [self.missing_atoms[i] for i in range(len(self.missing_atoms))
+                                      if data_missing_atoms[i] in data_residues]
+            else:
+                self.missing_atoms = [self.missing_atoms[i] for i in range(len(self.missing_atoms))
+                                      if data_missing_atoms[i] not in data_residues]
+
         for name in ["missing_residues", "modified_residues", "site_residues"]:
             if mode == "keep":
                 setattr(self, name, [item for item in getattr(self, name) if item in residues])
