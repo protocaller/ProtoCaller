@@ -261,7 +261,8 @@ class PDB(Chain, _CondList.ConditionalList):
 
     @property
     def numberOfResidues(self):
-        return sum([chain.numberOfResidues for chain in self])
+        """int: Returns the totel number of Residues and MissingResidues."""
+        return sum([chain.numberOfResidues for chain in self]) + len(self.missing_residues)
 
     @property
     def numberOfChains(self):
@@ -276,11 +277,13 @@ class PDB(Chain, _CondList.ConditionalList):
         if not len(custom_resSeqs) == len(custom_iCodes) == self.numberOfResidues:
             raise ValueError("Custom number of residues does not match chain number of residues")
 
-        i = 0
-        for chain in self:
-            n = chain.numberOfResidues
-            chain.reNumberResidues(custom_resSeqs=custom_resSeqs[i:i + n], custom_iCodes=custom_iCodes[i:i + n])
-            i += n
+        all_residues = self.totalResidueList()
+        number_dict = {}
+        for resSeq, iCode, residue in zip(custom_resSeqs, custom_iCodes, all_residues):
+            number_dict[(residue.resSeq, residue.iCode)] = (resSeq, iCode)
+            residue.resSeq, residue.iCode = resSeq, iCode
+        for atom in self.missing_atoms:
+            atom.resSeq, atom.iCode = number_dict[(atom.resSeq, atom.iCode)]
 
     def purgeAtoms(self, atoms):
         raise NotImplementedError("Inherited function not implemented for object of type 'PDB'")

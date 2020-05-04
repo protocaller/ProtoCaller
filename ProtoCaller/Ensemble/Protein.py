@@ -395,7 +395,7 @@ class Protein:
                 add_missing_atoms="pdb2pqr", protonate_proteins="pdb2pqr",
                 protonate_ligands="babel", missing_residues_options=None,
                 missing_atom_options=None, protonate_proteins_options=None,
-                protonate_ligands_options=None, replace_nonstandard_residues=True):
+                protonate_ligands_options=None, replace_nonstandard_residues=True, force_add_atoms=False):
         """
         Adds missing residues / atoms to the protein and protonates it and the
         relevant ligands.
@@ -429,6 +429,9 @@ class Protein:
         replace_nonstandard_residues : bool
             Whether to replace nonstandard residues with their standard
             equivalents.
+        force_add_atoms : bool
+            Residues with missing backbone atoms will typically refuse to be modelled by PDB2PQR. If this is False, we
+            recast these residues as missing residues before modelling.
         """
         with self.workdir:
             add_missing_residues = add_missing_residues.strip().lower() \
@@ -467,8 +470,26 @@ class Protein:
                                "PDB2PQR...")
                 add_missing_atoms = "pdb2pqr"
 
+            # convert residues with missing backbone atoms into missing residues
+            if not force_add_atoms:
+                made_changes = False
+                purge_list = []
+                for i in reversed(range(len(self._pdb_obj.missing_atoms))):
+                    atoms = self._pdb_obj.missing_atoms[i]
+                    if any(x for x in atoms if x in ["C", "CA", "N"]):
+                        purge_list += [(atoms.resName, atoms.chainID, atoms.resSeq, atoms.iCode)]
+                        del self._pdb_obj.missing_atoms[i]
+                        made_changes = True
+                if made_changes:
+                    purge_str = "|".join(["(resName=='{}'&chainID=='{}'&resSeq=={}&iCode=='{}')".format(*x)
+                                          for x in purge_list])
+                    self._pdb_obj.purgeResidues(self._pdb_obj.filter(purge_str, type="residues"), mode="discard")
+                    self._pdb_obj.missing_residues += [_PDB.MissingResidue(*x) for x in purge_list]
+                    _PDB.PDB.sortResidueList(self._pdb_obj.missing_residues)
+                    self._pdb_obj.writePDB(self.pdb)
+
             # convert modified residues to normal ones
-            if replace_nonstandard_residues and self.pdb_obj.modified_residues:
+            if replace_nonstandard_residues and self._pdb_obj.modified_residues:
                 self.pdb = _pdbfix.pdbfixerTransform(self.pdb, True, False, False)
 
             # add missing residues
@@ -497,7 +518,7 @@ class Protein:
                                    "automation protocol")
 
             # add missing atoms
-            if len(self.pdb_obj.missing_atoms):
+            if len(self._pdb_obj.missing_atoms):
                 kwargs = missing_atom_options
                 if add_missing_atoms == "modeller" and \
                         (not len(self._pdb_obj.missing_residues) or
