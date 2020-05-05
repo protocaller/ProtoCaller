@@ -14,7 +14,7 @@ from ProtoCaller.Wrappers.parmedwrapper import openFilesAsParmed, resize
 with Dir("Absolute_Solvation", overwrite=True):
     with Dir("Ligands"):
         # create two ligands from SMILES strings and name them
-        toluene = Ligand("CC1=CC=CC=C1C", name="toluene", workdir="Ligands")
+        toluene = Ligand("C1=CC=CC=C1C", name="toluene", workdir="Ligands")
         benzene = Ligand("C1=CC=CC=C1", name="benzene", workdir="Ligands")
 
         # protonate parametrise the ligands at pH 7 with GAFF2
