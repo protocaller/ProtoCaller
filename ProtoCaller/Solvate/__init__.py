@@ -127,7 +127,7 @@ def solvate(complex, params=None, box_length=8, shell=0, neutralise=True, ion_co
         # add ions
         if any([neutralise, ion_conc, shell]):
             # write an MDP file
-            _protocol.Protocol(use_preset="vacuum").write("GROMACS", "ions")
+            _protocol.Protocol(use_preset="default").write("GROMACS", "ions")
 
             # neutralise if needed
             charge = chargefunc(complex) if neutralise else 0
