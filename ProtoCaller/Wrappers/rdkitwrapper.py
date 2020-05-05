@@ -624,8 +624,8 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
 
 
 def alignTwoMolecules(ref, mol, n_min=-1, two_way_matching=True, mcs=None,
-                      mcs_parameters=None, minimiser_parameters=None,
-                      minimise_score=True):
+                      minimise_score=False, mcs_parameters=None,
+                      minimiser_parameters=None):
     """
     Aligns two molecules based on an input MCS. The algorithm uses atom
     freezing of the common core and force field minimisation of the rest.
@@ -649,6 +649,10 @@ def alignTwoMolecules(ref, mol, n_min=-1, two_way_matching=True, mcs=None,
     mcs : [tuple] or None
         The maximum common substucture. None means the one generated from
         getMCSMap.
+    minimise_score : bool
+        Whether to minimise an additional score, which can be passed to the
+        minimiser_parameters. For more information, look at the docstrings
+        for minimiseAlignmentScore.
     mcs_parameters : dict
         A dictionary of the parameters to be passed on to getMCSMap().
     minimiser_parameters : dict

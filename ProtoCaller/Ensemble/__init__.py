@@ -21,7 +21,6 @@ import ProtoCaller.Parametrise as _parametrise
 import ProtoCaller.Solvate as _solvate
 import ProtoCaller.Utils.fileio as _fileio
 import ProtoCaller.Wrappers.biosimspacewrapper as _BSSwrap
-import ProtoCaller.Utils.stdio as _stdio
 
 
 class Ensemble:
@@ -177,10 +176,10 @@ class Ensemble:
         """
         # make sure the proteins / ligands are parametrised before proceeding
         with self.workdir:
-            _stdio.stdout_stderr()(self.protein.parametrise)(params=self.params, reparametrise=False)
+            self.protein.parametrise(params=self.params, reparametrise=False)
             for morph in self.morphs:
-                _stdio.stdout_stderr()(morph.ligand1.parametrise)(params=self.params, reparametrise=False)
-                _stdio.stdout_stderr()(morph.ligand2.parametrise)(params=self.params, reparametrise=False)
+                morph.ligand1.parametrise(params=self.params, reparametrise=False)
+                morph.ligand2.parametrise(params=self.params, reparametrise=False)
 
             # take care of the replicas if there are any
             if replica_temps is None or len(replica_temps) == 1:
@@ -201,8 +200,7 @@ class Ensemble:
 
                 with curdir:
                     _logging.info("Creating morph %s..." % morph.name)
-                    morph_BSS, mcs = _stdio.stdout_stderr()(
-                        morph.alignAndCreateMorph)(self.protein.ligand_ref)
+                    morph_BSS, mcs =  morph.alignAndCreateMorph(self.protein.ligand_ref)
                     morph_BSS = _BSS._SireWrappers.System(morph_BSS)
                     box = self.protein.complex_template._sire_object.property(
                         "space")

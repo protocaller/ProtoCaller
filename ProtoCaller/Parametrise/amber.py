@@ -58,7 +58,8 @@ def amberWrapper(params, filename, molecule_type, id=None, charge=None, *args, *
             _warnings.warn("All cofactors have been parametrised for use with "
                            "the ff99SB protein force field and the TIP3P "
                            "water model. Be careful when using these "
-                           "parameters with %s" % params.water_ff.upper())
+                           "parameters with %s/%s" % (params.protein_ff,
+                                                      params.water_ff.upper()))
         files = []
         force_fields = [params.protein_ff, params.ligand_ff]
         param_files = _glob.glob("%s/shared/amber-parameters/cofactors/%s.*" % (_PC.HOMEDIR, id))
@@ -86,7 +87,7 @@ def amberWrapper(params, filename, molecule_type, id=None, charge=None, *args, *
         if min(mol.GetNumAtoms(), ref.GetNumAtoms()) != len(mcs):
             _warnings.warn("The cofactor {} does not perfectly match the "
                            "AMBER parameter file. Please check your "
-                           "molecule.".format(id))
+                           "molecule".format(id))
         _os.remove(parametrised_files[1])
         coord = "{}.inpcrd".format(filebase)
         parametrised_files[1] = _rdkit.saveFromRdkit(mol, coord)

@@ -198,11 +198,11 @@ class Ligand:
             Whether to reparametrise an already parametrised ligand.
         """
         with self.workdir:
-            _logging.info("Parametrising ligand %s..." % self.name)
             if self._parametrised and not reparametrise:
-                _logging.info("Ligand %s is already parametrised." % self.name)
+                _logging.debug("Ligand %s is already parametrised." % self.name)
                 return
 
+            _logging.info("Parametrising ligand %s..." % self.name)
             if not self.protonated:
                 _logging.warning("Cannot parametrise unprotonated ligand. Protonating first with default parameters...")
                 self.protonate()

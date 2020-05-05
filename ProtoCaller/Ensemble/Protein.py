@@ -569,7 +569,7 @@ class Protein:
             Whether to reparametrise an already parametrised complex.
         """
         if self.complex_template is not None and not reparametrise:
-            _logging.info("Protein complex template %s is already parametrised." % self.name)
+            _logging.debug("Protein complex template %s is already parametrised." % self.name)
             return
 
         if params is None:

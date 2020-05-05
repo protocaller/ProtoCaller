@@ -7,7 +7,6 @@ import BioSimSpace as _BSS
 
 from .Ligand import Ligand as _Ligand
 import ProtoCaller.Wrappers.rdkitwrapper as _rdkit
-import ProtoCaller.Utils.stdio as _stdio
 
 
 class Perturbation:
@@ -194,7 +193,7 @@ class Perturbation:
             return
 
         if output_filename is None:
-            _stdio.stdout_stderr()(self.ligand1.parametrise)(reparametrise=False)
+            self.ligand1.parametrise(reparametrise=False)
             output_filename = "{}_aligned_{}.{}".format(self.ligand1.name, self.name,
                                                         self.ligand1.parametrised_files[1].split(".")[-1])
         if "two_way_matching" not in kwargs.keys():
@@ -231,8 +230,8 @@ class Perturbation:
             return
 
         if output_filename is None:
-            _stdio.stdout_stderr()(self.ligand1.parametrise)(reparametrise=False)
-            _stdio.stdout_stderr()(self.ligand2.parametrise)(reparametrise=False)
+            self.ligand1.parametrise(reparametrise=False)
+            self.ligand2.parametrise(reparametrise=False)
             output_filename = "{}_aligned_{}.{}".format(self.ligand2.name, self.name,
                                                         self.ligand2.parametrised_files[1].split(".")[-1])
         if "two_way_matching" not in kwargs.keys():
