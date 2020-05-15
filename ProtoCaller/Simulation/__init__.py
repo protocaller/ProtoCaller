@@ -73,8 +73,9 @@ class RunGMX:
         """int: Returns the number of lambda windows."""
         return len(self.files)
 
-    def runSimulation(self, name, multi=False, single_lambda=None, use_mpi=False, use_preset=None, replex=None,
-                      n_cores_per_process=None, n_nodes=1, n_processes=None, dlb=False, **protocol_params):
+    def runSimulation(self, name, multi=False, single_lambda=None, use_mpi=False, gpu_id=None, use_preset=None,
+                      replex=None, n_cores_per_process=None, n_nodes=1, n_processes=None, dlb=False,
+                      gmx_kwargs=None, **protocol_params):
         """
         Runs a simulation in GROMACS.
 
@@ -89,9 +90,10 @@ class RunGMX:
             None runs all lambda values.
         use_mpi : bool, optional
             Whether to use ProtoCaller.GROMACSEXE or GROMACSMPIEXE.
-        use_preset : str, None
+        use_preset : str, Protocaller.Protocol.Protocol, None
             Which default preset to use. One of: "minimisation", "equilibration_nvt", "equilibration_npt", "production"
-            "vacuum".
+            "vacuum". You can alternatively pass a custom protocol here, in which case **protocol_params will not be
+            used.
         replex : int or None, optional
             Attempts replica exchange after replex number of steps using PLUMED. None means no replica exchange.
             Overrides use_mpi and multi if not None.
@@ -104,6 +106,11 @@ class RunGMX:
         dlb : bool
             Whether to enable dynamic load balancing. Default is False due to some possible instabilities with
             gmx_mpi mdrun in some cases.
+        gmx_kwargs : dict
+            Additional arguments to be passed to mdrun. The keys of the dictionary need to be the name of the option,
+            e.g. "cpt" for checkpoint interval, while the values need to be the value of the option if it permits one
+            or None if it doesn't. If the values contain "{}" while the user is running the lambda windows in serial,
+            this will be replaced by the lambda number.
         protocol_params
             Keyword arguments passed to ProtoCaller.Protocol.Protocol.
         """
@@ -118,14 +125,20 @@ class RunGMX:
         if replex is not None:
             multi = True
             use_mpi = True
-        dlb = "yes" if dlb else "no"
+        gmx_kwargs = {} if gmx_kwargs is None else gmx_kwargs
+        gmx_kwargs["dlb"] = "yes" if dlb else "no"
+        if gpu_id is not None:
+            gmx_kwargs["gpu_id"] = gpu_id
 
-        protocol = _Protocol.Protocol(use_preset=use_preset, **protocol_params, **self.lambda_dict)
+        if isinstance(use_preset, _Protocol.Protocol):
+            protocol = use_preset
+        else:
+            protocol = _Protocol.Protocol(use_preset=use_preset, **protocol_params, **self.lambda_dict)
         self.protocols += [protocol]
 
         _logging.info("Running %s..." % name)
         with self._workdir:
-            with _fileio.Dir(name, overwrite=True):
+            with _fileio.Dir(name, overwrite=False):
                 # run single lambda if needed
                 if single_lambda is not None:
                     it = [single_lambda]
@@ -153,15 +166,21 @@ class RunGMX:
                     # call the simulation consecutively for every lambda if multi is not specified
                     if not multi:
                         if not use_mpi:
-                            mdrun_command = "{0} mdrun -s '{1}.tpr' -deffnm {1} -dlb {2}".format(
-                                _PC.GROMACSEXE, filebase, dlb)
+                            mdrun_command = "{0} mdrun -s '{1}.tpr' -deffnm {1}".format(
+                                _PC.GROMACSEXE, filebase)
                         else:
                             mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} " \
-                                            "mdrun -s '{4}.tpr' -deffnm {4} -dlb {5}".format(
-                                _PC.MPIEXE, n_processes, ppn, _PC.GROMACSMPIEXE, filebase, dlb)
+                                            "mdrun -s '{4}.tpr' -deffnm {4}".format(
+                                _PC.MPIEXE, n_processes, ppn, _PC.GROMACSMPIEXE, filebase)
 
                         if n_cores_per_process:
                             mdrun_command += " -ntomp {}".format(n_cores_per_process)
+
+                        # pass additional arguments
+                        for k, v in gmx_kwargs.items():
+                            mdrun_command += " -{}".format(k)
+                            if v is not None:
+                                mdrun_command += " {}".format(str(v).format(i))
 
                         _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
@@ -177,8 +196,8 @@ class RunGMX:
                 if multi:
                     filebase = name + "_"
                     mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} mdrun -multi {4} -s {5}.tpr " \
-                                    "-deffnm {5} -dlb {6}".format(
-                        _PC.MPIEXE, n_processes, ppn, _PC.GROMACSMPIEXE, self.lambda_size, filebase, dlb)
+                                    "-deffnm {5}".format(
+                        _PC.MPIEXE, n_processes, ppn, _PC.GROMACSMPIEXE, self.lambda_size, filebase)
 
                     # run replica exchange with PLUMED if needed
                     if replex is not None:
@@ -187,6 +206,12 @@ class RunGMX:
 
                     if n_cores_per_process:
                         mdrun_command += " -ntomp {}".format(n_cores_per_process)
+
+                    # pass additional arguments
+                    for k, v in gmx_kwargs.items():
+                        mdrun_command += " -{}".format(k)
+                        if v is not None:
+                            mdrun_command += " {}".format(v)
 
                     _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
