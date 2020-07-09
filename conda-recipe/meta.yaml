@@ -32,6 +32,7 @@ requirements:
     - openbabel<=2.4.1
     - parmed>=3.1.0
     - pdbfixer>=1.5
+    - propka=3.1.0
     - pygtail
     - pymbar
     - pypdb
