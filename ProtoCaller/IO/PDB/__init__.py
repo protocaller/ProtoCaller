@@ -261,7 +261,7 @@ class PDB(Chain, _CondList.ConditionalList):
 
     @property
     def numberOfResidues(self):
-        """int: Returns the totel number of Residues and MissingResidues."""
+        """int: Returns the total number of Residues and MissingResidues."""
         return sum([chain.numberOfResidues for chain in self]) + len(self.missing_residues)
 
     @property
@@ -277,11 +277,24 @@ class PDB(Chain, _CondList.ConditionalList):
         if not len(custom_resSeqs) == len(custom_iCodes) == self.numberOfResidues:
             raise ValueError("Custom number of residues does not match chain number of residues")
 
-        all_residues = self.totalResidueList()
+        unsorted_nonmissing_residues = [res for chain in self for res in chain]
+        all_sorted_residues = PDB.sortResidueList(unsorted_nonmissing_residues + self.missing_residues)
+        missing_residues_indices = [i for i, x in enumerate(all_sorted_residues) if x in self.missing_residues]
+        nonmissing_residues_indices = list({i for i in range(self.numberOfResidues)} - set(missing_residues_indices))
+
+        # update missing residues
+        for i, residue in enumerate(self.missing_residues):
+            idx = missing_residues_indices[i]
+            residue.resSeq, residue.iCode = custom_resSeqs[idx], custom_iCodes[idx]
+
+        # update all other residues
         number_dict = {}
-        for resSeq, iCode, residue in zip(custom_resSeqs, custom_iCodes, all_residues):
-            number_dict[(residue.resSeq, residue.iCode)] = (resSeq, iCode)
-            residue.resSeq, residue.iCode = resSeq, iCode
+        for i, residue in enumerate(unsorted_nonmissing_residues):
+            idx = nonmissing_residues_indices[i]
+            number_dict[(residue.resSeq, residue.iCode)] = (custom_resSeqs[idx], custom_iCodes[idx])
+            residue.resSeq, residue.iCode = custom_resSeqs[idx], custom_iCodes[idx]
+
+        # update missing atoms
         for atom in self.missing_atoms:
             atom.resSeq, atom.iCode = number_dict[(atom.resSeq, atom.iCode)]
 
@@ -362,9 +375,9 @@ class PDB(Chain, _CondList.ConditionalList):
 
     @staticmethod
     def sortResidueList(residuelist):
-        """A helper method which sorts the residues in the list by number."""
+        """list: A helper method which sorts the residues in the list by number."""
         if not isinstance(residuelist, list):
             raise TypeError("Need to input a list of Residues")
-
         sortingfunc = lambda res: (res.chainID, res.resSeq, res.iCode)
         residuelist.sort(key=sortingfunc)
+        return residuelist
