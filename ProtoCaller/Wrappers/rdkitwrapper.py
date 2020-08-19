@@ -401,7 +401,8 @@ def getMCSMap(ref, mol, atomCompare="any", bondCompare="any", **kwargs):
 
 
 def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
-                valid_mcs=False, two_way_matching=True, **kwargs):
+                valid_mcs=False, two_way_matching=True, keep_EZ=True,
+                keep_stereo=True, **kwargs):
     """
     A helper function to getMCSMap which expands on RDKit's strict MCS
     algorithm. The first addition is recursive bond breaking to find a
@@ -424,7 +425,11 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
         aligned.
     break_recursively : bool
         Whether to use the recursive bond breaking algorithm to improve on
-        RDKit's functionality
+        RDKit's functionality.
+    keep_EZ : bool
+        Whether to only keep substructures that satisfy E/Z geometries.
+    keep_stereo : bool
+        Whether to only keep substructures that satisfy R/S isomers.
     valid_mcs : bool
         Whether the input MCS is ordered, unique and valid.
     two_way_matching : bool
@@ -529,98 +534,100 @@ def getFixedMCS(ref, mol, match_ref, match_mol, break_recursively=True,
 
         matches = matches_new
 
-    # break mismatching neighbours next to a double / amide / ester bond
-    matches_new = set()
-    for match in matches:
-        results = _breakEZBonds(ref, mol, *list(zip(*match)),
-                                ignore_single_bonds=not two_way_matching)
+    if keep_EZ:
+        # break mismatching neighbours next to a double / amide / ester bond
+        matches_new = set()
+        for match in matches:
+            results = _breakEZBonds(ref, mol, *list(zip(*match)),
+                                    ignore_single_bonds=not two_way_matching)
 
-        if not len(results[0]):
-            # matching is already correct
-            matches_new |= {match}
-            continue
+            if not len(results[0]):
+                # matching is already correct
+                matches_new |= {match}
+                continue
 
-        match_new = set()
-        for ref_broken, mol_broken, mcs_broken, del_ref, del_mol in zip(*results):
-            mcs_broken = set(mcs_broken)
-            _, matches_ref_broken, matches_mol_broken = \
-                _matchAndReturnMatches([ref_broken, mol_broken],
-                                       **kwargs)
-            matches_broken = {frozenset(zip(_transformIndices(x, del_ref),
-                                            _transformIndices(y, del_mol)))
-                              for x in matches_ref_broken
-                              for y in matches_mol_broken}
-            # only keep the matches that are connected to the
-            # original one
-            match_new |= {x for x in matches_broken
-                          if _haveCommonElements(x, mcs_broken)}
+            match_new = set()
+            for ref_broken, mol_broken, mcs_broken, del_ref, del_mol in zip(*results):
+                mcs_broken = set(mcs_broken)
+                _, matches_ref_broken, matches_mol_broken = \
+                    _matchAndReturnMatches([ref_broken, mol_broken],
+                                           **kwargs)
+                matches_broken = {frozenset(zip(_transformIndices(x, del_ref),
+                                                _transformIndices(y, del_mol)))
+                                  for x in matches_ref_broken
+                                  for y in matches_mol_broken}
+                # only keep the matches that are connected to the
+                # original one
+                match_new |= {x for x in matches_broken
+                              if _haveCommonElements(x, mcs_broken)}
 
-            matches_new |= _optimalMergedSets(*match_new, seed=mcs_broken)[0]
-    matches = matches_new
+                matches_new |= _optimalMergedSets(*match_new, seed=mcs_broken)[0]
+        matches = matches_new
 
-    # here we deal with mismatching atoms of different chirality
-    matches_final = set()
-    # take care of R/S changing with different atom types
-    _Chem.AssignStereochemistry(ref, cleanIt=True, force=True)
-    _Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
-    ref_c = _carbonify(ref)
-    mol_c = _carbonify(mol)
-    chiral_ref_c = dict(_Chem.FindMolChiralCenters(ref_c))
-    chiral_mol_c = dict(_Chem.FindMolChiralCenters(mol_c))
-    EZ_ref_c = getEZStereochemistry(ref)
-    EZ_mol_c = getEZStereochemistry(mol)
+    if keep_stereo:
+        # here we deal with mismatching atoms of different chirality
+        matches_new = set()
+        # take care of R/S changing with different atom types
+        _Chem.AssignStereochemistry(ref, cleanIt=True, force=True)
+        _Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
+        ref_c = _carbonify(ref)
+        mol_c = _carbonify(mol)
+        chiral_ref_c = dict(_Chem.FindMolChiralCenters(ref_c))
+        chiral_mol_c = dict(_Chem.FindMolChiralCenters(mol_c))
+        EZ_ref_c = getEZStereochemistry(ref)
+        EZ_mol_c = getEZStereochemistry(mol)
 
-    # check if both atoms are chiral and flag the atoms if this is the case
-    for match in matches:
-        if match == frozenset():
-            continue
-        match_rev_dict = {mol_atom: ref_atom for ref_atom, mol_atom in match}
+        # check if both atoms are chiral and flag the atoms if this is the case
+        for match in matches:
+            if match == frozenset():
+                continue
+            match_rev_dict = {mol_atom: ref_atom for ref_atom, mol_atom in match}
 
-        # only deal with one of the molecules
-        chiral_ref_indices = {x[0] for x in match
-                              if x[0] in chiral_ref_c.keys()
-                              and x[1] in chiral_mol_c.keys()
-                              and chiral_ref_c[x[0]] != chiral_mol_c[x[1]]}
-        mismatching_bonds = []
+            # only deal with one of the molecules
+            chiral_ref_indices = {x[0] for x in match
+                                  if x[0] in chiral_ref_c.keys()
+                                  and x[1] in chiral_mol_c.keys()
+                                  and chiral_ref_c[x[0]] != chiral_mol_c[x[1]]}
+            mismatching_bonds = []
 
-        if not two_way_matching:
-            for bond_mol in EZ_mol_c.keys():
-                if set(bond_mol).issubset(set(list(match_rev_dict.keys()))):
-                    bond_ref = [match_rev_dict[x] for x in bond_mol]
-                    if frozenset(bond_ref) not in EZ_ref_c.keys():
-                        mismatching_bonds += [frozenset(bond_ref)]
-            chiral_ref_indices |= set().union(*mismatching_bonds)
+            if not two_way_matching:
+                for bond_mol in EZ_mol_c.keys():
+                    if set(bond_mol).issubset(set(list(match_rev_dict.keys()))):
+                        bond_ref = [match_rev_dict[x] for x in bond_mol]
+                        if frozenset(bond_ref) not in EZ_ref_c.keys():
+                            mismatching_bonds += [frozenset(bond_ref)]
+                chiral_ref_indices |= set().union(*mismatching_bonds)
 
-        # delete invalid atoms
-        frags_ref_total = {frozenset(list(zip(*match))[0])}
-        for i_ref in chiral_ref_indices:
-            frags_ref = set()
-            for frag_prev in frags_ref_total:
-                # ignore if the fragment doesn't contain the chiral atom
-                if i_ref not in frag_prev:
-                    frags_ref |= {frag_prev}
-                    continue
-                # only include indices that are not a result of ring breaking
-                indices_to_delete = {i for i in range(ref.GetNumAtoms())} - \
-                                    frag_prev | {i_ref}
-                frags_ref_temp = _generateFragment(ref, indices_to_delete,
-                                                   getAsFrags=True)
-                frags_ref |= {frozenset(set(x) | {i_ref})
-                              for x in frags_ref_temp if i_ref not in x}
-            frags_ref_total = frags_ref
+            # delete invalid atoms
+            frags_ref_total = {frozenset(list(zip(*match))[0])}
+            for i_ref in chiral_ref_indices:
+                frags_ref = set()
+                for frag_prev in frags_ref_total:
+                    # ignore if the fragment doesn't contain the chiral atom
+                    if i_ref not in frag_prev:
+                        frags_ref |= {frag_prev}
+                        continue
+                    # only include indices that are not a result of ring breaking
+                    indices_to_delete = {i for i in range(ref.GetNumAtoms())} - \
+                                        frag_prev | {i_ref}
+                    frags_ref_temp = _generateFragment(ref, indices_to_delete,
+                                                       getAsFrags=True)
+                    frags_ref |= {frozenset(set(x) | {i_ref})
+                                  for x in frags_ref_temp if i_ref not in x}
+                frags_ref_total = frags_ref
 
-        frags_ref_total = {x.union(*[y for y in mismatching_bonds if y & x])
-                           for x in frags_ref_total}
-        frags_ref_total = _onlyKeepLongest(frags_ref_total)[0]
-        for frag_ref in frags_ref_total:
-            matches_final |= {frozenset([x for x in match
-                                         if x[0] in frag_ref])}
+            frags_ref_total = {x.union(*[y for y in mismatching_bonds if y & x])
+                               for x in frags_ref_total}
+            frags_ref_total = _onlyKeepLongest(frags_ref_total)[0]
+            for frag_ref in frags_ref_total:
+                matches_new |= {frozenset([x for x in match if x[0] in frag_ref])}
+        matches = matches_new
 
-    matches_final, max_len_final = _onlyKeepLongest(matches_final)
-    if not matches_final:
+    matches = _onlyKeepLongest(matches)[0]
+    if not len(matches):
         return {frozenset()}
 
-    return matches_final
+    return matches
 
 
 def alignTwoMolecules(ref, mol, n_min=-1, two_way_matching=True, mcs=None,
