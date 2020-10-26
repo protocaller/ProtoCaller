@@ -21,7 +21,7 @@ requirements:
     - python>=3.7
     - ambertools>=17.6
     - beautifulsoup4
-    - biopython>=1.73
+    - biopython=1.76
     - biosimspace>=2019.2.0
     - geckodriver
     - htmd-pdb2pqr
