@@ -22,14 +22,14 @@ def test_prepare_1bji():
             assert len(protein.ligands) == 0
             assert protein._pdb_obj.numberOfAtoms == 3069
 
-            # this time keep only site waters and parametrise with some end state checks
+            # this time keep all waters and parametrise with some end state checks
             protein = Protein("1bji", ligand_ref="479G")
-            protein.filter(ligands=None, waters="site")
+            protein.filter(ligands=None, waters="all")
             protein.prepare()
             protein.parametrise(Params())
 
             if PC.BIOSIMSPACE and isinstance(protein.complex_template, BSS._SireWrappers._system.System):
-                assert protein.complex_template.nAtoms() == 6006
+                assert protein.complex_template.nAtoms() == 6543
                 assert pytest.approx(protein.complex_template.charge().magnitude()) == 2
             else:
                 # TODO: add support for ParmEd topologies when the Morph class is fully functional

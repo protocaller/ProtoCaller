@@ -35,7 +35,6 @@ requirements:
     - propka=3.1.0
     - pygtail
     - pymbar
-    - pypdb
     - pytest
     - rdkit
     - requests

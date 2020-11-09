@@ -2,9 +2,8 @@ import logging as _logging
 import os as _os
 import requests as _requests
 
-import pypdb as _pypdb
-
-from ProtoCaller.IO.PDB import PDB as _PDB
+import ProtoCaller as _PC
+import ProtoCaller.IO.PDB as _PDB
 
 
 class PDBDownloader:
@@ -50,8 +49,7 @@ class PDBDownloader:
         """
         if self._fasta:
             return self._fasta
-        fasta_url = "https://www.rcsb.org/pdb/download/downloadFastaFiles.do?structureIdList={}&" \
-                    "compressionType=uncompressed".format(self.code.lower())
+        fasta_url = "https://www.rcsb.org/fasta/entry/{}".format(self.code.upper())
         fasta_filename = self._code + ".fasta"
 
         try:
@@ -59,7 +57,7 @@ class PDBDownloader:
             with open(fasta_filename, "wb") as f:
                 f.write(r.content)
             self._fasta = _os.path.abspath(fasta_filename)
-        except:
+        except _requests.HTTPError:
             _logging.warning("Could not download file: %s from %s" % (fasta_filename, fasta_url))
             return -1
 
@@ -81,35 +79,42 @@ class PDBDownloader:
         """
         if self._ligands:
             return self._ligands
-        ligand_metadata = _pypdb.get_ligands(self.code)
-        try:
-            ligand_metadata = ligand_metadata["ligandInfo"]["ligand"]
-        except KeyError:
-            return []
 
-        if not isinstance(ligand_metadata, list):
-            ligand_names = [ligand_metadata["@chemicalID"]]
-        else:
-            ligand_names = [x["@chemicalID"] for x in ligand_metadata]
-
-        pdb_obj = _PDB(self.getPDB())
-        matches = pdb_obj.filter("|".join(["resName=='{}'".format(x) for x in ligand_names]))
-        full_ligand_names = ["{}_{}_{}_{}_NO_H.sdf".format(
-            self.code.lower(), x.resName, x.chainID, x.resSeq) for x in matches]
-        if ligands != "all":
-            full_ligand_names = list(set(full_ligand_names) & set(ligands))
+        pdb_obj = _PDB.PDB(self.getPDB())
+        matches = []
+        full_ligand_names = []
+        urls = []
+        for chain in pdb_obj:
+            for residue in chain:
+                if isinstance(residue, _PDB.Residue):
+                    type = _PC.RESIDUETYPE(residue.resName)
+                    if any([x in type for x in ["cofactor", "ligand"]]):
+                        matches += [residue]
+                        full_ligand_names += ["{}_{}_{}_{}{}_NO_H".format(
+                            self.code.lower(), residue.resName, residue.chainID, residue.resSeq, residue.iCode.strip())]
+                        url = f"https://models.rcsb.org/v1/{self.code.lower()}/ligand?auth_asym_id={residue.chainID}&" \
+                              f"label_comp_id={residue.resName}&auth_seq_id={residue.resSeq}&encoding=sdf&" \
+                              f"copy_all_categories=false"
+                        if len(residue.iCode.strip()):
+                            url += f"&pdbx_PDB_ins_code={residue.iCode}"
+                        urls += [url]
 
         filename_list = []
         _logging.info("Downloading ligand files from the Protein Data Bank...")
-        for ligname in full_ligand_names:
-            file_url = "https://files.rcsb.org/cci/view/" + ligname
-            try:
-                r = _requests.get(file_url)
-                with open(ligname + ".sdf", "wb") as f:
-                    f.write(r.content)
-                filename_list += [_os.path.abspath(ligname + ".sdf")]
-            except:
-                _logging.warning("Could not download file: %s.sdf from %s" % (ligname, file_url))
+        for url, ligname in zip(urls, full_ligand_names):
+            if ligands == "all" or ligname in ligands:
+                try:
+                    r = _requests.get(url)
+                    content = r.content.decode()
+                    if "error" in content:
+                        raise _requests.HTTPError
+                    content = content.split("\n")
+                    content[0] = ligname
+                    with open(ligname + ".sdf", "w") as f:
+                        f.write("\n".join(content))
+                    filename_list += [_os.path.abspath(ligname + ".sdf")]
+                except _requests.HTTPError:
+                    _logging.warning("Could not download file: %s.sdf from %s" % (ligname, url))
 
         self._ligands = filename_list
         return self._ligands
@@ -125,14 +130,16 @@ class PDBDownloader:
         """
         if self._pdb:
             return self._pdb
+
+        pdb_url = "https://files.rcsb.org/download/{}.pdb".format(self.code.upper())
+        pdb_filename = self._code + ".pdb"
         try:
-            pdb_string = _pypdb.get_pdb_file(self._code, filetype="pdb", compression=False)
-        except:
-            raise ValueError("Invalid PDB code: '%s'" % self._code)
+            r = _requests.get(pdb_url)
+            with open(pdb_filename, "wb") as f:
+                f.write(r.content)
+            self._pdb = _os.path.abspath(pdb_filename)
+        except _requests.HTTPError:
+            _logging.warning("Could not download file: %s from %s" % (pdb_filename, pdb_url))
+            return -1
 
-        filename = _os.path.abspath(self._code + ".pdb")
-        with open(filename, "w") as file:
-            file.write(pdb_string)
-
-        self._pdb = filename
         return self._pdb

@@ -13,7 +13,6 @@ if _PC.BIOSIMSPACE:
 
 from ProtoCaller.Ensemble import Ligand
 import ProtoCaller.IO.PDB as _PDB
-import ProtoCaller.IO.SDF as _SDF
 import ProtoCaller.IO.GROMACS as _GROMACS
 import ProtoCaller.Parametrise as _parametrise
 import ProtoCaller.Utils.fileio as _fileio
@@ -131,9 +130,9 @@ class Protein:
     def ligands(self, input):
         self._ligands = []
         if input is None and self._downloader:
-            input = _SDF.splitSDFs(self._downloader.getLigands())
+            input = self._downloader.getLigands()
         if input:
-            self._ligands = [Ligand(x, name=x, workdir=".", minimise=False)
+            self._ligands = [Ligand(x, name=_os.path.splitext(_os.path.basename(x))[0], workdir=".", minimise=False)
                              if not isinstance(x, Ligand) else x for x in input]
 
     @property
@@ -287,10 +286,10 @@ class Protein:
             # filter ligands / cofactors
             temp_dict = {"ligand": [], "cofactor": []}
             for molecule in self.ligands + self.cofactors:
-                filename = molecule.name
+                molname = molecule.name
                 for param, name in zip([ligands, cofactors], ["ligand", "cofactor"]):
                     # turn the ligand into a pseudo-residue
-                    _, resname, chainID, resSeq_iCode = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", filename).groups()
+                    resname, chainID, resSeq_iCode = molname.split("_")[1:4]
                     _, resSeq, iCode = self._residTransform(resSeq_iCode)
 
                     # filter
@@ -317,41 +316,44 @@ class Protein:
             filter += self._pdb_obj.filter(mask)
 
             # filter missing residues
-            if missing_residues == "middle":
+            if self._pdb_obj.missing_residues:
+                chainIDs = sorted({x.chainID for x in self._pdb_obj})
                 fastas = list(_SeqIO.parse(open(self.fasta), 'fasta'))
-                missing_reslist = self._pdb_obj.totalResidueList()
-                missing_reslist_new = []
+                if len(fastas) != len(chainIDs):
+                    raise ValueError("The number of FASTA sequences does not match the number of chains")
 
-                for fasta in fastas:
-                    chainID = fasta.id[5]
-                    seq = fasta.seq.tomutable()
-                    curr_missing = [x for x in missing_reslist
-                                    if x.chainID == chainID]
+                if missing_residues == "middle":
+                    missing_reslist = self._pdb_obj.totalResidueList()
+                    missing_reslist_new = []
 
-                    for i in range(2):
-                        curr_missing.reverse()
-                        seq.reverse()
-                        current_chain = None
-                        for j in reversed(range(0, len(curr_missing))):
-                            res = curr_missing[j]
-                            if type(res) is _PDB.Missing.MissingResidue and current_chain != res.chainID:
-                                del curr_missing[j]
-                                del seq[j]
-                            else:
-                                break
-                    fasta.seq = seq
-                    missing_reslist_new += curr_missing
+                    for fasta, chainID in zip(fastas, chainIDs):
+                        seq = fasta.seq.tomutable()
+                        curr_missing = [x for x in missing_reslist if x.chainID == chainID]
 
-                missing_residue_list = [x for x in missing_reslist_new
-                                        if type(x) == _PDB.MissingResidue]
-                missing_residues_filter = missing_residue_list
-            else:
-                fastas = list(_SeqIO.parse(open(self.fasta), 'fasta'))
-                missing_residues_filter = self._pdb_obj.missing_residues
-            _SeqIO.write([x for x in fastas if chains == "all" or x.id[5] in chains], self.fasta, "fasta")
-            if chains != "all":
-                missing_residues_filter = [x for x in missing_residues_filter if x.chainID in chains]
-            filter += missing_residues_filter
+                        for i in range(2):
+                            curr_missing.reverse()
+                            seq.reverse()
+                            current_chain = None
+                            for j in reversed(range(0, len(curr_missing))):
+                                res = curr_missing[j]
+                                if type(res) is _PDB.Missing.MissingResidue and current_chain != res.chainID:
+                                    del curr_missing[j]
+                                    del seq[j]
+                                else:
+                                    break
+                        fasta.seq = seq
+                        missing_reslist_new += curr_missing
+
+                    missing_residue_list = [x for x in missing_reslist_new if type(x) == _PDB.MissingResidue]
+                    missing_residues_filter = missing_residue_list
+                else:
+                    missing_residues_filter = self._pdb_obj.missing_residues
+
+                _SeqIO.write([x for x, y in zip(fastas, chainIDs) if chains == "all" or y in chains], self.fasta,
+                             "fasta")
+                if chains != "all":
+                    missing_residues_filter = [x for x in missing_residues_filter if x.chainID in chains]
+                filter += missing_residues_filter
 
             # filter by waters / anions / cations
             for param, name in zip([waters, simple_anions, complex_anions, simple_cations, complex_cations],
