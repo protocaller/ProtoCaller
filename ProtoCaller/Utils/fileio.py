@@ -41,13 +41,13 @@ class Dir:
         Keeps track of different places from which __enter__ has been called in order to avoid mistakes.
     """
     def __init__(self, dirname, copydirname=None, overwrite=False, temp=False, purge_immediately=True):
-        self.path = dirname
+        self.path = _os.path.normpath(dirname)
         if not _os.path.isabs(self.path):
             self.path = "%s/%s" % (_os.getcwd(), self.path)
         self.workdirname = _os.path.dirname(self.path)
         self.dirname = _os.path.basename(self.path)
 
-        self.copydirname = copydirname
+        self.copydirname = _os.path.normpath(copydirname)
         if self.copydirname and not _os.path.isabs(self.copydirname):
             self.copydirname = "%s/%s" % (_os.getcwd(), self.copydirname)
 
