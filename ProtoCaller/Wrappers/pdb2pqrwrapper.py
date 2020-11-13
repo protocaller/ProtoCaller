@@ -71,9 +71,16 @@ def pdb2pqrTransform(filename, **kwargs):
 
     default_kwargs = {**default_kwargs, **kwargs}
 
+    def write(msg):
+        msg = msg.strip()
+        if msg in ["", "*"] or "100%" in msg or "progress" in msg:
+            return None
+        if msg[-1] == ":":
+            msg = msg[:-1] + "..."
+        return _logging.info(msg)
+
     _logging.basicConfig(stream=_sys.stdout)
-    _logging.write = lambda msg: _logging.info(msg.strip()) \
-        if msg.strip() else None
+    _logging.write = write
     with _redirect_stdout(_logging):
         pdb = _readPDB(open(filename))[0]
         pdb = _runPDB2PQR(pdb, **default_kwargs)
