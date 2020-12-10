@@ -153,7 +153,7 @@ class Protein:
             self._ligand_ref = input
         elif isinstance(input, str):
             for i, ligand in enumerate(self.ligands):
-                _, _, chainID, resSeq = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", ligand.name).groups()
+                _, _, chainID, resSeq = _re.search(r"^([^_\W]+)_([^_\W]+)_([^_\W])_([^_\W]+)", ligand.name).groups()
                 chainID_inp, resSeq_inp, iCode_inp = self._residTransform(input)
                 if chainID == chainID_inp and resSeq == (str(resSeq_inp) + iCode_inp).strip():
                     self._ligand_ref = ligand
@@ -600,7 +600,7 @@ class Protein:
 
             # add cofactors to the system
             for cofactor in self.cofactors:
-                id = _re.search(r"^([\w]+)_([\w]+)_([\w])_([A-Z0-9]+)", cofactor.name).group(2)
+                id = _re.search(r"^([^_\W]+)_([^_\W]+)_([^_\W])_([^_\W]+)", cofactor.name).group(2)
                 cofactor.parametrise(params, reparametrise=reparametrise, molecule_type="cofactor", id=id)
                 system += _pmdwrap.openFilesAsParmed(cofactor.parametrised_files)
 
