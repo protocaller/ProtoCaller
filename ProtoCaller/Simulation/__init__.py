@@ -1,6 +1,7 @@
 import glob as _glob
 import logging as _logging
 import os as _os
+import subprocess as _subprocess
 
 import MDAnalysis as _MDAnalysis
 import numpy as _np
@@ -63,7 +64,7 @@ class RunGMX:
         for f, gro_file, top_file in zip(self.files, gro_files, top_files):
             f["gro"] = _os.path.abspath(gro_file)
             f["top"] = _os.path.abspath(top_file)
-        self._workdir = _fileio.Dir("%s/%s" % (work_dir, name))
+        self._workdir = _fileio.Dir(f"{work_dir}/{name}")
         self.lambda_dict = lambda_dict
         self.protocols = []
         self.mbar_data = []
@@ -73,9 +74,31 @@ class RunGMX:
         """int: Returns the number of lambda windows."""
         return len(self.files)
 
-    def runSimulation(self, name, multi=False, single_lambda=None, use_mpi=False, gpu_id=None, use_preset=None,
-                      replex=None, n_cores_per_process=None, n_nodes=1, n_processes=None, dlb=False,
-                      gmx_kwargs=None, **protocol_params):
+    @staticmethod
+    def _dict_to_arguments(argument_str, argument_dict, i):
+        for k, v in argument_dict.items():
+            argument_str += f" -{k}"
+            if v is not None:
+                argument_str += f" {str(v).format(i)}"
+        return argument_str
+
+    @staticmethod
+    def _gmx_version(executable):
+        version = _subprocess.check_output(f"{executable} -version", shell=True).decode()
+        version = int(next(x.split(".")[0] for x in version.split("\n")[0].split(" ") if x.split(".")[0].isnumeric()))
+        return version
+
+    def _update_files(self, i, filebase):
+        self.files[i] = {"top": self.files[i]["top"]}
+        output_files = _glob.glob(f"{filebase}.*")
+        for output_file in output_files:
+            ext = output_file.split(".")[-1].lower()
+            if ext != "tpr":
+                self.files[i][ext] = _os.path.abspath(output_file)
+
+    def runSimulation(self, name, multi=False, multidir=False, single_lambda=None, use_mpi=False, mdrun_mpi=False,
+                      gpu_id=None, use_preset=None, replex=None, plumed_file=None, n_cores_per_process=None, n_nodes=1,
+                      n_processes=None, dlb=False, gmx_kwargs=None, **protocol_params):
         """
         Runs a simulation in GROMACS.
 
@@ -85,11 +108,17 @@ class RunGMX:
             The name of the simulation.
         multi : bool, optional
             Whether to run the simulations in parallel, using -multi.
+        multidir : bool, optional
+            Whether to run the simulations in parallel, using -multidir. Overrides multi.
         single_lambda : None, int, optional
             An integer runs a simulation at a single lambda value and overrides multi and replex.
             None runs all lambda values.
         use_mpi : bool, optional
             Whether to use ProtoCaller.GROMACSEXE or GROMACSMPIEXE.
+        mdrun_mpi : bool, optional
+            Whether to call mdrun as "mdrun" or as "mdrun_mpi".
+        gpu_id : str, optional
+            Which GPU id to be used, if applicable.
         use_preset : str, Protocaller.Protocol.Protocol, None
             Which default preset to use. One of: "minimisation", "equilibration_nvt", "equilibration_npt", "production"
             "vacuum". You can alternatively pass a custom protocol here, in which case **protocol_params will not be
@@ -97,6 +126,8 @@ class RunGMX:
         replex : int or None, optional
             Attempts replica exchange after replex number of steps using PLUMED. None means no replica exchange.
             Overrides use_mpi and multi if not None.
+        plumed_file : str, optional
+            If replex is True, it uses this file as a configuration for PLUMED, otherwise an empty file is used.
         n_cores_per_process : int or None, optional
             Number of cores used per process. Default: let GROMACS decide.
         n_nodes : int, optional
@@ -114,29 +145,47 @@ class RunGMX:
         protocol_params
             Keyword arguments passed to ProtoCaller.Protocol.Protocol.
         """
+        # perform some checks and initialise some default values
         if n_processes is None:
             n_processes = 1 if single_lambda else self.lambda_size
-        ppn = n_processes // n_nodes
-        if n_nodes > 1:
+        if n_nodes > 1 or multi or multidir:
             use_mpi = True
         if single_lambda is not None:
-            replex = None
-            multi = False
+            replex, multi, multidir = None, False, False
         if replex is not None:
-            multi = True
-            use_mpi = True
+            use_mpi, multi = True, True
+
+        if mdrun_mpi:
+            MDRUNEXE = _os.path.dirname(_PC.GROMACSMPIEXE) + "/mdrun_mpi"
+        elif use_mpi:
+            MDRUNEXE = _PC.GROMACSMPIEXE + " mdrun"
+        else:
+            MDRUNEXE = _PC.GROMACSEXE + " mdrun"
+
+        if use_mpi or mdrun_mpi:
+            base_mdrun_command = f"{_PC.MPIEXE} -np {n_processes} --map-by ppr:{n_processes // n_nodes}:node {MDRUNEXE}"
+        else:
+            base_mdrun_command = MDRUNEXE
+
         gmx_kwargs = {} if gmx_kwargs is None else gmx_kwargs
         gmx_kwargs["dlb"] = "yes" if dlb else "no"
+        if n_cores_per_process is not None:
+            gmx_kwargs["ntomp"] = n_cores_per_process
         if gpu_id is not None:
             gmx_kwargs["gpu_id"] = gpu_id
 
+        # this is due to incompatibility between GROMACS 2019+ and multi
+        multidir = True if self._gmx_version(_PC.GROMACSMPIEXE) >= 2019 and multi else multidir
+
+        # initialise the protocol
         if isinstance(use_preset, _Protocol.Protocol):
             protocol = use_preset
         else:
             protocol = _Protocol.Protocol(use_preset=use_preset, **protocol_params, **self.lambda_dict)
         self.protocols += [protocol]
 
-        _logging.info("Running %s..." % name)
+        # run the simulations
+        _logging.info(f"Running {name}...")
         with self._workdir:
             with _fileio.Dir(name, overwrite=False):
                 # run single lambda if needed
@@ -145,85 +194,68 @@ class RunGMX:
                 else:
                     it = range(self.lambda_size)
 
-                # call grompp for every lambda
+                # call grompp for each lambda
                 for i in it:
-                    filebase = "%s_%d" % (name, i)
-                    protocol.init_lambda_state = i
-                    self.files[i]["mdp"] = _os.path.abspath(protocol.write(engine="GROMACS", filebase=filebase))
-                    grompp_args = {
-                        "-f": "mdp",
-                        "-c": "gro",
-                        "-p": "top",
-                        "-t": "cpt",
-                    }
+                    filebase = name if multidir else f"{name}_{i}"
+                    dirname = f"Lambda_{i}" if multidir else "."
+                    with _fileio.Dir(dirname):
+                        protocol.init_lambda_state = i
+                        self.files[i]["mdp"] = _os.path.abspath(protocol.write(engine="GROMACS", filebase=filebase))
+                        grompp_args = {
+                            "-f": "mdp",
+                            "-c": "gro",
+                            "-p": "top",
+                            "-t": "cpt",
+                        }
 
-                    grompp_command = "%s grompp -maxwarn 10 -o %s.tpr" % (_PC.GROMACSEXE, filebase)
-                    for grompp_arg, filetype in grompp_args.items():
-                        if filetype in self.files[i].keys():
-                            grompp_command += " %s '%s'" % (grompp_arg, self.files[i][filetype])
-                    _runexternal.runExternal(grompp_command, procname="gmx grompp")
+                        grompp_command = f"{_PC.GROMACSEXE} grompp -maxwarn 10 -o {filebase}.tpr"
+                        for grompp_arg, filetype in grompp_args.items():
+                            if filetype in self.files[i].keys():
+                                grompp_command += f" {grompp_arg} '{self.files[i][filetype]}'"
+                        _runexternal.runExternal(grompp_command, procname="gmx grompp")
 
-                    # call the simulation consecutively for every lambda if multi is not specified
-                    if not multi:
-                        if not use_mpi:
-                            mdrun_command = "{0} mdrun -s '{1}.tpr' -deffnm {1}".format(
-                                _PC.GROMACSEXE, filebase)
-                        else:
-                            mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} " \
-                                            "mdrun -s '{4}.tpr' -deffnm {4}".format(
-                                _PC.MPIEXE, n_processes, ppn, _PC.GROMACSMPIEXE, filebase)
+                # call the simulations consecutively for each lambda if multi is not specified
+                if not (multi or multidir):
+                    for i in it:
+                        filebase = f"{name}_{i}"
+                        gmx_kwargs["s"] = f"'{filebase}.tpr'"
+                        gmx_kwargs["deffnm"] = f"'{filebase}'"
 
-                        if n_cores_per_process:
-                            mdrun_command += " -ntomp {}".format(n_cores_per_process)
-
-                        # pass additional arguments
-                        for k, v in gmx_kwargs.items():
-                            mdrun_command += " -{}".format(k)
-                            if v is not None:
-                                mdrun_command += " {}".format(str(v).format(i))
-
+                        # run GROMACS
+                        mdrun_command = self._dict_to_arguments(base_mdrun_command, gmx_kwargs, i)
                         _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
                         # update files after the run
-                        self.files[i] = {"top" : self.files[i]["top"],}
-                        output_files = _glob.glob("%s.*" % filebase)
-                        for output_file in output_files:
-                            ext = output_file.split(".")[-1].lower()
-                            if ext != "tpr":
-                                self.files[i][ext] = _os.path.abspath(output_file)
-
+                        self._update_files(i, filebase)
                 # alternatively, run all simulations in parallel
-                if multi:
-                    filebase = name + "_"
-                    mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} mdrun -multi {4} -s {5}.tpr " \
-                                    "-deffnm {5}".format(
-                        _PC.MPIEXE, n_processes, ppn, _PC.GROMACSMPIEXE, self.lambda_size, filebase)
+                else:
+                    filebase = name if multidir else name + "_"
+                    gmx_kwargs["s"] = f"'{filebase}.tpr'"
+                    gmx_kwargs["deffnm"] = f"'{filebase}'"
+                    if multidir:
+                        gmx_kwargs["multidir"] = " ".join(f"Lambda_{i}" for i in it)
+                    else:
+                        gmx_kwargs["multi"] = f"{self.lambda_size}"
 
                     # run replica exchange with PLUMED if needed
                     if replex is not None:
-                        open("plumed.dat", "a").close()
-                        mdrun_command += " -plumed plumed.dat -replex {} -hrex".format(replex)
+                        if plumed_file is None:
+                            plumed_file = "plumed.dat"
+                            open(plumed_file, "a").close()
+                        gmx_kwargs["plumed"] = f"'{plumed_file}'"
+                        gmx_kwargs["replex"] = replex
+                        gmx_kwargs["hrex"] = None
 
-                    if n_cores_per_process:
-                        mdrun_command += " -ntomp {}".format(n_cores_per_process)
-
-                    # pass additional arguments
-                    for k, v in gmx_kwargs.items():
-                        mdrun_command += " -{}".format(k)
-                        if v is not None:
-                            mdrun_command += " {}".format(v)
-
+                    # run GROMACS
+                    mdrun_command = self._dict_to_arguments(base_mdrun_command, gmx_kwargs, i)
                     _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
                     # update files after the run
-                    for i in range(self.lambda_size):
-                        filebase = "%s_%d" % (name, i)
-                        self.files[i] = {"top": self.files[i]["top"], }
-                        output_files = _glob.glob("%s.*" % filebase)
-                        for output_file in output_files:
-                            ext = output_file.split(".")[-1].lower()
-                            if ext != "tpr":
-                                self.files[i][ext] = _os.path.abspath(output_file)
+                    for i in it:
+                        filebase = name if multidir else f"{name}_{i}"
+                        dirname = f"Lambda_{i}" if multidir else "."
+                        with _fileio.Dir(dirname):
+                            self._update_files(i, filebase)
 
     def generateMBARData(self, n_cores=None, n_nodes=1, cont=True):
         """
@@ -266,13 +298,13 @@ class RunGMX:
                         filebase = "Energy_%d_%d" % (i, j)
                         # we only overwrite the last generated energies, because they might be incomplete
                         if cont:
-                            filebase_next = "Energy_%d_%d" % (i + (j + 1) // len(self.files) , (j + 1) % len(self.files))
+                            filebase_next = "Energy_%d_%d" % (i + (j + 1) // len(self.files), (j + 1) % len(self.files))
                             files_current = _glob.glob("%s/%s.xvg" % (_os.getcwd(), filebase))
                             files_next = _glob.glob("%s/%s.xvg" % (_os.getcwd(), filebase_next))
                             if len(files_current) and len(files_next):
                                 run = False
                         if run:
-                            #use the last protocol or create a default one
+                            # use the last protocol or create a default one
                             if len(self.protocols):
                                 protocol = self.protocols[-1]
                             else:
@@ -304,7 +336,6 @@ class RunGMX:
                                 mdrun_command = "{0} -np {1} --map-by ppr:{2}:node {3} mdrun -s '{4}' -rerun '{5}' " \
                                                 "-deffnm {6}".format(_PC.MPIEXE, n_cores, ppn, _PC.GROMACSMPIEXE, tpr,
                                                                      trr, filebase)
-
 
                             _runexternal.runExternal(mdrun_command, procname="gmx mdrun")
 
