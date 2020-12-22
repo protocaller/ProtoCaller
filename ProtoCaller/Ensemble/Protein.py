@@ -1,3 +1,4 @@
+import copy as _copy
 import logging as _logging
 import os as _os
 import re as _re
@@ -318,15 +319,16 @@ class Protein:
             # filter missing residues
             if self._pdb_obj.missing_residues:
                 chainIDs = sorted({x.chainID for x in self._pdb_obj})
-                fastas = list(_SeqIO.parse(open(self.fasta), 'fasta'))
-                if len(fastas) != len(chainIDs):
-                    raise ValueError("The number of FASTA sequences does not match the number of chains")
+                fastas = self._openfasta(self.fasta)
+                if not set(chainIDs).issubset(set(fastas.keys())):
+                    raise ValueError("Not all chains are contained in the FASTA sequence")
 
                 if missing_residues == "middle":
                     missing_reslist = self._pdb_obj.totalResidueList()
                     missing_reslist_new = []
 
-                    for fasta, chainID in zip(fastas, chainIDs):
+                    for chainID in chainIDs:
+                        fasta = fastas[chainID]
                         seq = fasta.seq.tomutable()
                         curr_missing = [x for x in missing_reslist if x.chainID == chainID]
 
@@ -349,8 +351,8 @@ class Protein:
                 else:
                     missing_residues_filter = self._pdb_obj.missing_residues
 
-                _SeqIO.write([x for x, y in zip(fastas, chainIDs) if chains == "all" or y in chains], self.fasta,
-                             "fasta")
+                _SeqIO.write([fastas[chainId] for chainId in chainIDs if chains == "all" or chainID in chains],
+                             self.fasta, "fasta")
                 if chains != "all":
                     missing_residues_filter = [x for x in missing_residues_filter if x.chainID in chains]
                 filter += missing_residues_filter
@@ -622,6 +624,34 @@ class Protein:
                 _warnings.warn("Length of FASTA sequence ({}) does not match "
                                "the length of PDB sequence ({}). Please check "
                                "your input files.".format(seqlen, reslen))
+
+    @staticmethod
+    def _openfasta(fasta):
+        """
+        Opens a FASTA file downloaded from the PDB as a list of sequences.
+
+        Parameters
+        ----------
+        fasta : str
+
+        Returns
+        -------
+        data : dict
+        """
+        data = {}
+        for sequence in _SeqIO.parse(open(fasta), 'fasta'):
+            sequence.id = sequence.name = sequence.id.split("|")[0]
+            id_str = sequence.id
+            chain_str = [x for x in sequence.description.split("|") if "Chain" in x][0]
+            chains = chain_str.split(" ")[-1].split(",")
+            for chain in chains:
+                sequence_copy = _copy.copy(sequence)
+                sequence_copy.description = sequence.description.replace(chain_str, f"Chain {chain}")
+                id_str_copy = id_str.split("_")[0] + "_" + chain
+                sequence_copy.id = sequence_copy.name = id_str_copy
+                sequence_copy.description = sequence_copy.description.replace(id_str, id_str_copy)
+                data[chain] = sequence_copy
+        return data
 
     @staticmethod
     def _residTransform(id):
