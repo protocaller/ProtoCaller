@@ -28,21 +28,17 @@ requirements:
     - libnetcdf=4.6.2
     - mdanalysis
     - numpy
-    - openbabel<=2.4.1
+    - openbabel=2.4.1
     - parmed>=3.1.0
     - pdb2pqr=3.1.0
     - pdbfixer>=1.5
-    - propka=3.1.0
     - pygtail
     - pymbar
-    - pytest
     - rdkit
     - requests
     - selenium
     - selenium-requests
     - sire=2019.2.0
-    - tldextract
-    - xmltodict
 
 test:
   requires:
