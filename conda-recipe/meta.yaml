@@ -1,6 +1,6 @@
 package:
   name: protocaller
-  version: 1.1.2
+  version: 1.2.0
 
 source:
   path: ../
@@ -24,13 +24,13 @@ requirements:
     - biopython=1.76
     - biosimspace>=2019.2.0
     - geckodriver
-    - htmd-pdb2pqr
     - libcblas
     - libnetcdf=4.6.2
     - mdanalysis
     - numpy
     - openbabel<=2.4.1
     - parmed>=3.1.0
+    - pdb2pqr=3.1.0
     - pdbfixer>=1.5
     - propka=3.1.0
     - pygtail
