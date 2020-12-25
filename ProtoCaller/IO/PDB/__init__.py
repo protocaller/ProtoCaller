@@ -166,7 +166,7 @@ class PDB(Chain, _CondList.ConditionalList):
 
             # write site residues
             for i in range(0, len(self.site_residues), 4):
-                str_list = ["SITE              "]
+                str_list = ["SITE   {:>3d} DUM{:>3d} ".format(i // 4 + 1, len(self.site_residues))]
                 for residue in self.site_residues[i:min(i + 4, len(self.site_residues))]:
                     str_list += "{:>3.3} {:1.1}{:>4d}{:1.1} ".format(residue.resName, residue.chainID, residue.resSeq,
                                                                      residue.iCode)
