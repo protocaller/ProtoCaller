@@ -13,7 +13,7 @@ by an external SDF file that we generated using PyMOL.
 We also demonstrate that it is also possible to edit the PDB file
 inside ProtoCaller by creating two batches of structures - one from
 the altLoc A coordinates and one from the altLoc B coordinates in
-the original PDB file. . This functionality can be very useful when
+the original PDB file. This functionality can be very useful when
 the PDB files are not perfect and one needs to edit them in a
 controlled manner.
 
