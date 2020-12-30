@@ -37,12 +37,14 @@ stages:
           then
             conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab
           elif [ $(Build.SourceBranchName) == "devel" ]
+            CHANNELNAME=essexlab
           then
             conda build conda-recipe/meta.yaml -c conda-forge -c omnia -c michellab --token $(anacondaToken) --user essexlab --label dev
+            CHANNELNAME=essexlab/label/dev
           fi
 
           PCVERSION=$(less conda-recipe/meta.yaml | grep -Po '(?<=version: )\d.\d.\d')
-          PKG_BUILD_STRING=$(conda search -c essexlab/label/dev protocaller | grep $PCVERSION | head -n 1 | grep -Po "[\w]+[\s]+[\w.]+[\s]+\K[\w]+")
+          PKG_BUILD_STRING=$(conda search -c $CHANNELNAME protocaller | grep $PCVERSION | head -n 1 | grep -Po "[\w]+[\s]+[\w.]+[\s]+\K[\w]+")
 
           if [ $(Build.SourceBranchName) == "master" ]
           then
@@ -98,13 +100,14 @@ stages:
           export GIT_BUILD_STR=$(git rev-parse --short HEAD)
 
           PCVERSION=$(less conda-recipe/meta.yaml | ggrep -Po '(?<=version: )\d.\d.\d')
-          PKG_BUILD_STRING=$(conda search -c essexlab/label/dev protocaller | ggrep $PCVERSION | head -n 1 | ggrep -Po "[\w]+[\s]+[\w.]+[\s]+\K[\w]+")
 
           if [ $(Build.SourceBranchName) == "master" ]
           then
+            PKG_BUILD_STRING=$(conda search -c essexlab protocaller | ggrep $PCVERSION | head -n 1 | ggrep -Po "[\w]+[\s]+[\w.]+[\s]+\K[\w]+")
             $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller=$PCVERSION=$PKG_BUILD_STRING
           elif [ $(Build.SourceBranchName) == "devel" ]
           then
+            PKG_BUILD_STRING=$(conda search -c essexlab/label/dev protocaller | ggrep $PCVERSION | head -n 1 | ggrep -Po "[\w]+[\s]+[\w.]+[\s]+\K[\w]+")
             $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller=$PCVERSION=$PKG_BUILD_STRING
           fi
 
