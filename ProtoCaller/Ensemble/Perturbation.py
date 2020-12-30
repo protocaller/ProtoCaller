@@ -44,6 +44,8 @@ class Perturbation:
         self._ligand2_molecule = {}
         self._ligand1_coords = {}
         self._ligand2_coords = {}
+        self._ref_mcs = {}
+        self._mcs = {}
         self._morph = {}
         self.name = name
 
@@ -190,7 +192,7 @@ class Perturbation:
         self.current_ref = ref
         if ref in self._ligand1_molecule.keys() and ref in self._ligand1_coords.keys() and not realign:
             _logging.info("Morph %s is already aligned to a reference" % self.name)
-            return
+            return self._ref_mcs[ref]
 
         if output_filename is None:
             self.ligand1.parametrise(reparametrise=False)
@@ -200,10 +202,10 @@ class Perturbation:
             kwargs["two_way_matching"] = False
 
         lig_temp = _copy.deepcopy(self.ligand1.molecule)
-        self._ligand1_molecule[ref], mcs = _rdkit.alignTwoMolecules(ref.molecule, lig_temp, **kwargs)
+        self._ligand1_molecule[ref], self._ref_mcs[ref] = _rdkit.alignTwoMolecules(ref.molecule, lig_temp, **kwargs)
         self._ligand1_coords[ref] = _rdkit.saveFromRdkit(self._ligand1_molecule[ref], output_filename)
 
-        return mcs
+        return self._ref_mcs[ref]
 
     def alignToEachOther(self, output_filename=None, realign=False, **kwargs):
         """
@@ -227,7 +229,7 @@ class Perturbation:
         """
         if self.current_ref in self._morph.keys() and not realign:
             _logging.info("Morph %s is already aligned to a reference" % self.name)
-            return
+            return self._morph[self.current_ref], self._mcs[self.current_ref]
 
         if output_filename is None:
             self.ligand1.parametrise(reparametrise=False)
@@ -259,10 +261,10 @@ class Perturbation:
             mapping[indices_1[idx1]] = indices_2[idx2]
 
         # finally create morph
-        self._morph[self.current_ref] = _BSS.Align.merge(
-            ligand1_BSS, ligand2_BSS, mapping=mapping, allow_ring_breaking=True)
+        self._morph[self.current_ref], self._mcs[self.current_ref] = _BSS.Align.merge(
+            ligand1_BSS, ligand2_BSS, mapping=mapping, allow_ring_breaking=True), mcs
 
-        return self._morph[self.current_ref], mcs
+        return self._morph[self.current_ref], self._mcs[self.current_ref]
 
     def alignAndCreateMorph(self, ref):
         """

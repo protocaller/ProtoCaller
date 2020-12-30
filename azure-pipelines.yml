@@ -45,10 +45,10 @@ stages:
 
           if [ $(Build.SourceBranchName) == "master" ]
           then
-            conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller=$PCVERSION
+            conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller=$PCVERSION=$GIT_BUILD_STR
           elif [ $(Build.SourceBranchName) == "devel" ]
           then
-            conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller=$PCVERSION
+            conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller=$PCVERSION=$GIT_BUILD_STR
           fi
 
           $CONDA_PREFIX/bin/python -m pip install --upgrade pip
@@ -100,10 +100,10 @@ stages:
 
           if [ $(Build.SourceBranchName) == "master" ]
           then
-            $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller=$PCVERSION
+            $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab protocaller=$PCVERSION=$GIT_BUILD_STR
           elif [ $(Build.SourceBranchName) == "devel" ]
           then
-            $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller=$PCVERSION
+            $CONDA/bin/conda install -y -c conda-forge -c omnia -c michellab -c essexlab/label/dev protocaller=$PCVERSION=$GIT_BUILD_STR
           fi
 
           $CONDA_PREFIX/bin/python -m pip install --upgrade pip
