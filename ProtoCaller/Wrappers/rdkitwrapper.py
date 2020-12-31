@@ -126,7 +126,8 @@ def openAsRdkit(val, minimise=None, template=None, **kwargs):
         strings and no minimisation for molecules initialised from files.
     template : str
         Input value - SMILES, InChI strings or a filename for a template
-        from which bonds will be assigned. Only used when needed.
+        from which bonds will be assigned. Only used when val is not a SMILES
+        or an InChI string.
     kwargs
         Keyword arguments to be passed to the more specialsied RDKit functions.
 
@@ -189,8 +190,8 @@ def openAsRdkit(val, minimise=None, template=None, **kwargs):
                                "Resulting geometry might be wrong")
                 template = None
 
-            if template:
-                mol = AssignBondOrdersFromTemplate(template, mol)
+        if template:
+            mol = AssignBondOrdersFromTemplate(template, mol)
 
         # minimise the molecule using obminimize / GAFF
         if minimise:
@@ -246,7 +247,7 @@ def saveFromRdkit(mol, filename, **kwargs):
     return _os.path.abspath(filename)
 
 
-def AssignBondOrdersFromTemplate(ref, mol):
+def AssignBondOrdersFromTemplate(ref, mol, assign_charge=True):
     """
     A modification of rdkit.Chem.AllChem.AssignBondOrdersFromTemplate()
 
@@ -256,6 +257,8 @@ def AssignBondOrdersFromTemplate(ref, mol):
         The template molecule.
     mol : rdkit.Chem.rdchem.Mol
         The input molecule.
+    assign_charge : bool
+        Whether to transfer the charges from the template molecule as well.
 
     Returns
     -------
@@ -287,7 +290,8 @@ def AssignBondOrdersFromTemplate(ref, mol):
         a2 = mol.GetAtomWithIdx(match[a.GetIdx()])
         a2.SetHybridization(a.GetHybridization())
         a2.SetIsAromatic(a.GetIsAromatic())
-        a2.SetFormalCharge(a.GetFormalCharge())
+        if assign_charge:
+            a2.SetFormalCharge(a.GetFormalCharge())
 
     _Chem.SanitizeMol(mol)
     _Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
