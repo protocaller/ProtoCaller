@@ -44,7 +44,7 @@ def generate_teth(ref_mol, target_mol):  # generate sd file for tethred docking
                     w.close()
 
 def generate_prm(receptor_file, ref_mol):  # generate parameter file for rdock
-    with open('../template.prm', 'rt') as f:
+    with open('./template.prm', 'rt') as f:
         content = f.read()
     new_content = content.format(receptor_file=receptor_file, ref_mol=ref_mol)
     with open('cavity.prm', 'wt') as f:
