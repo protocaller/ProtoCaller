@@ -36,23 +36,34 @@ def pdbfixerTransform(filename, replace_nonstandard_residues,
         return _os.path.abspath(filename)
 
     fix = _pdbfix.PDBFixer(filename=filename)
+    changed_file = False
 
     if replace_nonstandard_residues:
         fix.findNonstandardResidues()
+        if fix.nonstandardResidues:
+            changed_file = True
         fix.replaceNonstandardResidues()
 
     if add_missing_residues:
         fix.findMissingResidues()
+        if fix.missingResidues:
+            changed_file = True
     else:
         fix.missingResidues = []
 
     if add_missing_atoms:
         fix.findMissingAtoms()
+        if fix.missingAtoms:
+            changed_file = True
     else:
         fix.missingAtoms = []
         fix.missingTerminals = []
 
-    fix.addMissingAtoms()
+    if not changed_file:
+        return filename
+
+    if add_missing_residues or add_missing_atoms:
+        fix.addMissingAtoms()
 
     filename_output = _os.path.splitext(filename)[0] + "_pdbfixer.pdb"
     _PDBFile.writeFile(fix.topology, fix.positions, open(filename_output, "w"))
