@@ -78,7 +78,7 @@ with Dir("DHFR", overwrite=False):
                         box_length_complex=8, workdir="6DAV_A")
     # here we only keep chain A and the crystal waters that belong to it
     system_A.protein.filter(ligands=None, simple_anions=None,
-                            simple_cations=None, waters="chains",
+                            simple_cations=None, waters="chain",
                             chains=["A"])
     system_A.protein.prepare()
     system_A.prepareComplexes()
@@ -96,7 +96,7 @@ with Dir("DHFR", overwrite=False):
     system_B = Ensemble(protein=protein_B, morphs=morphs,
                         box_length_complex=8, workdir="6DAV_B")
     system_B.protein.filter(ligands=None, simple_anions=None,
-                            simple_cations=None, waters="chains",
+                            simple_cations=None, waters="chain",
                             chains=["A"])
     system_B.protein.prepare()
     system_B.prepareComplexes()
