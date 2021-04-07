@@ -77,7 +77,7 @@ WATERNAMES = ["HOH", "WAT", "H2O", "SOL"]
 SIMPLEANIONNAMES = ["CL", "BR", "F", "I"]
 COMPLEXANIONNAMES = ["SO4", "PO4", "CO3"]
 SIMPLECATIONNAMES = ["MG", "NA", "CA", "K"]
-COMPLEXCATIONNAMES = ["FE", "CU", "NI", "CO", "MN", "CD"]
+COMPLEXCATIONNAMES = ["FE", "CU", "NI", "CO", "MN", "CD", "ZN"]
 AMINOACIDNAMES = ["ALA", "ARG", "ASH", "ASN", "ASP", "CYM", "CYS", "CYX", "GLH", "GLN", "GLU", "GLY", "HID", "HIE",
                  "HIS", "HIP", "ILE", "LEU", "LYN", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL"]
 
