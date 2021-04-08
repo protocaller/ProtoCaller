@@ -247,7 +247,7 @@ def saveFromRdkit(mol, filename, **kwargs):
     return _os.path.abspath(filename)
 
 
-def AssignBondOrdersFromTemplate(ref, mol, assign_charge=True):
+def AssignBondOrdersFromTemplate(ref, mol, assign_charge=True, fix_charges=True):
     """
     A modification of rdkit.Chem.AllChem.AssignBondOrdersFromTemplate()
 
@@ -259,12 +259,15 @@ def AssignBondOrdersFromTemplate(ref, mol, assign_charge=True):
         The input molecule.
     assign_charge : bool
         Whether to transfer the charges from the template molecule as well.
+    fix_charges : bool
+        Automatically sets the charges based on valency (only for C, N and O).
 
     Returns
     -------
     mol : rdkit.Chem.rdchem.Mol
         The new molecule.
     """
+    ref = _rdmolops.RemoveHs(ref)
     mol = _copy.copy(mol)
     _, match_ref, match_mol = _matchAndReturnMatches([ref, mol], bondCompare='any', atomCompare='elements')
 
@@ -292,6 +295,23 @@ def AssignBondOrdersFromTemplate(ref, mol, assign_charge=True):
         a2.SetIsAromatic(a.GetIsAromatic())
         if assign_charge:
             a2.SetFormalCharge(a.GetFormalCharge())
+
+    # TODO: expand these dicts?
+    neutral_valences = {
+        "O": 2,
+        "N": 3,
+        "C": 4,
+    }
+
+    if fix_charges:
+        for i, a in enumerate(mol.GetAtoms()):
+            if a.GetSymbol() in neutral_valences:
+                new_charge = a.GetExplicitValence() - neutral_valences[a.GetSymbol()]
+                old_charge = a.GetFormalCharge()
+                if old_charge != new_charge:
+                    _warnings.warn(f"Unexpected charge at atom {i}: {old_charge}. Changing charge to {new_charge}. "
+                                   f"Please check your molecule")
+                a.SetFormalCharge(new_charge)
 
     _Chem.SanitizeMol(mol)
     _Chem.AssignStereochemistry(mol, cleanIt=True, force=True)

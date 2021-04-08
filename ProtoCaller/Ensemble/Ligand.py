@@ -95,7 +95,9 @@ class Ligand:
     def string(self, val):
         if not _os.path.exists(val):
             self._molecule = _rdkit.openAsRdkit(val, minimise=self.minimise)
-            self._string = _rdmolfiles.MolToSmiles(self._molecule)
+            self._molecule = _rdmolops.RemoveHs(self._molecule, updateExplicitCount=True)
+            self._molecule = _rdmolops.AddHs(self._molecule, addCoords=True)
+            self._string = _rdmolfiles.MolToSmiles(self._molecule, allHsExplicit=True)
         else:
             raise ValueError("Need a SMILES or InChI string instead of a filename")
 
@@ -108,7 +110,7 @@ class Ligand:
     def molecule(self, val):
         if isinstance(val, _rdchem.Mol):
             self._molecule = val
-            self._string = _rdmolfiles.MolToSmiles(self._molecule)
+            self._string = _rdmolfiles.MolToSmiles(self._molecule, allHsExplicit=True)
         else:
             raise TypeError("Need an object of type RDKit Mol")
 
@@ -131,7 +133,7 @@ class Ligand:
             else:
                 self._protonated_filename = _fileio.checkFileExists(val)
                 self._molecule = _rdkit.openAsRdkit(self._protonated_filename, removeHs=False, minimise=self.minimise)
-                self._string = _rdmolfiles.MolToSmiles(self.molecule)
+                self._string = _rdmolfiles.MolToSmiles(self.molecule, allHsExplicit=True)
                 self._protonated = True
 
     @property
