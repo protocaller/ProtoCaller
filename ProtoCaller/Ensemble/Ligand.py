@@ -58,6 +58,7 @@ class Ligand:
             elif isinstance(input, str):
                 if _os.path.exists(input):
                     if protonated:
+                        self.minimise = bool(minimise)
                         self.protonated_filename = input
                     else:
                         self.molecule = _rdkit.openAsRdkit(input, minimise=minimise)
@@ -131,8 +132,15 @@ class Ligand:
                 self._protonated_filename = None
                 self._protonated = False
             else:
-                self._protonated_filename = _fileio.checkFileExists(val)
-                self._molecule = _rdkit.openAsRdkit(self._protonated_filename, removeHs=False, minimise=self.minimise)
+                if self.minimise:
+                    val = _fileio.checkFileExists(val)
+                    self._molecule = _rdkit.openAsRdkit(val, removeHs=False, minimise=True)
+                    input_base, input_ext = _os.path.splitext(val)[0], val.split(".")[-1]
+                    self._protonated_filename = "%s_minimised.%s" % (input_base, input_ext)
+                    _rdkit.saveFromRdkit(self._molecule, self._protonated_filename)
+                else:
+                    self._protonated_filename = _fileio.checkFileExists(val)
+                    self._molecule = _rdkit.openAsRdkit(self._protonated_filename, removeHs=False, minimise=False)
                 self._string = _rdmolfiles.MolToSmiles(self.molecule, allHsExplicit=True)
                 self._protonated = True
 
