@@ -133,8 +133,15 @@ class Protein:
         if input is None and self._downloader:
             input = self._downloader.getLigands()
         if input:
-            self._ligands = [Ligand(x, name=_os.path.splitext(_os.path.basename(x))[0], workdir=".", minimise=False)
-                             if not isinstance(x, Ligand) else x for x in input]
+            for ligand in input:
+                if not isinstance(ligand, Ligand):
+                    try:
+                        ligand = Ligand(ligand, name=_os.path.splitext(_os.path.basename(ligand))[0], workdir=".",
+                                        minimise=False)
+                    except Exception as e:
+                        _logging.error(f"There was an error initialising the ligand {ligand}: {e}. Skipping ligand...")
+                        continue
+                self._ligands += [ligand]
 
     @property
     def ligand_ref(self):
