@@ -1,6 +1,19 @@
 Changelog
 =========
 
+`ProtoCaller 1.2.0 <https://github.com/protocaller/ProtoCaller/releases/tag/1.2.0>`_
+------------------------------------------------------------------------------------
+
+* Replaced htmd-pdb2pqr with pdb2pqr 3.1.0
+
+`ProtoCaller 1.1.2 <https://github.com/protocaller/ProtoCaller/releases/tag/1.1.2>`_
+------------------------------------------------------------------------------------
+
+* Compatibility with the new Protein Data Bank API
+* Improved compatibility with GROMACS 2020
+* Fixed some issues related to cofactors
+* Various bug fixes
+
 `ProtoCaller 1.1.1 <https://github.com/protocaller/ProtoCaller/releases/tag/1.1.1>`_
 ------------------------------------------------------------------------------------
 
